@@ -46,3 +46,5 @@ DartConfiguration.tcl
 *.cmake
 CMakeCache.txt
 imgui.ini
+include/CMakeLists.txt
+libs/CMakeLists.txt
