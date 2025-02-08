@@ -359,7 +359,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 void updateTitle(GLFWwindow* window, const char* title, double fps) {
 	char newTitle[256];
-	sprintf_s(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f", title, fps, cursorPos.x, cursorPos.y);
+	sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f", 
+			title, fps, cursorPos.x, cursorPos.y);
 	glfwSetWindowTitle(window, newTitle);
 }
 
