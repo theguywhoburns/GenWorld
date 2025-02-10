@@ -18,6 +18,7 @@ private:
 	unsigned int numCellsLength;
 	float stepX;
 	float stepZ;
+	float *curvePoints;
 
 	// Noise Parameters
 	float lacunarity = 2.0f;	// Adjust for frequency of noise
@@ -36,7 +37,7 @@ public:
 		glm::vec4 color;
 	};
 	Mesh* GenerateTerrain();
-	void SetTerrainData(float width, float length, int cellSize, float heightMultiplier);
+	void SetTerrainData(float width, float length, int cellSize, float heightMultiplier, float curvePoints[5]);
 	void SetNoiseParameters(float lacunarity, float persistence, float scale);
 	void SetNoiseSettings(int octaves, int seed, glm::vec2 offset);
 	void SetColorData(VertexColor colors[4]);

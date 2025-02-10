@@ -1,3 +1,4 @@
+#include <ImGuiCurveTest.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -59,6 +60,7 @@ float width = 100;
 float length = 100;
 int divisionSize = 1;
 float terrainHeightMultiplier = 10;
+static float v[5] = { 0.673f, 0.0f, 1.0f, 0.0f };
 
 // Noise Data
 float lacunarity = 2.0f; // Adjust for frequency of noise
@@ -79,7 +81,7 @@ TerrainGenerator::VertexColor colors[4] = {
 Mesh* terrain;
 TerrainGenerator terrainGenerator;
 void InitializeTerrain() {
-	terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier);
+	terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier, v);
 	terrainGenerator.SetNoiseParameters(lacunarity, persistence, scale);
 	terrainGenerator.SetNoiseSettings(octaves, seed, offset);
 	terrainGenerator.SetColorData(colors);
@@ -227,11 +229,11 @@ bool SettingsGUI() {
 	if (ImGui::DragFloat("Width", &width, 0.1f, 1, 100) ||
 		ImGui::DragFloat("Length", &length, 0.1f, 1, 100) ||
 		ImGui::SliderInt("Division Size", &divisionSize, 1, 10) ||
-		ImGui::DragFloat("Height Multiplier", &terrainHeightMultiplier, 0.1f, 1, 100)
-		)
-	{
+		ImGui::DragFloat("Height Multiplier", &terrainHeightMultiplier, 0.1f, 1, 100) ||
+		ImGui::Bezier("easeOutSine", v)       // draw
+		) {
 		valuesChanged = true;
-		terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier);
+		terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier, v);
 	}
 
 	ImGui::Separator();
@@ -359,8 +361,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 void updateTitle(GLFWwindow* window, const char* title, double fps) {
 	char newTitle[256];
-	sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f", 
-			title, fps, cursorPos.x, cursorPos.y);
+	sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f",
+		title, fps, cursorPos.x, cursorPos.y);
 	glfwSetWindowTitle(window, newTitle);
 }
 

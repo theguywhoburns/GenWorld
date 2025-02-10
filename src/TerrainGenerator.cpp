@@ -1,4 +1,5 @@
 #include <TerrainGenerator.h>
+#include <ImGuiCurveTest.h>
 
 Mesh* TerrainGenerator::GenerateTerrain() {
 	vector<Vertex> vertices;
@@ -9,7 +10,9 @@ Mesh* TerrainGenerator::GenerateTerrain() {
 			
 			float x = j * stepX - halfWidth;
 			float z = i * stepZ - halfLength;
-			float y = PerlinNoise(x, z) * this->heightMultiplier;
+			float y = PerlinNoise(x, z);
+			
+			y *= ImGui::BezierValue(y, curvePoints) * this->heightMultiplier;
 			vertex.Position = glm::vec3(x, y, z);
 
 
@@ -38,13 +41,14 @@ Mesh* TerrainGenerator::GenerateTerrain() {
 	return new Mesh(vertices, indices, vector<Texture>());
 }
 
-void TerrainGenerator::SetTerrainData(float width, float length, int cellSize, float heightMultiplier) {
+void TerrainGenerator::SetTerrainData(float width, float length, int cellSize, float heightMultiplier, float curvePoints[5]) {
 	this->width = width;
 	this->length = length;
 	this->cellSize = cellSize;
 	this->heightMultiplier = heightMultiplier;
 	this->halfWidth = width / 2;
 	this->halfLength = length / 2;
+	this->curvePoints = curvePoints;
 
 	numCellsWidth = static_cast<int>(width / cellSize) + 1;
 	numCellsLength = static_cast<int>(length / cellSize) + 1;
