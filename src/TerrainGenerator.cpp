@@ -4,6 +4,7 @@
 Mesh* TerrainGenerator::GenerateTerrain() {
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
+	
 	for (unsigned int i = 0; i < numCellsLength; i++) {
 		for (unsigned int j = 0; j < numCellsWidth; j++) {
 			Vertex vertex;
@@ -11,18 +12,18 @@ Mesh* TerrainGenerator::GenerateTerrain() {
 			float x = j * stepX - halfWidth;
 			float z = i * stepZ - halfLength;
 			float y = PerlinNoise(x, z);
-			
-			y *= ImGui::BezierValue(y, curvePoints) * this->heightMultiplier;
-			vertex.Position = glm::vec3(x, y, z);
-
+			y *= ImGui::EvaluateCurve(curvePoints, y);
 
 			// Calculate color
-			glm::vec3 vertexColor = getColor(y / this->heightMultiplier);
+			glm::vec3 vertexColor = getColor(y);
 			vertex.Normal = vertexColor;			//! change this later to normal
+
+
+			y *= heightMultiplier;
+			vertex.Position = glm::vec3(x, y, z);
 
 			// Calculate UVs
 			vertex.TexCoords = glm::vec2((float)j / (numCellsWidth - 1), (float)i / (numCellsLength - 1));
-
 			vertices.push_back(vertex);
 
 			// indices
@@ -41,7 +42,7 @@ Mesh* TerrainGenerator::GenerateTerrain() {
 	return new Mesh(vertices, indices, vector<Texture>());
 }
 
-void TerrainGenerator::SetTerrainData(float width, float length, int cellSize, float heightMultiplier, float curvePoints[5]) {
+void TerrainGenerator::SetTerrainData(float width, float length, int cellSize, float heightMultiplier, ImGui::point curvePoints[4]) {
 	this->width = width;
 	this->length = length;
 	this->cellSize = cellSize;
@@ -85,10 +86,11 @@ float TerrainGenerator::PerlinNoise(float x, float z) {
 	float noiseHeight = 0;
 
 	for (int j = 0; j < octaves; j++) {
-		float sampleX = x / (scale * frequency) + octaveOffsets[j].x;
-		float sampleZ = z / (scale * frequency) + octaveOffsets[j].y;
+		float sampleX = (x - halfWidth) / scale * frequency + octaveOffsets[j].x * frequency;
+		float sampleZ = (z - halfLength) / scale * frequency - octaveOffsets[j].y * frequency;
 
 		float perlinValue = glm::perlin(glm::vec2(sampleX, sampleZ));
+		perlinValue = (perlinValue + 1.0f) * 0.5f;
 		noiseHeight += perlinValue * amplitude;
 
 		amplitude *= persistence;

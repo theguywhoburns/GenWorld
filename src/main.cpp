@@ -60,7 +60,7 @@ float width = 100;
 float length = 100;
 int divisionSize = 1;
 float terrainHeightMultiplier = 10;
-static float v[5] = { 0.673f, 0.0f, 1.0f, 0.0f };
+ImGui::point v[4] = { {0.0f, 0.0f}, {0.5f, 0.0f}, {0.5f, 1.0f}, {1.0f, 1.0f} };
 
 // Noise Data
 float lacunarity = 2.0f; // Adjust for frequency of noise
@@ -230,7 +230,7 @@ bool SettingsGUI() {
 		ImGui::DragFloat("Length", &length, 0.1f, 1, 100) ||
 		ImGui::SliderInt("Division Size", &divisionSize, 1, 10) ||
 		ImGui::DragFloat("Height Multiplier", &terrainHeightMultiplier, 0.1f, 1, 100) ||
-		ImGui::Bezier("easeOutSine", v)       // draw
+		ImGui::DrawCurve("easeOutSine", v)       // draw
 		) {
 		valuesChanged = true;
 		terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier, v);
