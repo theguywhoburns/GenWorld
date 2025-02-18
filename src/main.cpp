@@ -71,7 +71,14 @@ int seed = 1337;
 glm::vec2 offset = glm::vec2(0.0f, 0.0f);
 
 // Color Data
-TerrainGenerator::VertexColor colors[4] = {
+// TerrainUtilities::VertexColor colors[4] = {
+// 	{0.0f, glm::vec4(0.35f, 0.49f, 0.72f, 1.0f)},
+// 	{0.5f, glm::vec4(1.0f, 1.0f, 0.64f, 1.0f)},
+// 	{0.75f, glm::vec4(0.55f, 0.9f, 0.61f, 1.0f)},
+// 	{1.0f, glm::vec4(0.52f, 0.52f, 0.52f, 1.0f)}
+// };
+
+std::vector<TerrainUtilities::VertexColor> colors = {
 	{0.0f, glm::vec4(0.35f, 0.49f, 0.72f, 1.0f)},
 	{0.5f, glm::vec4(1.0f, 1.0f, 0.64f, 1.0f)},
 	{0.75f, glm::vec4(0.55f, 0.9f, 0.61f, 1.0f)},
@@ -268,18 +275,76 @@ bool SettingsGUI() {
 	return valuesChanged || noiseParamsChanged || noiseSettingsChanged;
 }
 
+// bool ColorSettingsGUI() {
+// 	bool valuesChanged = false;
+
+// 	ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+// 	ImGui::Text("Color Settings");
+
+// 	for (int i = 0; i < 4; i++) {
+// 		string index = to_string(i + 1);
+// 		ImGui::Text(("Color " + index).c_str());
+// 		valuesChanged |=
+// 			ImGui::ColorEdit3(("Color " + index).c_str(), &colors[i].color[0]) |
+// 			ImGui::SliderFloat(("Height " + index).c_str(), &colors[i].height, 0.0f, 1.0f);
+// 	}
+
+// 	ImGui::End();
+
+// 	if (valuesChanged) {
+// 		terrainGenerator.SetColorData(colors);
+// 	}
+	
+
+// 	return valuesChanged;
+// }
+
 bool ColorSettingsGUI() {
 	bool valuesChanged = false;
 
 	ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
 	ImGui::Text("Color Settings");
 
-	for (int i = 0; i < 4; i++) {
-		string index = to_string(i + 1);
+	for (size_t i = 0; i < colors.size(); i++) {
+		std::string index = std::to_string(i + 1);
 		ImGui::Text(("Color " + index).c_str());
+
+		// Color picker & height slider
 		valuesChanged |=
-			ImGui::ColorEdit3(("Color " + index).c_str(), &colors[i].color[0]) |
-			ImGui::SliderFloat(("Height " + index).c_str(), &colors[i].height, 0.0f, 1.0f);
+			ImGui::ColorEdit3(("Color##" + index).c_str(), &colors[i].color[0]) |
+			ImGui::SliderFloat(("Height##" + index).c_str(), &colors[i].height, 0.0f, 1.0f);
+
+		ImGui::SameLine();
+		if (ImGui::Button(("X##" + index).c_str())) {
+			colors.erase(colors.begin() + i);
+			valuesChanged = true;
+			continue;
+		}
+
+		// Reordering buttons
+		if (i > 0) {
+			ImGui::SameLine();
+			if (ImGui::Button(("▲##" + index).c_str())) {
+				std::swap(colors[i], colors[i - 1]);
+				valuesChanged = true;
+			}
+		}
+		if (i < colors.size() - 1) {
+			ImGui::SameLine();
+			if (ImGui::Button(("▼##" + index).c_str())) {
+				std::swap(colors[i], colors[i + 1]);
+				valuesChanged = true;
+			}
+		}
+	}
+
+	// Add new color button
+	if (ImGui::Button("Add Color")) {
+		TerrainUtilities::VertexColor defaultColor;
+		defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		defaultColor.height = 0.5f;
+		colors.push_back(defaultColor);
+		valuesChanged = true;
 	}
 
 	ImGui::End();
@@ -290,6 +355,7 @@ bool ColorSettingsGUI() {
 
 	return valuesChanged;
 }
+
 
 #pragma region Callbacks
 void calculateDeltaTime() {

@@ -5,36 +5,36 @@ Mesh* TerrainGenerator::GenerateTerrain() {
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
 	
-	for (unsigned int i = 0; i < numCellsLength; i++) {
-		for (unsigned int j = 0; j < numCellsWidth; j++) {
+	for (unsigned int i = 0; i < terrainData.numCellsLength; i++) {
+		for (unsigned int j = 0; j < terrainData.numCellsWidth; j++) {
 			Vertex vertex;
 			
-			float x = j * stepX - halfWidth;
-			float z = i * stepZ - halfLength;
+			float x = j * terrainData.stepX - terrainData.halfWidth;
+			float z = i * terrainData.stepZ - terrainData.halfLength;
 			float y = PerlinNoise(x, z);
-			y *= ImGui::EvaluateCurve(curvePoints, y);
+			y *= ImGui::EvaluateCurve(terrainData.curvePoints, y);
 
 			// Calculate color
 			glm::vec3 vertexColor = getColor(y);
 			vertex.Normal = vertexColor;			//! change this later to normal
 
 
-			y *= heightMultiplier;
+			y *= terrainData.heightMultiplier;
 			vertex.Position = glm::vec3(x, y, z);
 
 			// Calculate UVs
-			vertex.TexCoords = glm::vec2((float)j / (numCellsWidth - 1), (float)i / (numCellsLength - 1));
+			vertex.TexCoords = glm::vec2((float)j / (terrainData.numCellsWidth - 1), (float)i / (terrainData.numCellsLength - 1));
 			vertices.push_back(vertex);
 
 			// indices
-			if (i < numCellsLength - 1 && j < numCellsWidth - 1) {
-				indices.push_back(i * numCellsWidth + j);
-				indices.push_back(i * numCellsWidth + j + 1);
-				indices.push_back((i + 1) * numCellsWidth + j + 1);
+			if (i < terrainData.numCellsLength - 1 && j < terrainData.numCellsWidth - 1) {
+				indices.push_back(i * terrainData.numCellsWidth + j);
+				indices.push_back(i * terrainData.numCellsWidth + j + 1);
+				indices.push_back((i + 1) * terrainData.numCellsWidth + j + 1);
 
-				indices.push_back(i * numCellsWidth + j);
-				indices.push_back((i + 1) * numCellsWidth + j + 1);
-				indices.push_back((i + 1) * numCellsWidth + j);
+				indices.push_back(i * terrainData.numCellsWidth + j);
+				indices.push_back((i + 1) * terrainData.numCellsWidth + j + 1);
+				indices.push_back((i + 1) * terrainData.numCellsWidth + j);
 			}
 		}
 	}
@@ -43,41 +43,39 @@ Mesh* TerrainGenerator::GenerateTerrain() {
 }
 
 void TerrainGenerator::SetTerrainData(float width, float length, int cellSize, float heightMultiplier, ImGui::point curvePoints[4]) {
-	this->width = width;
-	this->length = length;
-	this->cellSize = cellSize;
-	this->heightMultiplier = heightMultiplier;
-	this->halfWidth = width / 2;
-	this->halfLength = length / 2;
-	this->curvePoints = curvePoints;
+	terrainData.width = width;
+	terrainData.length = length;
+	terrainData.cellSize = cellSize;
+	terrainData.heightMultiplier = heightMultiplier;
+	terrainData.halfWidth = width / 2;
+	terrainData.halfLength = length / 2;
+	terrainData.curvePoints = curvePoints;
 
-	numCellsWidth = static_cast<int>(width / cellSize) + 1;
-	numCellsLength = static_cast<int>(length / cellSize) + 1;
+	terrainData.numCellsWidth = static_cast<int>(width / cellSize) + 1;
+	terrainData.numCellsLength = static_cast<int>(length / cellSize) + 1;
 
-	if (numCellsWidth < 2) numCellsWidth = 2;
-	if (numCellsLength < 2) numCellsLength = 2;
+	if (terrainData.numCellsWidth < 2) terrainData.numCellsWidth = 2;
+	if (terrainData.numCellsLength < 2) terrainData.numCellsLength = 2;
 
-	stepX = width / (numCellsWidth - 1);
-	stepZ = length / (numCellsLength - 1);
+	terrainData.stepX = width / (terrainData.numCellsWidth - 1);
+	terrainData.stepZ = length / (terrainData.numCellsLength - 1);
 }
 
 void TerrainGenerator::SetNoiseParameters(float lacunarity, float persistence, float scale) {
-	this->lacunarity = lacunarity;
-	this->persistence = persistence;
-	this->scale = scale;
+	terrainData.lacunarity = lacunarity;
+	terrainData.persistence = persistence;
+	terrainData.scale = scale;
 }
 
 void TerrainGenerator::SetNoiseSettings(int octaves, int seed, glm::vec2 offset) {
-	this->octaves = octaves;
-	this->seed = seed;
-	this->offset = offset;
+	terrainData.octaves = octaves;
+	terrainData.seed = seed;
+	terrainData.offset = offset;
 	updateSeedOffset();
 }
 
-void TerrainGenerator::SetColorData(VertexColor colors[4]) {
-	for (int i = 0; i < 4; i++) {
-		this->colors[i] = colors[i];
-	}
+void TerrainGenerator::SetColorData(vector<VertexColor> colors) {
+	terrainData.colors = colors;
 }
 
 float TerrainGenerator::PerlinNoise(float x, float z) {
@@ -85,16 +83,16 @@ float TerrainGenerator::PerlinNoise(float x, float z) {
 	float amplitude = 1;
 	float noiseHeight = 0;
 
-	for (int j = 0; j < octaves; j++) {
-		float sampleX = (x - halfWidth) / scale * frequency + octaveOffsets[j].x * frequency;
-		float sampleZ = (z - halfLength) / scale * frequency - octaveOffsets[j].y * frequency;
+	for (int j = 0; j < terrainData.octaves; j++) {
+		float sampleX = (x - terrainData.halfWidth) / terrainData.scale * frequency + terrainData.octaveOffsets[j].x * frequency;
+		float sampleZ = (z - terrainData.halfLength) / terrainData.scale * frequency - terrainData.octaveOffsets[j].y * frequency;
 
 		float perlinValue = glm::perlin(glm::vec2(sampleX, sampleZ));
 		perlinValue = (perlinValue + 1.0f) * 0.5f;
 		noiseHeight += perlinValue * amplitude;
 
-		amplitude *= persistence;
-		frequency *= lacunarity;
+		amplitude *= terrainData.persistence;
+		frequency *= terrainData.lacunarity;
 	}
 
 	return noiseHeight;
@@ -102,20 +100,26 @@ float TerrainGenerator::PerlinNoise(float x, float z) {
 
 void TerrainGenerator::updateSeedOffset() {
 	// Seed random number generator
-	srand(seed);
-	octaveOffsets.resize(octaves);
+	srand(terrainData.seed);
+	terrainData.octaveOffsets.resize(terrainData.octaves);
 
-	for (int i = 0; i < octaves; i++) {
-		float offsetX = static_cast<float>(rand() % 10000 - 5000) + offset.x;
-		float offsetY = static_cast<float>(rand() % 10000 - 5000) + offset.y;
-		octaveOffsets[i] = glm::vec2(offsetX, offsetY);
+	for (int i = 0; i < terrainData.octaves; i++) {
+		float offsetX = static_cast<float>(rand() % 10000 - 5000) + terrainData.offset.x;
+		float offsetY = static_cast<float>(rand() % 10000 - 5000) + terrainData.offset.y;
+		terrainData.octaveOffsets[i] = glm::vec2(offsetX, offsetY);
 	}
 }
 
 glm::vec3 TerrainGenerator::getColor(float height) {
-	glm::vec3 color = glm::vec3(0.0f);
-	if (height <= colors[0].height) return colors[0].color;
-	else if (height <= colors[1].height) return colors[1].color;
-	else if (height <= colors[2].height) return colors[2].color;
-	else return colors[3].color;
+	if(height < terrainData.colors[0].height) {
+		return terrainData.colors[0].color;
+	}
+	
+	for (unsigned int i = 0; i < terrainData.colors.size() - 1; i++) {
+		if(height < terrainData.colors[i].height) {
+			return terrainData.colors[i].color;
+		}
+	}
+
+	return terrainData.colors[terrainData.colors.size() - 1].color;
 }
