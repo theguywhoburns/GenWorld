@@ -48,8 +48,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void updateTitle(GLFWwindow* window, const char* title, double fps);
 void mouseClick_callback(GLFWwindow* window, int button, int action, int mods);
 
-unsigned int SCR_WIDTH = 800;
-unsigned int SCR_HEIGHT = 600;
+unsigned int SCR_WIDTH = 1024;
+unsigned int SCR_HEIGHT = 768;
 
 // GUI Functions
 bool SettingsGUI();
@@ -59,30 +59,26 @@ bool ColorSettingsGUI();
 float width = 100;
 float length = 100;
 int divisionSize = 1;
-float terrainHeightMultiplier = 10;
-ImGui::point v[4] = { {0.0f, 0.0f}, {0.5f, 0.0f}, {0.5f, 1.0f}, {1.0f, 1.0f} };
+float terrainHeightMultiplier = 7;
+ImGui::point v[4] = { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.5f} };
 
 // Noise Data
 float lacunarity = 2.0f; // Adjust for frequency of noise
 float persistence = 0.5f; // Adjust for amplitude of noise
-float scale = 25.0f; // Adjust for overall height of terrain
+float scale = 50.0f; // Adjust for overall height of terrain
 int octaves = 4; // Adjust for number of noise layers
-int seed = 1337;
+int seed = 0;
 glm::vec2 offset = glm::vec2(0.0f, 0.0f);
 
-// Color Data
-// TerrainUtilities::VertexColor colors[4] = {
-// 	{0.0f, glm::vec4(0.35f, 0.49f, 0.72f, 1.0f)},
-// 	{0.5f, glm::vec4(1.0f, 1.0f, 0.64f, 1.0f)},
-// 	{0.75f, glm::vec4(0.55f, 0.9f, 0.61f, 1.0f)},
-// 	{1.0f, glm::vec4(0.52f, 0.52f, 0.52f, 1.0f)}
-// };
-
 std::vector<TerrainUtilities::VertexColor> colors = {
-	{0.0f, glm::vec4(0.35f, 0.49f, 0.72f, 1.0f)},
-	{0.5f, glm::vec4(1.0f, 1.0f, 0.64f, 1.0f)},
-	{0.75f, glm::vec4(0.55f, 0.9f, 0.61f, 1.0f)},
-	{1.0f, glm::vec4(0.52f, 0.52f, 0.52f, 1.0f)}
+	{0.1f, glm::vec4(0.15f, 0.22f, 0.34f, 1.0f)},  // Deep Water (Dark Blue)
+	{0.15f, glm::vec4(0.2f, 0.4f, 0.6f, 1.0f)},   // Shallow Water (Lighter Blue)
+	{0.25f, glm::vec4(0.8f, 0.7f, 0.4f, 1.0f)},   // Sand (Yellowish)
+	{0.35f, glm::vec4(0.3f, 0.6f, 0.2f, 1.0f)},   // Grass (Green)
+	{0.5f, glm::vec4(0.4f, 0.7f, 0.3f, 1.0f)},    // Lush Grass (Brighter Green)
+	{0.65f, glm::vec4(0.5f, 0.4f, 0.2f, 1.0f)},   // Dirt (Brown)
+	{0.9f, glm::vec4(0.6f, 0.6f, 0.6f, 1.0f)},    // Rock (Gray)
+	{1.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},   // Snow (White)
 };
 
 Mesh* terrain;
@@ -274,30 +270,6 @@ bool SettingsGUI() {
 
 	return valuesChanged || noiseParamsChanged || noiseSettingsChanged;
 }
-
-// bool ColorSettingsGUI() {
-// 	bool valuesChanged = false;
-
-// 	ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-// 	ImGui::Text("Color Settings");
-
-// 	for (int i = 0; i < 4; i++) {
-// 		string index = to_string(i + 1);
-// 		ImGui::Text(("Color " + index).c_str());
-// 		valuesChanged |=
-// 			ImGui::ColorEdit3(("Color " + index).c_str(), &colors[i].color[0]) |
-// 			ImGui::SliderFloat(("Height " + index).c_str(), &colors[i].height, 0.0f, 1.0f);
-// 	}
-
-// 	ImGui::End();
-
-// 	if (valuesChanged) {
-// 		terrainGenerator.SetColorData(colors);
-// 	}
-	
-
-// 	return valuesChanged;
-// }
 
 bool ColorSettingsGUI() {
 	bool valuesChanged = false;
