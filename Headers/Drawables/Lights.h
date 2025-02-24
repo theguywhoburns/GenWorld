@@ -4,15 +4,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "Shader.h"
+#include <Drawables/IDrawable.h>
 #include <iostream>
 
-class LightSource {
+class LightSource : public IDrawable {
 public:
 	LightSource(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular)
 		: ambient(ambient), diffuse(diffuse), specular(specular) {}
 
-	virtual void Draw(Shader& shader);
+	// virtual void Draw(Shader& shader);
+	void Draw(Shader& shader) override;
 
 protected:
 	glm::vec3 ambient;

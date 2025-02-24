@@ -8,12 +8,12 @@
 #include <glad/glad.h>
 #include <Shader.h>
 #include <Camera.h>
-#include <VAO.h>
 #include <Texture.h>
-#include <BufferObject.h>
-#include <Model.h>
-#include <TerrainGenerator.h>
-#include <Lights.h>
+#include <Drawables/Model.h>
+#include <Generators/TerrainGenerator.h>
+#include <Controllers/TerrainController.h>
+#include <Drawables/Lights.h>
+#include <Renderer.h>
 #include <iostream>
 #include <vector>
 #include <math.h>
@@ -22,8 +22,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
-#include <glm/gtc/noise.hpp>
-#include <random>
 
 struct MousePosition {
 	double x, y;
@@ -50,47 +48,6 @@ void mouseClick_callback(GLFWwindow* window, int button, int action, int mods);
 
 unsigned int SCR_WIDTH = 1024;
 unsigned int SCR_HEIGHT = 768;
-
-// GUI Functions
-bool SettingsGUI();
-bool ColorSettingsGUI();
-
-// Terrain Data
-float width = 100;
-float length = 100;
-int divisionSize = 1;
-float terrainHeightMultiplier = 7;
-ImGui::point v[4] = { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.5f} };
-
-// Noise Data
-float lacunarity = 2.0f; // Adjust for frequency of noise
-float persistence = 0.5f; // Adjust for amplitude of noise
-float scale = 50.0f; // Adjust for overall height of terrain
-int octaves = 4; // Adjust for number of noise layers
-int seed = 0;
-glm::vec2 offset = glm::vec2(0.0f, 0.0f);
-
-std::vector<TerrainUtilities::VertexColor> colors = {
-	{0.1f, glm::vec4(0.15f, 0.22f, 0.34f, 1.0f)},  // Deep Water (Dark Blue)
-	{0.15f, glm::vec4(0.2f, 0.4f, 0.6f, 1.0f)},   // Shallow Water (Lighter Blue)
-	{0.25f, glm::vec4(0.8f, 0.7f, 0.4f, 1.0f)},   // Sand (Yellowish)
-	{0.35f, glm::vec4(0.3f, 0.6f, 0.2f, 1.0f)},   // Grass (Green)
-	{0.5f, glm::vec4(0.4f, 0.7f, 0.3f, 1.0f)},    // Lush Grass (Brighter Green)
-	{0.65f, glm::vec4(0.5f, 0.4f, 0.2f, 1.0f)},   // Dirt (Brown)
-	{0.9f, glm::vec4(0.6f, 0.6f, 0.6f, 1.0f)},    // Rock (Gray)
-	{1.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},   // Snow (White)
-};
-
-Mesh* terrain;
-TerrainGenerator terrainGenerator;
-void InitializeTerrain() {
-	terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier, v);
-	terrainGenerator.SetNoiseParameters(lacunarity, persistence, scale);
-	terrainGenerator.SetNoiseSettings(octaves, seed, offset);
-	terrainGenerator.SetColorData(colors);
-
-	terrain = terrainGenerator.GenerateTerrain();
-}
 
 int main(void) {
 	GLFWwindow* window;
@@ -151,10 +108,13 @@ int main(void) {
 	// uncomment this call to draw in wireframe polygons.
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+	Renderer renderer;
 	Shader ourShader("Shaders/Terrain.vert", "Shaders/Terrain.frag");
+	renderer.SetShader(&ourShader);
+	renderer.SetCamera(&camera);
 
 	// Plane Data
-	InitializeTerrain();
+	TerrainController terrainController(&renderer);
 
 	unsigned int planeVAO, planeVBO, planeEBO;
 	glGenVertexArrays(1, &planeVAO);
@@ -168,6 +128,8 @@ int main(void) {
 		calculateMousePos(window);
 		updateTitle(window, title, calculateFPS(window));
 
+		renderer.ClearQueue();
+
 		// Start the ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -177,25 +139,8 @@ int main(void) {
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  // background color
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-		// ImGui Windows
-		bool settingsChanged = false;
-		settingsChanged |= SettingsGUI() | ColorSettingsGUI();
-		if (settingsChanged) {
-			delete terrain;
-
-			terrain = terrainGenerator.GenerateTerrain();
-		}
-
-		glm::mat4 model = glm::mat4(1.0f);
-		glm::mat4 view = camera.GetViewMatrix();
-		glm::mat4 projection = glm::perspective(glm::radians(camera.zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-
-		ourShader.use();
-		ourShader.setMat4("model", model);
-		ourShader.setMat4("view", view);
-		ourShader.setMat4("projection", projection);
-
-		terrain->Draw(ourShader);
+		terrainController.DisplayUI();
+		terrainController.Update();
 
 		// ImGui Rendering
 		ImGui::Render();
@@ -221,113 +166,6 @@ int main(void) {
 	glfwTerminate();
 	return 0;
 }
-
-bool SettingsGUI() {
-	bool valuesChanged = false;
-	bool noiseParamsChanged = false;
-	bool noiseSettingsChanged = false;
-
-	ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-	ImGui::Text("Terrain Settings");
-	if (ImGui::DragFloat("Width", &width, 0.1f, 1, 100) ||
-		ImGui::DragFloat("Length", &length, 0.1f, 1, 100) ||
-		ImGui::SliderInt("Division Size", &divisionSize, 1, 10) ||
-		ImGui::DragFloat("Height Multiplier", &terrainHeightMultiplier, 0.1f, 1, 100) ||
-		ImGui::DrawCurve("easeOutSine", v)       // draw
-		) {
-		valuesChanged = true;
-		terrainGenerator.SetTerrainData(width, length, divisionSize, terrainHeightMultiplier, v);
-	}
-
-	ImGui::Separator();
-	ImGui::NewLine();
-
-	ImGui::Text("Noise Settings");
-	noiseParamsChanged |= ImGui::SliderFloat("Scale", &scale, 0.001f, 50.0f);
-	noiseSettingsChanged |= ImGui::SliderInt("Octaves", &octaves, 1, 10);
-	noiseParamsChanged |= ImGui::SliderFloat("Lacunarity", &lacunarity, 0.1f, 50.0f);
-	noiseParamsChanged |= ImGui::SliderFloat("Persistence", &persistence, 0.0f, 1.0f);
-	noiseSettingsChanged |= ImGui::DragFloat2("Offset", &offset[0], 0.1f);
-	noiseSettingsChanged |= ImGui::DragInt("Seed", &seed, 1, 0, 10000);
-
-	if (noiseParamsChanged) {
-		terrainGenerator.SetNoiseParameters(lacunarity, persistence, scale);
-	}
-
-	ImGui::Separator();
-	ImGui::NewLine();
-
-	// Make the button bigger
-	if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
-		seed = rand() % 10000;
-		noiseSettingsChanged = true;
-	}
-	ImGui::End();
-
-	if (noiseSettingsChanged) {
-		terrainGenerator.SetNoiseSettings(octaves, seed, offset);
-	}
-
-	return valuesChanged || noiseParamsChanged || noiseSettingsChanged;
-}
-
-bool ColorSettingsGUI() {
-	bool valuesChanged = false;
-
-	ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-	ImGui::Text("Color Settings");
-
-	for (size_t i = 0; i < colors.size(); i++) {
-		std::string index = std::to_string(i + 1);
-		ImGui::Text(("Color " + index).c_str());
-
-		// Color picker & height slider
-		valuesChanged |=
-			ImGui::ColorEdit3(("Color##" + index).c_str(), &colors[i].color[0]) |
-			ImGui::SliderFloat(("Height##" + index).c_str(), &colors[i].height, 0.0f, 1.0f);
-
-		ImGui::SameLine();
-		if (ImGui::Button(("X##" + index).c_str())) {
-			colors.erase(colors.begin() + i);
-			valuesChanged = true;
-			continue;
-		}
-
-		// Reordering buttons
-		if (i > 0) {
-			ImGui::SameLine();
-			if (ImGui::Button(("▲##" + index).c_str())) {
-				std::swap(colors[i], colors[i - 1]);
-				valuesChanged = true;
-			}
-		}
-		if (i < colors.size() - 1) {
-			ImGui::SameLine();
-			if (ImGui::Button(("▼##" + index).c_str())) {
-				std::swap(colors[i], colors[i + 1]);
-				valuesChanged = true;
-			}
-		}
-	}
-
-	// Add new color button
-	if (ImGui::Button("Add Color")) {
-		TerrainUtilities::VertexColor defaultColor;
-		defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		defaultColor.height = 0.5f;
-		colors.push_back(defaultColor);
-		valuesChanged = true;
-	}
-
-	ImGui::End();
-
-	if (valuesChanged) {
-		terrainGenerator.SetColorData(colors);
-	}
-
-	return valuesChanged;
-}
-
 
 #pragma region Callbacks
 void calculateDeltaTime() {

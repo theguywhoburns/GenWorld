@@ -3,23 +3,21 @@
 #include <vector>
 
 #include <Texture.h>
-#include <Shader.h>
-#include <Mesh.h>
+#include <Drawables/Mesh.h>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include <map>
 
 using namespace std;
 
-class Model {
+class Model : public IDrawable {
 public:
 	Model(const char* path, bool gamma = false) : gammaCorrection(gamma)
 	{
 		loadModel(path);
 	}
-	void Draw(Shader& shader);
+	void Draw(Shader& shader) override;
 
 private:
 	vector<Mesh>	meshes;

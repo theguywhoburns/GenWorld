@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef MESH_H
 #define MESH_H
 
@@ -9,7 +7,7 @@
 #include <iostream>
 #include <vector>
 
-#include <Shader.h>
+#include <Drawables/IDrawable.h>
 #include <Texture.h>
 #include <BufferObject.h>
 #include <VAO.h>
@@ -17,7 +15,7 @@
 
 using namespace std;
 
-class Mesh {
+class Mesh : public IDrawable {
 public:
     // mesh data
     vector<Vertex>       vertices;
@@ -27,7 +25,7 @@ public:
     //Mesh() { setupMesh(); }
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures);
     ~Mesh();
-    void Draw(Shader& shader);
+    void Draw(Shader& shader) override;
 private:
     unsigned int arrayObj, vertexBuffer, indexBuffer;
 

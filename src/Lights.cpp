@@ -1,4 +1,4 @@
-#include "Lights.h"
+#include "Drawables/Lights.h"
 
 void LightSource::Draw(Shader& shader)
 {

@@ -1,4 +1,4 @@
-#include "Mesh.h"
+#include "Drawables/Mesh.h"
 
 Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
 {

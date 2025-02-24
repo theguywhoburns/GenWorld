@@ -5,7 +5,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/noise.hpp>
 
-#include <Mesh.h>
+#include <Drawables/Mesh.h>
 #include <ImGuiCurveTest.h>
 
 namespace TerrainUtilities
