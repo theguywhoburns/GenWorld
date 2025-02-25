@@ -60,7 +60,7 @@ void TerrainUI::DisplayUI() {
     }
 
     if (ImGui::Button("Generate", ImVec2(200, 40))) {
-        // controller->UpdateTerrain(parameters); // Notify the controller to update and generate
+        controller->Generate();
     }
 
     ImGui::End();

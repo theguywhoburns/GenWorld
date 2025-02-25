@@ -19,6 +19,7 @@ private:
     float PerlinNoise(float x, float z);
     void updateSeedOffset();
     glm::vec3 getColor(float height);
+
 };
 
 #endif

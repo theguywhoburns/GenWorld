@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-Renderer::Renderer() : currentShader(nullptr), currentCamera(nullptr) {}
+Renderer::Renderer() {}
 
 Renderer::~Renderer() {
     // Cleanup if necessary
@@ -11,10 +11,10 @@ void Renderer::ClearQueue() {
 }
 
 void Renderer::Render() {
-    if (!currentShader || !currentCamera) return;
+    if (currentShader == nullptr || currentCamera == nullptr) return;
 
     for (IDrawable* mesh : renderQueue) {
-        if (mesh) {
+        if (mesh != nullptr) {
             glm::mat4 model = glm::mat4(1.0f);
             glm::mat4 view = currentCamera->GetViewMatrix();
             glm::mat4 projection = glm::perspective(glm::radians(currentCamera->zoom), (float)screenSize.x / (float)screenSize.y, 0.1f, 1000.0f);
@@ -27,12 +27,10 @@ void Renderer::Render() {
             mesh->Draw(*currentShader);
         }
     }
-
-    renderQueue.clear(); // Clear the render queue after rendering
 }
 
 void Renderer::AddToRenderQueue(IDrawable* mesh) {
-    if (mesh) {
+    if (mesh != nullptr) {
         renderQueue.push_back(mesh);
     }
 }
@@ -43,4 +41,16 @@ void Renderer::SetShader(Shader* shader) {
 
 void Renderer::SetCamera(Camera* camera) {
     currentCamera = camera;
+}
+
+void Renderer::SetScreenSize(glm::vec2 size) {
+    screenSize = size;
+}
+
+void Renderer::SetScreenSize(float width, float height) {
+    screenSize = glm::vec2(width, height);
+}
+
+glm::vec2 Renderer::GetScreenSize() {
+    return screenSize;
 }

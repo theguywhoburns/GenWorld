@@ -112,6 +112,7 @@ int main(void) {
 	Shader ourShader("Shaders/Terrain.vert", "Shaders/Terrain.frag");
 	renderer.SetShader(&ourShader);
 	renderer.SetCamera(&camera);
+	renderer.SetScreenSize(SCR_WIDTH, SCR_HEIGHT);
 
 	// Plane Data
 	TerrainController terrainController(&renderer);
@@ -141,6 +142,8 @@ int main(void) {
 
 		terrainController.DisplayUI();
 		terrainController.Update();
+
+		renderer.Render();
 
 		// ImGui Rendering
 		ImGui::Render();

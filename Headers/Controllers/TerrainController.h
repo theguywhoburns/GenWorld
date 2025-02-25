@@ -12,13 +12,16 @@ public:
     TerrainController(Renderer* renderer);
     ~TerrainController();
 
-    void Update() override;
     void Generate() override;
     void DisplayUI() override;
+    void Update() override;
 
 private:
     TerrainGenerator generator;
     TerrainUI* terrainUI;
+    Mesh* terrainMesh;
+
+    void UpdateParameters() override;
 
 };
 
