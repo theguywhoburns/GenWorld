@@ -16,6 +16,6 @@ public:
 
 private:
     TerrainUtilities::TerrainData parameters;
-    TerrainController* controller; // Reference to the controller
+    TerrainController* controller;
 
 };

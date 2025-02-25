@@ -9,8 +9,6 @@
 
 #include <Drawables/IDrawable.h>
 #include <Texture.h>
-#include <BufferObject.h>
-#include <VAO.h>
 #include <Vertex.h>
 
 using namespace std;

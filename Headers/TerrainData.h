@@ -29,9 +29,9 @@ namespace TerrainUtilities
         ImGui::point* curvePoints;
 
         // Noise Parameters
-        float lacunarity = 2.0f;	// Adjust for frequency of noise
-        float persistence = 0.5f;	// Adjust for amplitude of noise
-        float scale = 2.0f;			// Adjust for overall height of terrain
+        float lacunarity;
+        float persistence;
+        float scale;
 
         // Noise Settings
         int octaves;

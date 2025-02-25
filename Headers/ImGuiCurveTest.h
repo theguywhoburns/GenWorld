@@ -21,4 +21,4 @@ namespace ImGui {
     float EvaluateCurve(point points[4], const float t);
 }
 
-#endif // IMGUI_CURVE_TEST_H
+#endif

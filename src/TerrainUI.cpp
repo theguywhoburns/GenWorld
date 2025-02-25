@@ -9,10 +9,10 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.curvePoints = new ImGui::point[4] { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.5f} };
 
     // Noise Data
-    parameters.lacunarity = 2.0f; // Adjust for frequency of noise
-    parameters.persistence = 0.5f; // Adjust for amplitude of noise
-    parameters.scale = 50.0f; // Adjust for overall height of terrain
-    parameters.octaves = 4; // Adjust for number of noise layers
+    parameters.lacunarity = 2.0f;
+    parameters.persistence = 0.5f;
+    parameters.scale = 50.0f;
+    parameters.octaves = 4;
     parameters.seed = 0;
     parameters.offset = glm::vec2(0.0f, 0.0f);
 
