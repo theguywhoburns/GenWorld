@@ -11,9 +11,13 @@ Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture
 
 Mesh::~Mesh()
 {
-	glDeleteBuffers(1, &vertexBuffer);
-	glDeleteBuffers(1, &indexBuffer);
-	glDeleteVertexArrays(1, &arrayObj);
+	if (vertexBuffer) glDeleteBuffers(1, &vertexBuffer);
+	if (indexBuffer) glDeleteBuffers(1, &indexBuffer);
+	if (arrayObj) glDeleteVertexArrays(1, &arrayObj);
+
+	vertexBuffer = 0;
+	indexBuffer = 0;
+	arrayObj = 0;
 }
 
 void Mesh::Draw(Shader& shader)
@@ -62,6 +66,7 @@ void Mesh::Draw(Shader& shader)
 	glBindVertexArray(0);
 
 	Texture::activate(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Mesh::setupMesh()

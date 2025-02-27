@@ -7,7 +7,7 @@
 class GeneratorController {
 public:
     GeneratorController(Renderer* renderer) : renderer(renderer) {}
-    virtual ~GeneratorController() { delete generatorUI; delete renderer; }
+    virtual ~GeneratorController() { delete renderer; }
 
     virtual void Generate() = 0;
     virtual void DisplayUI() = 0;
@@ -15,7 +15,6 @@ public:
     
 protected:
     Renderer* renderer;
-    GeneratorUI* generatorUI;
 
     virtual void UpdateParameters() = 0;
 

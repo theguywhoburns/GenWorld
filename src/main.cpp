@@ -117,11 +117,6 @@ int main(void) {
 	// Plane Data
 	TerrainController terrainController(&renderer);
 
-	unsigned int planeVAO, planeVBO, planeEBO;
-	glGenVertexArrays(1, &planeVAO);
-	glGenBuffers(1, &planeVBO);
-	glGenBuffers(1, &planeEBO);
-
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		calculateDeltaTime();
@@ -143,8 +138,6 @@ int main(void) {
 		terrainController.DisplayUI();
 		terrainController.Update();
 
-		renderer.Render();
-
 		// ImGui Rendering
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -154,12 +147,6 @@ int main(void) {
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-
-	// optional: de-allocate all resources once they've outlived their purpose:
-	// ------------------------------------------------------------------------
-	glDeleteBuffers(1, &planeVBO);
-	glDeleteBuffers(1, &planeEBO);
-	glDeleteVertexArrays(1, &planeVAO);
 
 	// Cleanup
 	ImGui_ImplOpenGL3_Shutdown();

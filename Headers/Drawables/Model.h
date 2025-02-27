@@ -17,17 +17,21 @@ public:
 	{
 		loadModel(path);
 	}
+	~Model() {
+		for (auto mesh : meshes)
+			delete mesh;
+	}
 	void Draw(Shader& shader) override;
 
 private:
-	vector<Mesh>	meshes;
+	vector<Mesh*>	meshes;
 	vector<Texture> textures_loaded;
 	string directory;
 	bool gammaCorrection;
 
 	void loadModel(string path);
 	void processNode(aiNode* node, const aiScene* scene);
-	Mesh processMesh(aiMesh* mesh, const aiScene* scene);
+	Mesh* processMesh(aiMesh* mesh, const aiScene* scene);
 	vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName);
 
 };

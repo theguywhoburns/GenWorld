@@ -3,7 +3,7 @@
 void Model::Draw(Shader& shader)
 {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
-		meshes[i].Draw(shader);
+		meshes[i]->Draw(shader);
 	}
 }
 
@@ -38,7 +38,7 @@ void Model::processNode(aiNode* node, const aiScene* scene)
 	}
 }
 
-Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
+Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene)
 {
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
@@ -108,7 +108,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 	std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, TexType::height);
 	textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
-	return Mesh(vertices, indices, textures);
+	return new Mesh(vertices, indices, textures);
 }
 
 vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName)

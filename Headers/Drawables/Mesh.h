@@ -25,7 +25,7 @@ public:
     ~Mesh();
     void Draw(Shader& shader) override;
 private:
-    unsigned int arrayObj, vertexBuffer, indexBuffer;
+    unsigned int arrayObj = 0, vertexBuffer, indexBuffer;
 
     void setupMesh();
 };
