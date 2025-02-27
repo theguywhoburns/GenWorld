@@ -138,6 +138,8 @@ int main(void) {
 		terrainController.DisplayUI();
 		terrainController.Update();
 
+		renderer.Render();
+
 		// ImGui Rendering
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

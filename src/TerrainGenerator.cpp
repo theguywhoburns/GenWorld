@@ -1,43 +1,78 @@
 #include "Generators/TerrainGenerator.h"
+#include <thread>
+#include <future>
+#include <vector>
 
 Mesh* TerrainGenerator::Generate() {
-	std::vector<Vertex> vertices;
-	std::vector<unsigned int> indices;
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
 
-	for (unsigned int i = 0; i < parameters.numCellsLength; i++) {
-		for (unsigned int j = 0; j < parameters.numCellsWidth; j++) {
-			Vertex vertex;
+    const unsigned int numThreads = std::thread::hardware_concurrency();
+    std::vector<std::future<ThreadTask>> futures;
 
-			float x = j * parameters.stepX - parameters.halfWidth;
-			float z = i * parameters.stepZ - parameters.halfLength;
-			float y = PerlinNoise(x, z);
-			y *= ImGui::EvaluateCurve(parameters.curvePoints, y);
+    // Divide the terrain into sections for each thread
+    unsigned int rowsPerThread = parameters.numCellsLength / numThreads;
+    unsigned int remainingRows = parameters.numCellsLength % numThreads;
 
-			// Calculate color
-			glm::vec3 vertexColor = getColor(y);
-			vertex.Normal = vertexColor; //! change this later to normal
+    unsigned int startI = 0;
+    for (unsigned int t = 0; t < numThreads; t++) {
+        unsigned int endI = startI + rowsPerThread + (t < remainingRows ? 1 : 0);
 
-			y *= parameters.heightMultiplier;
-			vertex.Position = glm::vec3(x, y, z);
+        // Launch a thread for each section
+        futures.push_back(std::async(std::launch::async, [this, startI, endI]() {
+            ThreadTask task;
+            task.startI = startI;
+            task.endI = endI;
+            task.startJ = 0;
+            task.endJ = parameters.numCellsWidth;
 
-			// Calculate UVs
-			vertex.TexCoords = glm::vec2((float)j / (parameters.numCellsWidth - 1), (float)i / (parameters.numCellsLength - 1));
-			vertices.push_back(vertex);
+            for (unsigned int i = task.startI; i < task.endI; i++) {
+                for (unsigned int j = task.startJ; j < task.endJ; j++) {
+                    Vertex vertex;
 
-			// indices
-			if (i < parameters.numCellsLength - 1 && j < parameters.numCellsWidth - 1) {
-				indices.push_back(i * parameters.numCellsWidth + j);
-				indices.push_back(i * parameters.numCellsWidth + j + 1);
-				indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
+                    float x = j * parameters.stepX - parameters.halfWidth;
+                    float z = i * parameters.stepZ - parameters.halfLength;
+                    float y = PerlinNoise(x, z);
+                    y *= ImGui::EvaluateCurve(parameters.curvePoints, y);
 
-				indices.push_back(i * parameters.numCellsWidth + j);
-				indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
-				indices.push_back((i + 1) * parameters.numCellsWidth + j);
-			}
-		}
-	}
+                    // Calculate color
+                    glm::vec3 vertexColor = getColor(y);
+                    vertex.Normal = vertexColor; //! change this later to normal
 
-	return new Mesh(vertices, indices, std::vector<Texture>());
+                    y *= parameters.heightMultiplier;
+                    vertex.Position = glm::vec3(x, y, z);
+
+                    // Calculate UVs
+                    vertex.TexCoords = glm::vec2((float)j / (parameters.numCellsWidth - 1), (float)i / (parameters.numCellsLength - 1));
+                    task.vertices.push_back(vertex);
+
+                    // indices
+                    if (i < parameters.numCellsLength - 1 && j < parameters.numCellsWidth - 1) {
+                        task.indices.push_back(i * parameters.numCellsWidth + j);
+                        task.indices.push_back(i * parameters.numCellsWidth + j + 1);
+                        task.indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
+
+                        task.indices.push_back(i * parameters.numCellsWidth + j);
+                        task.indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
+                        task.indices.push_back((i + 1) * parameters.numCellsWidth + j);
+                    }
+                }
+            }
+
+            return task;
+        }));
+
+        startI = endI;
+    }
+
+    // Collect results from all threads
+    for (auto& future : futures) {
+        ThreadTask task = future.get();
+        vertices.insert(vertices.end(), task.vertices.begin(), task.vertices.end());
+        indices.insert(indices.end(), task.indices.begin(), task.indices.end());
+    }
+
+    return new Mesh(vertices, indices, std::vector<Texture>());
 }
 
 void TerrainGenerator::SetParameters(const TerrainUtilities::TerrainData& params) {
