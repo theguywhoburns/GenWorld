@@ -13,11 +13,12 @@ void Renderer::ClearQueue() {
 void Renderer::Render() {
     if (currentShader == nullptr || currentCamera == nullptr) return;
 
+    glm::mat4 view = currentCamera->GetViewMatrix();
+    glm::mat4 projection = glm::perspective(glm::radians(currentCamera->zoom), (float)screenSize.x / (float)screenSize.y, 0.1f, 1000.0f);
+
     for (IDrawable* mesh : renderQueue) {
         if (mesh != nullptr) {
             glm::mat4 model = glm::mat4(1.0f);
-            glm::mat4 view = currentCamera->GetViewMatrix();
-            glm::mat4 projection = glm::perspective(glm::radians(currentCamera->zoom), (float)screenSize.x / (float)screenSize.y, 0.1f, 1000.0f);
 
             currentShader->use();
             currentShader->setMat4("model", model);
