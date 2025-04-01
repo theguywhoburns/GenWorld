@@ -60,21 +60,21 @@ int main(void) {
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetMouseButtonCallback(window, mouseClick_callback);
-	
+
 	sceneCtx.setCamera(&camera);
 	sceneCtx.setRenderer(&renderer);
-	
+
 	UiContext uiRenderer;
 	uiRenderer.init(window);
-	
+
 	Shader ourShader("Shaders/Terrain.vert", "Shaders/Terrain.frag");
 	renderer.SetShader(&ourShader);
 	renderer.SetCamera(&camera);
 	renderer.SetScreenSize(SCR_WIDTH, SCR_HEIGHT);
-	
+
 	// Plane Data
 	TerrainController terrainController(&renderer);
-	
+
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		calculateDeltaTime();
