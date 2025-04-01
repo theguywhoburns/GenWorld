@@ -1,9 +1,7 @@
-#include <ImGuiCurveTest.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-
+#define IMGUI_DEFINE_MATH_OPERATORS
 #define GLFW_INCLUDE_NONE
+#include "Renderers/UiRenderer.h"
+
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <Shader.h>
@@ -49,33 +47,6 @@ void mouseClick_callback(GLFWwindow* window, int button, int action, int mods);
 unsigned int SCR_WIDTH = 1024;
 unsigned int SCR_HEIGHT = 768;
 
-void MainDockingWindow() {
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	// Create dockspace parent window
-	ImGui::SetNextWindowPos(viewport->Pos);
-	ImGui::SetNextWindowSize(viewport->Size);
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-
-	ImGui::Begin("InvisibleDockSpaceWindow", nullptr,
-		ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoCollapse |
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoNavFocus |
-		ImGuiWindowFlags_NoBackground
-	);
-	ImGui::PopStyleVar(3);
-
-	// Create dockspace
-	ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-	ImGui::End();
-}
-
 int main(void) {
 	GLFWwindow* window;
 	char title[] = "OpenGL Project";
@@ -118,15 +89,8 @@ int main(void) {
 	printf("OpenGL version: %s\n", glGetString(GL_VERSION));
 	printf("Refresh Rate: %dHz\n", glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
 
-	// Setup ImGui binding
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init("#version 330");
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	UiRenderer uiRenderer(window);
+	uiRenderer.init();
 
 	// configure global opengl state
 	// -----------------------------
@@ -155,31 +119,19 @@ int main(void) {
 
 		renderer.ClearQueue();
 
-		// Start the ImGui frame
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		MainDockingWindow();
-
+		uiRenderer.preRender();
+		
 		/* Render here */
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  // background color
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+		uiRenderer.render();
 
 		terrainController.DisplayUI();
 		terrainController.Update();
 		renderer.Render();
 
-		// ImGui Rendering
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			GLFWwindow* backup_current_context = glfwGetCurrentContext();
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-			glfwMakeContextCurrent(backup_current_context);
-		}
+		uiRenderer.postRender();
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -187,10 +139,7 @@ int main(void) {
 		glfwPollEvents();
 	}
 
-	// Cleanup
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
+	uiRenderer.shutdown();
 
 	glfwTerminate();
 	return 0;
