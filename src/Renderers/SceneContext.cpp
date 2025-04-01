@@ -1,7 +1,6 @@
 #include "SceneContext.h"
 
-bool SceneContext::init(GLFWwindow* window) {
-    this->window = window;
+bool SceneContext::init(GLFWwindow* wind) {
     char title[] = "GenWorld";
 
     /* Initialize the library */
@@ -17,7 +16,7 @@ bool SceneContext::init(GLFWwindow* window) {
 #endif
 
     /* Create a windowed mode window and its OpenGL context */
-    this->window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, title, NULL, NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, title, NULL, NULL);
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -25,7 +24,7 @@ bool SceneContext::init(GLFWwindow* window) {
     }
 
     /* Make the window's context current */
-    glfwMakeContextCurrent(this->window);
+    glfwMakeContextCurrent(window);
 
     // gladLoadGL();
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -55,9 +54,17 @@ void SceneContext::shutdown() {
 }
 
 void SceneContext::preRender() {
+    calculateDeltaTime();
+    processInput();
+    calculateMousePos();
+    updateTitle(calculateFPS());
+
     /* Render here */
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  // background color
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+    renderer->SetScreenSize(SCR_WIDTH, SCR_HEIGHT);
 }
 
 void SceneContext::postRender() {
@@ -70,21 +77,105 @@ void SceneContext::postRender() {
 void SceneContext::render() {
     ImGui::Begin("Scene View");
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-    framebuffer.Resize((int)viewportSize.x, (int)viewportSize.y);
+    SCR_WIDTH = (int)viewportSize.x;
+    SCR_HEIGHT = (int)viewportSize.y;
+
+    framebuffer.Resize(SCR_WIDTH, SCR_HEIGHT);
     framebuffer.bind();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+    // glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    glViewport(0, 0, (GLsizei)viewportSize.x, (GLsizei)viewportSize.y);
-
-    renderer->SetScreenSize(viewportSize.x, viewportSize.y);
     renderer->Render();
 
     framebuffer.unbind();
 
     // add rendered texture to ImGUI scene window
     uint64_t textureID = framebuffer.GetColorTextureID();
-    ImGui::Image(textureID, ImVec2{ viewportSize.x, viewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+    ImGui::Image(textureID, viewportSize, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+
+    isSceneWindowHovered = ImGui::IsItemHovered() && ImGui::GetIO().WantCaptureMouse;
+
     ImGui::End();
 }
 
+#pragma region Callbacks
+void SceneContext::calculateDeltaTime() {
+    float currentFrame = static_cast<float>(glfwGetTime());
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;
+}
+
+void SceneContext::processInput() {
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        glfwSetWindowShouldClose(window, true);
+    }
+
+    mouseClick();
+    mouse_pos_calc();
+
+    if (camMode) {
+        if (ImGui::IsKeyDown(ImGuiKey_W))
+            camera->processKeyboard(FORWARD, deltaTime);
+        if (ImGui::IsKeyDown(ImGuiKey_S))
+            camera->processKeyboard(BACKWARD, deltaTime);
+        if (ImGui::IsKeyDown(ImGuiKey_A))
+            camera->processKeyboard(LEFT, deltaTime);
+        if (ImGui::IsKeyDown(ImGuiKey_D))
+            camera->processKeyboard(RIGHT, deltaTime);
+    }
+}
+
+double SceneContext::calculateFPS() {
+    static double fps;
+    static double previousTime = glfwGetTime();
+    static int frameCount = 0;
+    double currentTime = glfwGetTime();
+    frameCount++;
+
+    if (currentTime - previousTime >= 1.0) {
+        fps = frameCount / (currentTime - previousTime);
+        frameCount = 0;
+        previousTime = currentTime;
+    }
+
+    return fps;
+}
+
+void SceneContext::calculateMousePos() {
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    cursorPos.x = xpos;
+    cursorPos.y = ypos;
+}
+
+void SceneContext::updateTitle(double fps) {
+    char newTitle[256];
+    sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f",
+        title, fps, cursorPos.x, cursorPos.y);
+    glfwSetWindowTitle(window, newTitle);
+}
+
+void SceneContext::mouse_pos_calc() {
+    ImVec2 mousePos = ImGui::GetMousePos();
+    double xpos = mousePos.x;
+    double ypos = mousePos.y;
+    double xoffset = xpos - lastX;
+    double yoffset = lastY - ypos;
+    lastX = static_cast<float>(xpos);
+    lastY = static_cast<float>(ypos);
+
+    if (!camMode) return;
+
+    camera->processMouseMovement(xoffset, yoffset);
+}
+
+void SceneContext::mouseClick() {
+    if (isSceneWindowHovered && ImGui::IsMouseDown(1)) {
+        camMode = true;
+    }
+    else if (ImGui::IsMouseReleased(1)) {
+        camMode = false;
+    }
+}
+#pragma endregion
