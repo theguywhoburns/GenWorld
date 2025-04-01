@@ -16,6 +16,7 @@ file(GLOB_RECURSE MY_SOURCES
     CONFIGURE_DEPENDS 
     ${CMAKE_CURRENT_SOURCE_DIR}/ImGui/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/ImGui/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
 add_executable(${PROJECT_NAME} ${MY_SOURCES} ${GLFW-CMAKE-STARTER-SRC})
@@ -33,7 +34,6 @@ add_subdirectory(vendor/glad)
 add_subdirectory(vendor/glm)
 add_subdirectory(vendor/assimp)
 
-include_directories(${CMAKE_SOURCE_DIR}/Headers)
 include_directories(${CMAKE_SOURCE_DIR}/ImGui)
 include_directories(${OPENGL_INCLUDE_DIRS})
 

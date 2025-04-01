@@ -1,25 +1,21 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define GLFW_INCLUDE_NONE
-#include "Renderers/UiRenderer.h"
+#include "Renderers/UiContext.h"
+#include "Renderers/SceneContext.h"
+#include "Renderers/Renderer.h"
 
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-#include <Shader.h>
-#include <Camera.h>
-#include <Texture.h>
-#include <Drawables/Model.h>
-#include <Generators/TerrainGenerator.h>
-#include <Controllers/TerrainController.h>
-#include <Drawables/Lights.h>
-#include <Renderer.h>
+#include "Core/Shader.h"
+#include "Core/Camera.h"
+#include "Core/Texture.h"
+#include "Core/Framebuffer.h"
+#include "Drawables/Model.h"
+#include "Generators/TerrainGenerator.h"
+#include "Controllers/TerrainController.h"
+#include "Drawables/Lights.h"
+
 #include <iostream>
 #include <vector>
 #include <math.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <assimp/scene.h>
-#include <assimp/Importer.hpp>
 
 struct MousePosition {
 	double x, y;
@@ -46,70 +42,39 @@ void mouseClick_callback(GLFWwindow* window, int button, int action, int mods);
 
 unsigned int SCR_WIDTH = 1024;
 unsigned int SCR_HEIGHT = 768;
+Renderer renderer;
 
 int main(void) {
 	GLFWwindow* window;
-	char title[] = "OpenGL Project";
-
-	/* Initialize the library */
-	if (!glfwInit())
-		return -1;
-
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-	/* Create a windowed mode window and its OpenGL context */
-	window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, title, NULL, NULL);
-	if (!window) {
-		std::cout << "Failed to create GLFW window" << std::endl;
-		glfwTerminate();
+	SceneContext sceneCtx;
+	if (!sceneCtx.init(window)) {
+		std::cout << "Failed to initialize SceneContext" << std::endl;
 		return -1;
 	}
 
-	/* Make the window's context current */
-	glfwMakeContextCurrent(window);
-
-	// gladLoadGL();
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-		std::cout << "Failed to initialize GLAD" << std::endl;
-		return -1;
-	}
+	window = sceneCtx.getWindow();
+	const char* title = std::string(glfwGetWindowTitle(window)).c_str();
 
 	// window resize callback
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 	glfwSetMouseButtonCallback(window, mouseClick_callback);
-
-	printf("OpenGL version: %s\n", glGetString(GL_VERSION));
-	printf("Refresh Rate: %dHz\n", glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
-
-	UiRenderer uiRenderer(window);
-	uiRenderer.init();
-
-	// configure global opengl state
-	// -----------------------------
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_STENCIL_TEST);
-	glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
-
-	// uncomment this call to draw in wireframe polygons.
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-	Renderer renderer;
+	
+	sceneCtx.setCamera(&camera);
+	sceneCtx.setRenderer(&renderer);
+	
+	UiContext uiRenderer;
+	uiRenderer.init(window);
+	
 	Shader ourShader("Shaders/Terrain.vert", "Shaders/Terrain.frag");
 	renderer.SetShader(&ourShader);
 	renderer.SetCamera(&camera);
 	renderer.SetScreenSize(SCR_WIDTH, SCR_HEIGHT);
-
+	
 	// Plane Data
 	TerrainController terrainController(&renderer);
-
+	
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
 		calculateDeltaTime();
@@ -120,28 +85,21 @@ int main(void) {
 		renderer.ClearQueue();
 
 		uiRenderer.preRender();
-		
-		/* Render here */
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  // background color
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		sceneCtx.preRender();
 
-		uiRenderer.render();
+		uiRenderer.render();	// Renders the Main Docking Window
 
-		terrainController.DisplayUI();
+		terrainController.DisplayUI();	// Renders the TerrainUI Windows
 		terrainController.Update();
-		renderer.Render();
+
+		sceneCtx.render();		// Renders the Scene Window
 
 		uiRenderer.postRender();
-
-		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-		// -------------------------------------------------------------------------------
-		glfwSwapBuffers(window);
-		glfwPollEvents();
+		sceneCtx.postRender();
 	}
 
 	uiRenderer.shutdown();
-
-	glfwTerminate();
+	sceneCtx.shutdown();
 	return 0;
 }
 
