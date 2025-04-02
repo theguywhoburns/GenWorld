@@ -75,7 +75,11 @@ void SceneContext::postRender() {
 }
 
 void SceneContext::render() {
-    ImGui::Begin("Scene View");
+    ImVec2 min_size(150.0f, 150.0f);
+    ImVec2 max_size(INT16_MAX, INT16_MAX);
+    ImGui::SetNextWindowSizeConstraints(min_size, max_size);
+
+    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     SCR_WIDTH = (int)viewportSize.x;
     SCR_HEIGHT = (int)viewportSize.y;

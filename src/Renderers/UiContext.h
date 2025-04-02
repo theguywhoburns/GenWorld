@@ -1,9 +1,11 @@
 #pragma once
 
 #include "IRenderContext.h"
+#include <ImGuiFileDialog/ImGuiFileDialog.h>
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <fstream>
 
 class UiContext : public IRenderContext {
 public:
@@ -18,6 +20,7 @@ public:
 
 private:
     void renderDockingWindow();
-    void renderTitleBar();
+    void renderMenuBar();
+    void defaultLayout();
 
 };
