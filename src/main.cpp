@@ -12,6 +12,7 @@
 #include "Generators/TerrainGenerator.h"
 #include "Controllers/TerrainController.h"
 #include "Drawables/Lights.h"
+#include "Utils/Time.h"
 
 #include <iostream>
 #include <vector>
@@ -44,6 +45,8 @@ int main(void) {
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window)) {
+		Utils::Time::Update();
+
 		renderer.ClearQueue();
 
 		uiRenderer.preRender();

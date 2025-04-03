@@ -158,14 +158,17 @@ void UiContext::renderMenuBar() {
         if (ImGui::BeginMenu("Window")) {
             if (ImGui::BeginMenu("Layout")) {
                 if (ImGui::MenuItem("Save Layout")) {
-                    IGFD::FileDialogConfig config;
-                    config.path = ".";
-                    ImGuiFileDialog::Instance()->OpenDialog("SaveLayout", "Save Layout", ".ini", config);
+                    std::string file = Utils::FileDialogs::SaveFile("Save Layout", "Layout\0*.ini\0", window);
+
+                    if (!file.empty()) {
+                        ImGui::SaveIniSettingsToDisk((file + ".ini").c_str());
+                    }
                 }
                 if (ImGui::MenuItem("Load Layout")) {
-                    IGFD::FileDialogConfig config;
-                    config.path = ".";
-                    ImGuiFileDialog::Instance()->OpenDialog("ChooseLayout", "Choose Layout", ".ini", config);
+                    std::string file = Utils::FileDialogs::OpenFile("Load Layout", "Layout\0*.ini\0", window);
+                    if (!file.empty()) {
+                        ImGui::LoadIniSettingsFromDisk(file.c_str());
+                    }
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem("Default Layout")) {

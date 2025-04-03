@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IRenderContext.h"
-#include <ImGuiFileDialog/ImGuiFileDialog.h>
+#include "../Utils/FileDialogs.h"
 #include <GLFW/glfw3.h>
 
 #include <iostream>

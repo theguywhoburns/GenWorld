@@ -3,6 +3,7 @@
 #include "IRenderContext.h"
 #include "../Core/Framebuffer.h"
 #include "../Core/Camera.h"
+#include "../Utils/Time.h"
 #include "Renderer.h"
 
 class SceneContext : public IRenderContext {
@@ -32,20 +33,15 @@ private:
         double x, y;
     };
 
-    float deltaTime = 0.0f;	// Time between current frame and last frame
-    float lastFrame = 0.0f; // Time of last frame
-
     MousePosition cursorPos = { 0.0, 0.0 };
 
     bool camMode = false;
     bool isSceneWindowHovered = false;
     float lastX = 0, lastY = 0;
 
-    void calculateDeltaTime();
     void processInput();
-    double calculateFPS();
     void calculateMousePos();
-    void updateTitle(double fps);
+    void updateTitle();
     void mouseClick();
     void mouse_pos_calc();
 

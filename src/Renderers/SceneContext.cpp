@@ -25,8 +25,9 @@ bool SceneContext::init(GLFWwindow* wind) {
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
+    // Vsync
+    glfwSwapInterval(1);
 
-    // gladLoadGL();
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return false;
@@ -54,12 +55,10 @@ void SceneContext::shutdown() {
 }
 
 void SceneContext::preRender() {
-    calculateDeltaTime();
     processInput();
     calculateMousePos();
-    updateTitle(calculateFPS());
+    updateTitle();
 
-    /* Render here */
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  // background color
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -87,7 +86,6 @@ void SceneContext::render() {
     framebuffer.Resize(SCR_WIDTH, SCR_HEIGHT);
     framebuffer.bind();
 
-    // glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     renderer->Render();
@@ -104,12 +102,6 @@ void SceneContext::render() {
 }
 
 #pragma region Callbacks
-void SceneContext::calculateDeltaTime() {
-    float currentFrame = static_cast<float>(glfwGetTime());
-    deltaTime = currentFrame - lastFrame;
-    lastFrame = currentFrame;
-}
-
 void SceneContext::processInput() {
     if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         glfwSetWindowShouldClose(window, true);
@@ -120,30 +112,14 @@ void SceneContext::processInput() {
 
     if (camMode) {
         if (ImGui::IsKeyDown(ImGuiKey_W))
-            camera->processKeyboard(FORWARD, deltaTime);
+            camera->processKeyboard(FORWARD, Utils::Time::deltaTime);
         if (ImGui::IsKeyDown(ImGuiKey_S))
-            camera->processKeyboard(BACKWARD, deltaTime);
+            camera->processKeyboard(BACKWARD, Utils::Time::deltaTime);
         if (ImGui::IsKeyDown(ImGuiKey_A))
-            camera->processKeyboard(LEFT, deltaTime);
+            camera->processKeyboard(LEFT, Utils::Time::deltaTime);
         if (ImGui::IsKeyDown(ImGuiKey_D))
-            camera->processKeyboard(RIGHT, deltaTime);
+            camera->processKeyboard(RIGHT, Utils::Time::deltaTime);
     }
-}
-
-double SceneContext::calculateFPS() {
-    static double fps;
-    static double previousTime = glfwGetTime();
-    static int frameCount = 0;
-    double currentTime = glfwGetTime();
-    frameCount++;
-
-    if (currentTime - previousTime >= 1.0) {
-        fps = frameCount / (currentTime - previousTime);
-        frameCount = 0;
-        previousTime = currentTime;
-    }
-
-    return fps;
 }
 
 void SceneContext::calculateMousePos() {
@@ -153,10 +129,10 @@ void SceneContext::calculateMousePos() {
     cursorPos.y = ypos;
 }
 
-void SceneContext::updateTitle(double fps) {
+void SceneContext::updateTitle() {
     char newTitle[256];
     sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f",
-        title, fps, cursorPos.x, cursorPos.y);
+        title, Utils::Time::frameRate, cursorPos.x, cursorPos.y);
     glfwSetWindowTitle(window, newTitle);
 }
 
