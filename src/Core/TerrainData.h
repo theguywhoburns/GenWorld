@@ -8,15 +8,28 @@
 #include "../Drawables/Mesh.h"
 #include "ImGuiCurveTest.h"
 
-namespace TerrainUtilities
-{
+
+namespace TerrainUtilities {
     struct VertexColor {
         float height;
         glm::vec4 color;
     };
 
-    struct TerrainData
-    {
+    // Falloff
+    enum FalloffType {
+        SQUARE,
+        CIRCULAR,
+        DIAMOND
+    };
+
+    struct FalloffParameters {
+        bool enabled = true;
+        float a = 3.0f;
+        float b = 2.5f;
+        FalloffType type = SQUARE;
+    };
+
+    struct TerrainData {
         // Terrain Data
         float width;
         float length;
@@ -43,5 +56,10 @@ namespace TerrainUtilities
         vector<VertexColor> colors;
         float halfWidth;
         float halfLength;
+
+        // Falloff Data
+        FalloffParameters falloffParams;
     };
+
+    float GenerateFalloffValue(float x, float z, const FalloffParameters& falloffParams);
 }

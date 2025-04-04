@@ -6,7 +6,7 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.length = 100;
     parameters.cellSize = 1;
     parameters.heightMultiplier = 7;
-    parameters.curvePoints = new ImGui::point[4] { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.5f} };
+    parameters.curvePoints = new ImGui::point[4]{ {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.5f} };
 
     // Noise Data
     parameters.lacunarity = 2.0f;
@@ -48,6 +48,11 @@ void TerrainUI::DisplayUI() {
     ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
     ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
     ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    RenderFalloffControls();
 
     ImGui::Separator();
     ImGui::NewLine();
@@ -105,6 +110,55 @@ void TerrainUI::DisplayUI() {
     }
 
     ImGui::End();
+}
+
+void TerrainUI::RenderFalloffControls() {
+    ImGui::Checkbox("Enable Falloff", &parameters.falloffParams.enabled);
+    if (parameters.falloffParams.enabled) {
+        if (parameters.falloffParams.enabled) {
+            const char* types[] = { "Square", "Circular", "Diamond" };
+            int currentType = (int)parameters.falloffParams.type;
+            if (ImGui::Combo("Falloff Shape", &currentType, types, IM_ARRAYSIZE(types))) {
+                parameters.falloffParams.type = (TerrainUtilities::FalloffType)currentType;
+            }
+
+            ImGui::SliderFloat("Steepness (a)", &parameters.falloffParams.a, 0.1f, 10.0f);
+            ImGui::SliderFloat("Midpoint (b)", &parameters.falloffParams.b, 0.1f, 10.0f);
+
+            // Preview window
+            ImVec2 previewSize(200, 200);
+            ImGui::BeginChild("FalloffPreview", previewSize, true);
+
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            ImVec2 p = ImGui::GetWindowPos();
+
+            const int resolution = 100;
+            float cellWidth = previewSize.x / resolution;
+            float cellHeight = previewSize.y / resolution;
+
+            for (int y = 0; y < resolution; y++) {
+                for (int x = 0; x < resolution; x++) {
+                    float normalizedX = (float)x / resolution;
+                    float normalizedZ = (float)y / resolution;
+
+                    float worldX = normalizedX * 2.0f - 1.0f;
+                    float worldZ = normalizedZ * 2.0f - 1.0f;
+
+                    float falloff = TerrainUtilities::GenerateFalloffValue(worldX, worldZ, parameters.falloffParams);
+
+                    unsigned char intensity = (unsigned char)(falloff * 255.0f);
+                    ImU32 color = IM_COL32(intensity, intensity, intensity, 255);
+
+                    drawList->AddRectFilled(
+                        ImVec2(p.x + x * cellWidth, p.y + y * cellHeight),
+                        ImVec2(p.x + (x + 1) * cellWidth, p.y + (y + 1) * cellHeight),
+                        color
+                    );
+                }
+            }
+            ImGui::EndChild();
+        }
+    }
 }
 
 TerrainUtilities::TerrainData TerrainUI::GetParameters() const {

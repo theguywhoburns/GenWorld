@@ -17,5 +17,7 @@ public:
 private:
     TerrainUtilities::TerrainData parameters;
     TerrainController* controller;
+    
+    void RenderFalloffControls();
 
 };

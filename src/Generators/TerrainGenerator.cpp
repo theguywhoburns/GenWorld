@@ -35,6 +35,13 @@ Mesh* TerrainGenerator::Generate() {
                     float y = PerlinNoise(x, z);
                     y *= ImGui::EvaluateCurve(parameters.curvePoints, y);
 
+                    float normalizedX = x / parameters.halfWidth;
+                    float normalizedZ = z / parameters.halfLength;
+
+                    // Apply falloff map
+                    float falloffValue = TerrainUtilities::GenerateFalloffValue(normalizedX, normalizedZ, parameters.falloffParams);
+                    y *= falloffValue;
+
                     // Calculate color
                     glm::vec3 vertexColor = getColor(y);
                     vertex.Normal = vertexColor; //! change this later to normal
@@ -60,7 +67,7 @@ Mesh* TerrainGenerator::Generate() {
             }
 
             return task;
-        }));
+            }));
 
         startI = endI;
     }
@@ -76,66 +83,66 @@ Mesh* TerrainGenerator::Generate() {
 }
 
 void TerrainGenerator::SetParameters(const TerrainUtilities::TerrainData& params) {
-	parameters = params;
+    parameters = params;
 
-	// Calculate derived values
-	parameters.halfWidth = parameters.width / 2;
-	parameters.halfLength = parameters.length / 2;
-	parameters.numCellsWidth = static_cast<int>(parameters.width / parameters.cellSize) + 1;
-	parameters.numCellsLength = static_cast<int>(parameters.length / parameters.cellSize) + 1;
+    // Calculate derived values
+    parameters.halfWidth = parameters.width / 2;
+    parameters.halfLength = parameters.length / 2;
+    parameters.numCellsWidth = static_cast<int>(parameters.width / parameters.cellSize) + 1;
+    parameters.numCellsLength = static_cast<int>(parameters.length / parameters.cellSize) + 1;
 
-	if (parameters.numCellsWidth < 2) parameters.numCellsWidth = 2;
-	if (parameters.numCellsLength < 2) parameters.numCellsLength = 2;
+    if (parameters.numCellsWidth < 2) parameters.numCellsWidth = 2;
+    if (parameters.numCellsLength < 2) parameters.numCellsLength = 2;
 
-	parameters.stepX = parameters.width / (parameters.numCellsWidth - 1);
-	parameters.stepZ = parameters.length / (parameters.numCellsLength - 1);
+    parameters.stepX = parameters.width / (parameters.numCellsWidth - 1);
+    parameters.stepZ = parameters.length / (parameters.numCellsLength - 1);
 
-	// Update noise offsets based on seed
-	updateSeedOffset();
+    // Update noise offsets based on seed
+    updateSeedOffset();
 }
 
 float TerrainGenerator::PerlinNoise(float x, float z) {
-	float frequency = 1;
-	float amplitude = 1;
-	float noiseHeight = 0;
+    float frequency = 1;
+    float amplitude = 1;
+    float noiseHeight = 0;
 
-	for (int j = 0; j < parameters.octaves; j++) {
-		float sampleX = (x - parameters.halfWidth) / parameters.scale * frequency + parameters.octaveOffsets[j].x * frequency;
-		float sampleZ = (z - parameters.halfLength) / parameters.scale * frequency - parameters.octaveOffsets[j].y * frequency;
+    for (int j = 0; j < parameters.octaves; j++) {
+        float sampleX = (x - parameters.halfWidth) / parameters.scale * frequency + parameters.octaveOffsets[j].x * frequency;
+        float sampleZ = (z - parameters.halfLength) / parameters.scale * frequency - parameters.octaveOffsets[j].y * frequency;
 
-		float perlinValue = glm::perlin(glm::vec2(sampleX, sampleZ));
-		perlinValue = (perlinValue + 1.0f) * 0.5f;
-		noiseHeight += perlinValue * amplitude;
+        float perlinValue = glm::perlin(glm::vec2(sampleX, sampleZ));
+        perlinValue = (perlinValue + 1.0f) * 0.5f;
+        noiseHeight += perlinValue * amplitude;
 
-		amplitude *= parameters.persistence;
-		frequency *= parameters.lacunarity;
-	}
+        amplitude *= parameters.persistence;
+        frequency *= parameters.lacunarity;
+    }
 
-	return noiseHeight;
+    return noiseHeight;
 }
 
 void TerrainGenerator::updateSeedOffset() {
-	// Seed random number generator
-	srand(parameters.seed);
-	parameters.octaveOffsets.resize(parameters.octaves);
+    // Seed random number generator
+    srand(parameters.seed);
+    parameters.octaveOffsets.resize(parameters.octaves);
 
-	for (int i = 0; i < parameters.octaves; i++) {
-		float offsetX = static_cast<float>(rand() % 10000 - 5000) + parameters.offset.x;
-		float offsetY = static_cast<float>(rand() % 10000 - 5000) + parameters.offset.y;
-		parameters.octaveOffsets[i] = glm::vec2(offsetX, offsetY);
-	}
+    for (int i = 0; i < parameters.octaves; i++) {
+        float offsetX = static_cast<float>(rand() % 10000 - 5000) + parameters.offset.x;
+        float offsetY = static_cast<float>(rand() % 10000 - 5000) + parameters.offset.y;
+        parameters.octaveOffsets[i] = glm::vec2(offsetX, offsetY);
+    }
 }
 
 glm::vec3 TerrainGenerator::getColor(float height) {
-	if (height < parameters.colors[0].height) {
-		return parameters.colors[0].color;
-	}
+    if (height < parameters.colors[0].height) {
+        return parameters.colors[0].color;
+    }
 
-	for (unsigned int i = 0; i < parameters.colors.size() - 1; i++) {
-		if (height < parameters.colors[i].height) {
-			return parameters.colors[i].color;
-		}
-	}
+    for (unsigned int i = 0; i < parameters.colors.size() - 1; i++) {
+        if (height < parameters.colors[i].height) {
+            return parameters.colors[i].color;
+        }
+    }
 
-	return parameters.colors[parameters.colors.size() - 1].color;
+    return parameters.colors[parameters.colors.size() - 1].color;
 }
