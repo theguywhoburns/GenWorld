@@ -44,7 +44,7 @@ Mesh* TerrainGenerator::Generate() {
 
                     // Calculate color
                     glm::vec3 vertexColor = getColor(y);
-                    vertex.Normal = vertexColor; //! change this later to normal
+                    vertex.Color = vertexColor;
 
                     y *= parameters.heightMultiplier;
                     vertex.Position = glm::vec3(x, y, z);
@@ -78,6 +78,8 @@ Mesh* TerrainGenerator::Generate() {
         vertices.insert(vertices.end(), task.vertices.begin(), task.vertices.end());
         indices.insert(indices.end(), task.indices.begin(), task.indices.end());
     }
+
+    CalculateNormals(vertices, indices);
 
     return new Mesh(vertices, indices, std::vector<Texture>());
 }
@@ -145,4 +147,26 @@ glm::vec3 TerrainGenerator::getColor(float height) {
     }
 
     return parameters.colors[parameters.colors.size() - 1].color;
+}
+
+void TerrainGenerator::CalculateNormals(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
+    for (unsigned int i = 0; i < indices.size(); i += 3) {
+        unsigned int index0 = indices[i];
+        unsigned int index1 = indices[i + 1];
+        unsigned int index2 = indices[i + 2];
+
+        glm::vec3 v0 = vertices[index0].Position;
+        glm::vec3 v1 = vertices[index1].Position;
+        glm::vec3 v2 = vertices[index2].Position;
+
+        glm::vec3 normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
+
+        vertices[index0].Normal += normal;
+        vertices[index1].Normal += normal;
+        vertices[index2].Normal += normal;
+    }
+
+    for (auto& vertex : vertices) {
+        vertex.Normal = glm::normalize(vertex.Normal);
+    }
 }
