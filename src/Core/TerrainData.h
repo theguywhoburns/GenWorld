@@ -39,7 +39,7 @@ namespace TerrainUtilities {
         unsigned int numCellsLength;
         float stepX;
         float stepZ;
-        ImGui::point* curvePoints;
+        vector<ImGui::point> curvePoints;
 
         // Noise Parameters
         float lacunarity;
@@ -59,6 +59,43 @@ namespace TerrainUtilities {
 
         // Falloff Data
         FalloffParameters falloffParams;
+
+        bool operator==(const TerrainData& other) const {
+            for(int i = 0; i < 4; ++i) {
+                if (curvePoints[i].x != other.curvePoints[i].x || curvePoints[i].y != other.curvePoints[i].y) {
+                    return false;
+                }
+            }
+
+            if(colors.size() != other.colors.size()) {
+                return false;
+            }
+
+            for (size_t i = 0; i < colors.size(); ++i) {
+                if (colors[i].height != other.colors[i].height || colors[i].color != other.colors[i].color) {
+                    return false;
+                }
+            }
+
+            return width == other.width &&
+                length == other.length &&
+                cellSize == other.cellSize &&
+                heightMultiplier == other.heightMultiplier &&
+                lacunarity == other.lacunarity &&
+                persistence == other.persistence &&
+                scale == other.scale &&
+                octaves == other.octaves &&
+                seed == other.seed &&
+                offset == other.offset &&
+                falloffParams.enabled == other.falloffParams.enabled &&
+                falloffParams.a == other.falloffParams.a &&
+                falloffParams.b == other.falloffParams.b &&
+                falloffParams.type == other.falloffParams.type;
+        }
+
+        bool operator!=(const TerrainData& other) const {
+            return !(*this == other);
+        }
     };
 
     float GenerateFalloffValue(float x, float z, const FalloffParameters& falloffParams);

@@ -173,7 +173,7 @@ namespace ImGui {
         dest.y = a.y + (b.y - a.y) * t;
     }
 
-    float EvaluateCurve(point points[4], const float t) {
+    float EvaluateCurve(std::vector<point>& points, const float t) {
         point ab, bc, cd, abbc, bccd, dest;
         lerp(ab, points[0], points[1], t);
         lerp(bc, points[1], points[2], t);
@@ -184,7 +184,7 @@ namespace ImGui {
         return dest.y;
     }
 
-    int DrawCurve(const char* label, point points[4]) {
+    int DrawCurve(const char* label, std::vector<point>& points) {
         // visuals
         enum { SMOOTHNESS = 64 }; // curve smoothness: the higher number of segments, the smoother curve
         enum { CURVE_WIDTH = 4 }; // main curved line width

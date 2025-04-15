@@ -17,7 +17,8 @@ public:
 private:
     TerrainUtilities::TerrainData parameters;
     TerrainController* controller;
-    
+    bool liveUpdate = true;
+
     void RenderFalloffControls();
 
 };
