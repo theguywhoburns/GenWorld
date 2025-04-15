@@ -151,10 +151,11 @@ void SceneContext::mouse_pos_calc() {
 }
 
 void SceneContext::mouseClick() {
-    if (isSceneWindowHovered && ImGui::IsMouseDown(1)) {
+    // might want to choose IsMouseClicked instead of IsMouseDown
+    if (isSceneWindowHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
         camMode = true;
     }
-    else if (ImGui::IsMouseReleased(1)) {
+    else if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
         camMode = false;
     }
 }

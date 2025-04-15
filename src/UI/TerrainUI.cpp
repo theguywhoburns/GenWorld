@@ -27,14 +27,13 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
 }
 
 void TerrainUI::DisplayUI() {
+    DisplaySceneViewOverlay();
+
     TerrainUtilities::TerrainData prevParameters = parameters;
-
-    ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-
-    ImGui::Checkbox("Live Update", &liveUpdate);
 
     // Terrain settings
     {
+        ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
         ImGui::Text("Terrain Settings");
         ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
         ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
@@ -128,50 +127,87 @@ void TerrainUI::DisplayUI() {
 void TerrainUI::RenderFalloffControls() {
     ImGui::Checkbox("Enable Falloff", &parameters.falloffParams.enabled);
     if (parameters.falloffParams.enabled) {
-        if (parameters.falloffParams.enabled) {
-            const char* types[] = { "Square", "Circular", "Diamond" };
-            int currentType = (int)parameters.falloffParams.type;
-            if (ImGui::Combo("Falloff Shape", &currentType, types, IM_ARRAYSIZE(types))) {
-                parameters.falloffParams.type = (TerrainUtilities::FalloffType)currentType;
-            }
-
-            ImGui::SliderFloat("Steepness (a)", &parameters.falloffParams.a, 0.1f, 10.0f);
-            ImGui::SliderFloat("Midpoint (b)", &parameters.falloffParams.b, 0.1f, 10.0f);
-
-            // Preview window
-            ImVec2 previewSize(200, 200);
-            ImGui::BeginChild("FalloffPreview", previewSize, true);
-
-            ImDrawList* drawList = ImGui::GetWindowDrawList();
-            ImVec2 p = ImGui::GetWindowPos();
-
-            const int resolution = 100;
-            float cellWidth = previewSize.x / resolution;
-            float cellHeight = previewSize.y / resolution;
-
-            for (int y = 0; y < resolution; y++) {
-                for (int x = 0; x < resolution; x++) {
-                    float normalizedX = (float)x / resolution;
-                    float normalizedZ = (float)y / resolution;
-
-                    float worldX = normalizedX * 2.0f - 1.0f;
-                    float worldZ = normalizedZ * 2.0f - 1.0f;
-
-                    float falloff = TerrainUtilities::GenerateFalloffValue(worldX, worldZ, parameters.falloffParams);
-
-                    unsigned char intensity = (unsigned char)(falloff * 255.0f);
-                    ImU32 color = IM_COL32(intensity, intensity, intensity, 255);
-
-                    drawList->AddRectFilled(
-                        ImVec2(p.x + x * cellWidth, p.y + y * cellHeight),
-                        ImVec2(p.x + (x + 1) * cellWidth, p.y + (y + 1) * cellHeight),
-                        color
-                    );
-                }
-            }
-            ImGui::EndChild();
+        const char* types[] = { "Square", "Circular", "Diamond" };
+        int currentType = (int)parameters.falloffParams.type;
+        if (ImGui::Combo("Falloff Shape", &currentType, types, IM_ARRAYSIZE(types))) {
+            parameters.falloffParams.type = (TerrainUtilities::FalloffType)currentType;
         }
+
+        ImGui::SliderFloat("Steepness (a)", &parameters.falloffParams.a, 0.1f, 10.0f);
+        ImGui::SliderFloat("Midpoint (b)", &parameters.falloffParams.b, 0.1f, 10.0f);
+
+        // Preview window
+        ImVec2 previewSize(200, 200);
+        ImGui::BeginChild("FalloffPreview", previewSize, true);
+
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImVec2 p = ImGui::GetWindowPos();
+
+        const int resolution = 100;
+        float cellWidth = previewSize.x / resolution;
+        float cellHeight = previewSize.y / resolution;
+
+        for (int y = 0; y < resolution; y++) {
+            for (int x = 0; x < resolution; x++) {
+                float normalizedX = (float)x / resolution;
+                float normalizedZ = (float)y / resolution;
+
+                float worldX = normalizedX * 2.0f - 1.0f;
+                float worldZ = normalizedZ * 2.0f - 1.0f;
+
+                float falloff = TerrainUtilities::GenerateFalloffValue(worldX, worldZ, parameters.falloffParams);
+
+                unsigned char intensity = (unsigned char)(falloff * 255.0f);
+                ImU32 color = IM_COL32(intensity, intensity, intensity, 255);
+
+                drawList->AddRectFilled(
+                    ImVec2(p.x + x * cellWidth, p.y + y * cellHeight),
+                    ImVec2(p.x + (x + 1) * cellWidth, p.y + (y + 1) * cellHeight),
+                    color
+                );
+            }
+        }
+        ImGui::EndChild();
     }
+}
+
+void TerrainUI::DisplaySceneViewOverlay() {
+    ImVec2 min_size(150.0f, 150.0f);
+    ImVec2 max_size(INT16_MAX, INT16_MAX);
+    ImGui::SetNextWindowSizeConstraints(min_size, max_size);
+
+    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
+
+    ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
+
+    const float padding = 10.0f;
+    ImVec2 overlaySize(120, 35);
+    ImVec2 windowPos = ImGui::GetWindowPos();
+    ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
+    ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
+    ImVec2 overlayPos = ImVec2(contentRegionMax.x - overlaySize.x - padding, contentRegionMin.y + padding);
+
+    ImGui::SetCursorScreenPos(windowPos + overlayPos);
+
+    // Style overrides
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.18f, 0.95f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
+
+    ImGui::BeginChild("SceneViewOverlay", overlaySize,
+        ImGuiChildFlags_Borders,
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoTitleBar);
+
+    ImGui::Checkbox("Live Update", &liveUpdate);
+
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor();
+
+    ImGui::EndChild();
+    ImGui::SetCursorScreenPos(originalCursorPos); // Reset cursor position to draw the scene view correctly
+    ImGui::End();
 }
 
 TerrainUtilities::TerrainData TerrainUI::GetParameters() const {

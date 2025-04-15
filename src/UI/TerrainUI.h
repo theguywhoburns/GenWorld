@@ -20,5 +20,6 @@ private:
     bool liveUpdate = true;
 
     void RenderFalloffControls();
+    void DisplaySceneViewOverlay();
 
 };
