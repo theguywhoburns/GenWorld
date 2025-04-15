@@ -17,14 +17,12 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.offset = glm::vec2(0.0f, 0.0f);
 
     parameters.colors = {
-        {0.1f, glm::vec4(0.15f, 0.22f, 0.34f, 1.0f)},   // Deep Water (Dark Blue)
-        {0.15f, glm::vec4(0.2f, 0.4f, 0.6f, 1.0f)},     // Shallow Water (Lighter Blue)
-        {0.25f, glm::vec4(0.8f, 0.7f, 0.4f, 1.0f)},     // Sand (Yellowish)
-        {0.35f, glm::vec4(0.3f, 0.6f, 0.2f, 1.0f)},     // Grass (Green)
-        {0.5f, glm::vec4(0.4f, 0.7f, 0.3f, 1.0f)},      // Lush Grass (Brighter Green)
-        {0.65f, glm::vec4(0.5f, 0.4f, 0.2f, 1.0f)},     // Dirt (Brown)
-        {0.9f, glm::vec4(0.6f, 0.6f, 0.6f, 1.0f)},      // Rock (Gray)
-        {1.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},      // Snow (White)
+        {0.1f, glm::vec4(0.21f, 0.4f, 0.68f, 1.0f)},        // Shallow Water (Lighter Blue)
+        {0.25f, glm::vec4(0.82f, 0.835f, 0.45f, 1.0f)},      // Sand (Yellowish)
+        {0.5f, glm::vec4(0.35f, 0.68f, 0.24f, 1.0f)},       // Lush Grass (Brighter Green)
+        {0.75f, glm::vec4(0.3f, 0.55f, 0.17f, 1.0f)},       // Grass (Green)
+        {1.5f, glm::vec4(0.4f, 0.38f, 0.34f, 1.0f)},        // Rock (Gray)
+        {2.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},          // Snow (White)
     };
 }
 
