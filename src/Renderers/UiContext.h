@@ -5,13 +5,12 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
-#include <fstream>
 
 class UiContext : public IRenderContext {
 public:
     ~UiContext() override = default;
 
-    bool init(GLFWwindow* window) override;
+    bool init() override;
     void shutdown() override;
 
     void preRender() override;

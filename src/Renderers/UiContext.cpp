@@ -1,17 +1,11 @@
 #include "UiContext.h"
 
-bool UiContext::init(GLFWwindow* window) {
-    this->window = window;
-    if (window == nullptr) {
-        std::cerr << "Window is null!" << std::endl;
-        return false;
-    }
-
+bool UiContext::init() {
     // Setup ImGui binding
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(window->getNativeWindow(), true);
     ImGui_ImplOpenGL3_Init("#version 330");
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -158,14 +152,14 @@ void UiContext::renderMenuBar() {
         if (ImGui::BeginMenu("Window")) {
             if (ImGui::BeginMenu("Layout")) {
                 if (ImGui::MenuItem("Save Layout")) {
-                    std::string file = Utils::FileDialogs::SaveFile("Save Layout", "Layout\0*.ini\0", window);
+                    std::string file = Utils::FileDialogs::SaveFile("Save Layout", "Layout\0*.ini\0", window->getNativeWindow());
 
                     if (!file.empty()) {
                         ImGui::SaveIniSettingsToDisk((file + ".ini").c_str());
                     }
                 }
                 if (ImGui::MenuItem("Load Layout")) {
-                    std::string file = Utils::FileDialogs::OpenFile("Load Layout", "Layout\0*.ini\0", window);
+                    std::string file = Utils::FileDialogs::OpenFile("Load Layout", "Layout\0*.ini\0", window->getNativeWindow());
                     if (!file.empty()) {
                         ImGui::LoadIniSettingsFromDisk(file.c_str());
                     }

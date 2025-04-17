@@ -1,5 +1,6 @@
 #include "Renderer.h"
 
+
 Renderer::~Renderer() {
     // Cleanup if necessary
 }
@@ -22,25 +23,11 @@ void Renderer::SetShader(Shader* shader) {
     currentShader = shader;
 }
 
-void Renderer::SetCamera(Camera* camera) {
-    currentCamera = camera;
-}
-
-void Renderer::SetScreenSize(glm::vec2 size) {
-    screenSize = size;
-}
-
-void Renderer::SetScreenSize(float width, float height) {
-    screenSize = glm::vec2(width, height);
-}
-
-glm::vec2 Renderer::GetScreenSize() {
-    return screenSize;
-}
 
 void Renderer::renderScene() {
     if (currentShader == nullptr || currentCamera == nullptr) return;
 
+    glm::vec2 screenSize = Application::getInstance()->getWindow()->GetScreenSize();
     glm::mat4 view = currentCamera->GetViewMatrix();
     glm::mat4 projection = glm::perspective(glm::radians(currentCamera->zoom), (float)screenSize.x / (float)screenSize.y, 0.1f, 1000.0f);
 

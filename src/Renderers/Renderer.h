@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "../Drawables/IDrawable.h"
+#include "../Core/Application.h"
 #include "../Core/Shader.h"
 #include "../Core/Camera.h"
 #include "../Core/Framebuffer.h"
@@ -19,16 +20,9 @@ public:
     void AddToRenderQueue(IDrawable* mesh);
 
     void SetShader(Shader* shader);
-    void SetCamera(Camera* camera);
-
-    void SetScreenSize(glm::vec2 size);
-    void SetScreenSize(float width, float height);
-    glm::vec2 GetScreenSize();
-
 private:
     void renderScene();
 
-    glm::vec2 screenSize;
     std::vector<IDrawable*> renderQueue;
     Shader* currentShader;
     Camera* currentCamera;
