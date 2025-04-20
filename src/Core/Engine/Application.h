@@ -37,7 +37,7 @@ private:
     bool m_isRunning = true;
 
     Window* m_window;
-    Camera camera = Camera(glm::vec3(0.0f, 20.0f, 20.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -45.0f);
+    Camera camera = Camera(glm::vec3(0.0f, 20.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f, -45.0f);
     Shader* ourShader;
     Renderer renderer;
     SceneView sceneView;
