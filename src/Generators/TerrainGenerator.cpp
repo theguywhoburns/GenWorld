@@ -136,9 +136,11 @@ void TerrainGenerator::updateSeedOffset() {
 }
 
 glm::vec3 TerrainGenerator::getColor(float height) {
-    if (height < parameters.colors[0].height) {
+    if (parameters.colors.empty())
+        return glm::vec3(1.0f);
+
+    if (height <= parameters.colors[0].height)
         return parameters.colors[0].color;
-    }
 
     for (unsigned int i = 0; i < parameters.colors.size() - 1; i++) {
         if (height < parameters.colors[i].height) {
@@ -146,7 +148,7 @@ glm::vec3 TerrainGenerator::getColor(float height) {
         }
     }
 
-    return parameters.colors[parameters.colors.size() - 1].color;
+    return parameters.colors.back().color;
 }
 
 void TerrainGenerator::CalculateNormals(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
