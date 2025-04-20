@@ -15,6 +15,11 @@ namespace TerrainUtilities {
         glm::vec4 color;
     };
 
+    struct TextureData {
+        Texture texture;
+        float height;
+    };
+
     // Falloff
     enum FalloffType {
         SQUARE,
@@ -33,12 +38,16 @@ namespace TerrainUtilities {
         // Terrain Data
         float width;
         float length;
+        float halfWidth;
+        float halfLength;
         int cellSize;
-        float heightMultiplier;
         unsigned int numCellsWidth;
         unsigned int numCellsLength;
         float stepX;
         float stepZ;
+
+        // Height Multiplier
+        float heightMultiplier;
         vector<ImGui::point> curvePoints;
 
         // Noise Parameters
@@ -54,25 +63,39 @@ namespace TerrainUtilities {
 
         // Color Data
         vector<VertexColor> colors;
-        float halfWidth;
-        float halfLength;
+
+        // Texture Data
+        vector<TextureData> loadedTextures;
+
+        // blending
+        float blendFactor = 0.5f;
 
         // Falloff Data
         FalloffParameters falloffParams;
 
         bool operator==(const TerrainData& other) const {
-            for(int i = 0; i < 4; ++i) {
+            for (int i = 0; i < 4; ++i) {
                 if (curvePoints[i].x != other.curvePoints[i].x || curvePoints[i].y != other.curvePoints[i].y) {
                     return false;
                 }
             }
 
-            if(colors.size() != other.colors.size()) {
+            if (colors.size() != other.colors.size()) {
                 return false;
             }
 
             for (size_t i = 0; i < colors.size(); ++i) {
                 if (colors[i].height != other.colors[i].height || colors[i].color != other.colors[i].color) {
+                    return false;
+                }
+            }
+
+            if (loadedTextures.size() != other.loadedTextures.size()) {
+                return false;
+            }
+
+            for (size_t i = 0; i < loadedTextures.size(); ++i) {
+                if (loadedTextures[i].height != other.loadedTextures[i].height || loadedTextures[i].texture.path != other.loadedTextures[i].texture.path) {
                     return false;
                 }
             }
@@ -87,6 +110,7 @@ namespace TerrainUtilities {
                 octaves == other.octaves &&
                 seed == other.seed &&
                 offset == other.offset &&
+                blendFactor == other.blendFactor &&
                 falloffParams.enabled == other.falloffParams.enabled &&
                 falloffParams.a == other.falloffParams.a &&
                 falloffParams.b == other.falloffParams.b &&

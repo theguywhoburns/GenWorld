@@ -12,6 +12,8 @@
 #include "../Camera.h"
 #include "Window.h"
 
+class TerrainController;
+
 class Application {
 public:
     void Run();

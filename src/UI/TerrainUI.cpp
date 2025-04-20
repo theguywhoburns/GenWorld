@@ -31,93 +31,14 @@ void TerrainUI::DisplayUI() {
 
     TerrainUtilities::TerrainData prevParameters = parameters;
 
-    // Terrain settings
-    {
-        ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-        ImGui::Text("Terrain Settings");
-        ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
-        ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
-        ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
-        ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
-        ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
+    // Terrain Settings
+    DisplayTerrainSettingsUI();
 
-        ImGui::NewLine();
-        ImGui::Separator();
-        ImGui::NewLine();
-
-        ImGui::Text("Noise Settings");
-        ImGui::SliderFloat("Scale", &parameters.scale, 0.001f, 50.0f);
-        ImGui::SliderInt("Octaves", &parameters.octaves, 1, 10);
-        ImGui::SliderFloat("Lacunarity", &parameters.lacunarity, 0.1f, 50.0f);
-        ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
-        ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
-        ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
-
-        ImGui::Separator();
-        ImGui::NewLine();
-
-        RenderFalloffControls();
-
-        ImGui::Separator();
-        ImGui::NewLine();
-
-        if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
-            parameters.seed = rand() % 10000;
-        }
-
-        if (ImGui::Button("Generate", ImVec2(200, 40))) {
-            controller->Generate();
-        }
-
-        ImGui::End();
-    }
+    // Texture Settings
+    DisplayTextureLayerSettings();
 
     // Color Settings
-    {
-        ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-        ImGui::Text("Color Settings");
-
-        for (size_t i = 0; i < parameters.colors.size(); i++) {
-            std::string index = std::to_string(i + 1);
-            ImGui::Text(("Color " + index).c_str());
-
-            ImGui::ColorEdit3(("Color##" + index).c_str(), &parameters.colors[i].color[0]);
-            ImGui::SliderFloat(("Height##" + index).c_str(), &parameters.colors[i].height, 0.0f, 1.0f);
-
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));         // Red background
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Lighter red on hover
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));   // Dark red when clicked
-            ImGui::SameLine();
-            if (ImGui::Button(("X##" + index).c_str())) {
-                parameters.colors.erase(parameters.colors.begin() + i);
-                ImGui::PopStyleColor(3);
-                continue;
-            }
-            ImGui::PopStyleColor(3);
-
-            if (i < parameters.colors.size() - 1) {
-                ImGui::SameLine();
-                if (ImGui::ArrowButton(("Down##" + index).c_str(), ImGuiDir_Down)) {
-                    std::swap(parameters.colors[i], parameters.colors[i + 1]);
-                }
-            }
-            if (i > 0) {
-                ImGui::SameLine();
-                if (ImGui::ArrowButton(("Up##" + index).c_str(), ImGuiDir_Up)) {
-                    std::swap(parameters.colors[i], parameters.colors[i - 1]);
-                }
-            }
-        }
-
-        if (ImGui::Button("Add Color")) {
-            TerrainUtilities::VertexColor defaultColor;
-            defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-            defaultColor.height = 0.5f;
-            parameters.colors.push_back(defaultColor);
-        }
-
-        ImGui::End();
-    }
+    DisplayColorSettingsUI();
 
     if (parameters != prevParameters && liveUpdate) {
         controller->Generate();
@@ -207,6 +128,156 @@ void TerrainUI::DisplaySceneViewOverlay() {
 
     ImGui::EndChild();
     ImGui::SetCursorScreenPos(originalCursorPos); // Reset cursor position to draw the scene view correctly
+    ImGui::End();
+}
+
+void TerrainUI::DisplayTerrainSettingsUI() {
+    ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Text("Terrain Settings");
+    ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
+    ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
+    ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
+    ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
+    ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
+
+    ImGui::NewLine();
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    ImGui::Text("Noise Settings");
+    ImGui::SliderFloat("Scale", &parameters.scale, 0.001f, 50.0f);
+    ImGui::SliderInt("Octaves", &parameters.octaves, 1, 10);
+    ImGui::SliderFloat("Lacunarity", &parameters.lacunarity, 0.1f, 50.0f);
+    ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
+    ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
+    ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    RenderFalloffControls();
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
+        parameters.seed = rand() % 10000;
+    }
+
+    if (ImGui::Button("Generate", ImVec2(200, 40))) {
+        controller->Generate();
+    }
+
+    ImGui::End();
+}
+
+void TerrainUI::DisplayColorSettingsUI() {
+
+    ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Text("Color Settings");
+
+    for (size_t i = 0; i < parameters.colors.size(); i++) {
+        std::string index = std::to_string(i + 1);
+        ImGui::Text(("Color " + index).c_str());
+
+        ImGui::ColorEdit3(("Color##" + index).c_str(), &parameters.colors[i].color[0]);
+        ImGui::SliderFloat(("Height##" + index).c_str(), &parameters.colors[i].height, 0.0f, 1.0f);
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));         // Red background
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Lighter red on hover
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));   // Dark red when clicked
+        ImGui::SameLine();
+        if (ImGui::Button(("X##" + index).c_str())) {
+            parameters.colors.erase(parameters.colors.begin() + i);
+            ImGui::PopStyleColor(3);
+            continue;
+        }
+        ImGui::PopStyleColor(3);
+
+        if (i < parameters.colors.size() - 1) {
+            ImGui::SameLine();
+            if (ImGui::ArrowButton(("Down##" + index).c_str(), ImGuiDir_Down)) {
+                std::swap(parameters.colors[i], parameters.colors[i + 1]);
+            }
+        }
+        if (i > 0) {
+            ImGui::SameLine();
+            if (ImGui::ArrowButton(("Up##" + index).c_str(), ImGuiDir_Up)) {
+                std::swap(parameters.colors[i], parameters.colors[i - 1]);
+            }
+        }
+    }
+
+    if (ImGui::Button("Add Color")) {
+        TerrainUtilities::VertexColor defaultColor;
+        defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+        defaultColor.height = 0.5f;
+        parameters.colors.push_back(defaultColor);
+    }
+
+    ImGui::End();
+}
+
+void TerrainUI::DisplayTextureLayerSettings() {
+    ImGui::Begin("Texture Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Text("Terrain Texture Layers");
+    ImGui::Separator();
+
+    for (int i = 0; i < parameters.loadedTextures.size(); ++i) {
+        ImGui::PushID(i);
+
+        ImGui::Text("Layer %d", i + 1);
+
+        ImGui::SliderFloat("Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.2f");
+
+        ImGui::BeginGroup();
+        {
+            ImTextureID textureID = (ImTextureID)(intptr_t)parameters.loadedTextures[i].texture.ID;
+            ImGui::Image(textureID, ImVec2(128, 128), ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+            ImGui::SameLine();
+
+            ImGui::BeginGroup();
+            {
+
+                ImGui::Dummy(ImVec2{ 0, 128 - ImGui::GetTextLineHeight() - 30 });
+                ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture.path.c_str());
+
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+                if (ImGui::Button("Remove", ImVec2(72, 20))) {
+                    parameters.loadedTextures.erase(parameters.loadedTextures.begin() + i);
+                    ImGui::EndGroup();
+                    ImGui::EndGroup();
+                    ImGui::PopID();
+                    ImGui::PopStyleColor(3);
+                    break;
+                }
+                ImGui::PopStyleColor(3);
+
+                ImGui::EndGroup();
+            }
+
+            ImGui::EndGroup();
+        }
+
+        ImGui::PopID();
+        if (i < parameters.loadedTextures.size() - 1) ImGui::Separator();
+    }
+
+    if (ImGui::Button("Add Layer", ImVec2(200, 40))) {
+        std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files\0*.png;*.jpg;*.jpeg;*.bmp\0",
+            Application::GetInstance()->GetWindow()->getNativeWindow());
+
+        if (!file.empty()) {
+            Texture texture = Texture(file.c_str());
+            TerrainUtilities::TextureData layer = { texture, 0.5f };
+            parameters.loadedTextures.push_back(layer);
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::SliderFloat("Blend Range", &parameters.blendFactor, 0.0f, 1.0f, "%.05f");
     ImGui::End();
 }
 

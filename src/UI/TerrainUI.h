@@ -1,10 +1,11 @@
 #pragma once
 
 #include "GeneratorUI.h"
+#include "../Core/Engine/Application.h"
 #include "../Controllers/TerrainController.h"
 #include "../Core/TerrainData.h"
+#include "../Utils/FileDialogs.h"
 
-// Forward declaration
 class TerrainController;
 
 class TerrainUI : public GeneratorUI {
@@ -21,5 +22,8 @@ private:
 
     void RenderFalloffControls();
     void DisplaySceneViewOverlay();
+    void DisplayTerrainSettingsUI();
+    void DisplayColorSettingsUI();
+    void DisplayTextureLayerSettings();
 
 };
