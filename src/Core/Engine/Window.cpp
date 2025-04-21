@@ -96,7 +96,7 @@ void Window::calculateMousePos() {
 void Window::updateTitle() {
     char newTitle[256];
     sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f",
-        title, Utils::Time::frameRate, cursorPos.x, cursorPos.y);
+        title.c_str(), Utils::Time::frameRate, cursorPos.x, cursorPos.y);
     glfwSetWindowTitle(window, newTitle);
 }
 

@@ -6,6 +6,7 @@
 Mesh* TerrainGenerator::Generate() {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
+    std::vector<Texture> textures;
 
     const unsigned int numThreads = std::thread::hardware_concurrency();
     std::vector<std::future<ThreadTask>> futures;
@@ -50,7 +51,11 @@ Mesh* TerrainGenerator::Generate() {
                     vertex.Position = glm::vec3(x, y, z);
 
                     // Calculate UVs
-                    vertex.TexCoords = glm::vec2((float)j / (parameters.numCellsWidth - 1), (float)i / (parameters.numCellsLength - 1));
+                    vertex.TexCoords = glm::vec2(
+                        (float)i / (parameters.numCellsLength - 1),
+                        (float)j / (parameters.numCellsWidth - 1)
+                    );
+
                     task.vertices.push_back(vertex);
 
                     // indices
@@ -81,7 +86,11 @@ Mesh* TerrainGenerator::Generate() {
 
     CalculateNormals(vertices, indices);
 
-    return new Mesh(vertices, indices, std::vector<Texture>());
+    for (int i = 0; i < parameters.loadedTextures.size(); i++) {
+        textures.push_back(parameters.loadedTextures[i].texture);
+    }
+
+    return new Mesh(vertices, indices, textures);
 }
 
 void TerrainGenerator::SetParameters(const TerrainUtilities::TerrainData& params) {

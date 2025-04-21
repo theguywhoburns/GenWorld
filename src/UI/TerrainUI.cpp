@@ -277,7 +277,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
     }
 
     ImGui::Separator();
-    ImGui::SliderFloat("Blend Range", &parameters.blendFactor, 0.0f, 1.0f, "%.05f");
+    ImGui::SliderFloat("Blend Range", &parameters.blendFactor, 0.0f, 1.0f, "%.1f");
     ImGui::End();
 }
 

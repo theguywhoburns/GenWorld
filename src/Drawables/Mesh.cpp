@@ -1,7 +1,6 @@
 #include "Mesh.h"
 
-Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
-{
+Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures) {
 	this->vertices = vertices;
 	this->indices = indices;
 	this->textures = textures;
@@ -9,8 +8,7 @@ Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture
 	setupMesh();
 }
 
-Mesh::~Mesh()
-{
+Mesh::~Mesh() {
 	if (vertexBuffer) glDeleteBuffers(1, &vertexBuffer);
 	if (indexBuffer) glDeleteBuffers(1, &indexBuffer);
 	if (arrayObj) glDeleteVertexArrays(1, &arrayObj);
@@ -20,44 +18,53 @@ Mesh::~Mesh()
 	arrayObj = 0;
 }
 
-void Mesh::Draw(Shader& shader)
-{
-	unsigned int diffN = 1;
-	unsigned int specN = 1;
-	unsigned int normN = 1;
-	unsigned int emissionN = 1;
-	unsigned int heightN = 1;
+void Mesh::Draw(Shader& shader) {
+	// old code, don't remove it yet
+	{
+		// unsigned int diffN = 1;
+		// unsigned int specN = 1;
+		// unsigned int normN = 1;
+		// unsigned int emissionN = 1;
+		// unsigned int heightN = 1;
 
+		// for (unsigned int i = 0; i < textures.size(); i++) {
+		// 	Texture::activate(GL_TEXTURE0 + i);
+
+		// 	string number = "0";
+		// 	string type = "diffuse";
+		// 	TexType name = textures[i].type;
+		// 	if (name == TexType::diffuse) {
+		// 		type = "diffuse";
+		// 		number = std::to_string(diffN++);
+		// 	}
+		// 	else if (name == TexType::specular) {
+		// 		type = "specular";
+		// 		number = std::to_string(specN++);
+		// 	}
+		// 	else if (name == TexType::normal) {
+		// 		type = "normal";
+		// 		number = std::to_string(normN++);
+		// 	}
+		// 	else if (name == TexType::emission) {
+		// 		type = "emission";
+		// 		number = std::to_string(emissionN++);
+		// 	}
+		// 	else if (name == TexType::height) {
+		// 		type = "height";
+		// 		number = std::to_string(heightN++);
+		// 	}
+
+		// 	std::string res = "material." + type + number;
+		// 	shader.setInt(res.c_str(), i);
+
+		// 	textures[i].bind();
+		// }
+	}
+
+	shader.setInt("textureCount", textures.size());
 	for (unsigned int i = 0; i < textures.size(); i++) {
 		Texture::activate(GL_TEXTURE0 + i);
-
-		string number = "0";
-		string type = "diffuse";
-		TexType name = textures[i].type;
-		if (name == TexType::diffuse) {
-			type = "diffuse";
-			number = std::to_string(diffN++);
-		}
-		else if (name == TexType::specular) {
-			type = "specular";
-			number = std::to_string(specN++);
-		}
-		else if (name == TexType::normal) {
-			type = "normal";
-			number = std::to_string(normN++);
-		}
-		else if (name == TexType::emission) {
-			type = "emission";
-			number = std::to_string(emissionN++);
-		}
-		else if (name == TexType::height) {
-			type = "height";
-			number = std::to_string(heightN++);
-		}
-
-		std::string res = "material." + type + number;
-		shader.setInt(res.c_str(), i);
-
+		shader.setInt("textureSampler[" + std::to_string(i) + "]", i);
 		textures[i].bind();
 	}
 
@@ -69,8 +76,7 @@ void Mesh::Draw(Shader& shader)
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void Mesh::setupMesh()
-{
+void Mesh::setupMesh() {
 	glGenVertexArrays(1, &arrayObj);
 	glGenBuffers(1, &vertexBuffer);
 	glGenBuffers(1, &indexBuffer);

@@ -51,7 +51,7 @@ void Application::Run() {
 
         uiCtx.render();	                    // Renders the Main Docking Window
         terrainController->DisplayUI();	    // Renders the TerrainUI Windows
-        terrainController->Update();        // pushes the terrain data to
+        terrainController->Update();        // pushes the terrain data to Renderer
         sceneView.render();		            // Renders the Scene Window
 
         uiCtx.postRender();

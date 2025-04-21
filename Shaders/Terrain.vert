@@ -13,8 +13,7 @@ out vec3 vertexNormal;
 out vec3 vertexColor;
 out vec2 vertexTexCoord;
 
-void main()
-{
+void main() {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
     vertexNormal = mat3(transpose(inverse(model))) * aNormal;
     vertexColor = aColor;
