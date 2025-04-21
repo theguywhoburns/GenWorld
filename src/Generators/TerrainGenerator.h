@@ -2,7 +2,7 @@
 #define TERRAINGENERATOR_H
 
 #include "IGeneratorStrategy.h"
-#include "../Drawables/Mesh.h"
+#include "../Drawables/TerrainMesh.h"
 #include "../Core/TerrainData.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

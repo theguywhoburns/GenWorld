@@ -24,8 +24,12 @@ public:
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures);
     ~Mesh();
     void Draw(Shader& shader) override;
+
+protected:
+    unsigned int arrayObj = 0;
+
 private:
-    unsigned int arrayObj = 0, vertexBuffer, indexBuffer;
+    unsigned int vertexBuffer, indexBuffer;
 
     void setupMesh();
 };
