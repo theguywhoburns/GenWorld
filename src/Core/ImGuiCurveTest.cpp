@@ -259,7 +259,7 @@ namespace ImGui {
                 if (distance[i] < (4 * GRAB_RADIUS * 4 * GRAB_RADIUS)) {
                     SetTooltip("(%4.3f, %4.3f)", points[i].x, points[i].y);
 
-                    if (/*hovered &&*/ (IsMouseClicked(0) || IsMouseDragging(0))) {
+                    if (hovered && (IsMouseClicked(0) || IsMouseDragging(0))) {
                         float& px = (points[i].x += GetIO().MouseDelta.x / Canvas.x);
                         float& py = (points[i].y -= GetIO().MouseDelta.y / Canvas.y);
 

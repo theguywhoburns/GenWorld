@@ -5,19 +5,13 @@
 
 class TerrainMesh : public Mesh {
 public:
-    TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<TerrainUtilities::TextureData> textureData, float blendingFactor)
+    TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, TerrainUtilities::TerrainData terrainData)
         : Mesh(vertices, indices, vector<Texture>()) {
 
-        for (int i = 0; i < textureData.size(); i++) {
-            textures.push_back(textureData[i].texture);
-            heights.push_back(textureData[i].height);
-        }
-
-        this->blendingFactor = blendingFactor;
+        this->data = terrainData;
     }
     void Draw(Shader& shader) override;
 private:
-    vector<float> heights;
-    float blendingFactor = 0.5f;
+    TerrainUtilities::TerrainData data;
 
 };

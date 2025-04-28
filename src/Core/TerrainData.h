@@ -18,6 +18,8 @@ namespace TerrainUtilities {
     struct TextureData {
         Texture texture;
         float height;
+        glm::vec2 tiling;
+        glm::vec2 offset;
     };
 
     // Falloff
@@ -70,6 +72,8 @@ namespace TerrainUtilities {
         // blending
         float blendFactor = 0.5f;
 
+        int coloringMode = 0; // 0: Color, 1: Texture
+
         // Falloff Data
         FalloffParameters falloffParams;
 
@@ -98,6 +102,9 @@ namespace TerrainUtilities {
                 if (loadedTextures[i].height != other.loadedTextures[i].height || loadedTextures[i].texture.path != other.loadedTextures[i].texture.path) {
                     return false;
                 }
+                if (loadedTextures[i].tiling != other.loadedTextures[i].tiling || loadedTextures[i].offset != other.loadedTextures[i].offset) {
+                    return false;
+                }
             }
 
             return width == other.width &&
@@ -111,6 +118,7 @@ namespace TerrainUtilities {
                 seed == other.seed &&
                 offset == other.offset &&
                 blendFactor == other.blendFactor &&
+                coloringMode == other.coloringMode &&
                 falloffParams.enabled == other.falloffParams.enabled &&
                 falloffParams.a == other.falloffParams.a &&
                 falloffParams.b == other.falloffParams.b &&

@@ -2,17 +2,22 @@
 
 void TerrainMesh::Draw(Shader& shader) {
     // Activate the textures
-    shader.setInt("textureCount", textures.size());
-    for (unsigned int i = 0; i < textures.size(); i++) {
-        Texture::activate(GL_TEXTURE0 + i);
-        shader.setInt("textureSampler[" + std::to_string(i) + "]", i);
-        textures[i].bind();
-    }
+    std::vector<TerrainUtilities::TextureData> loadedTextures = data.loadedTextures;
 
-    // Set the blending factor and heights for the shader
-    shader.setFloat("blendingFactor", blendingFactor);
-    for (unsigned int i = 0; i < heights.size(); i++) {
-        shader.setFloat("heights[" + std::to_string(i) + "]", heights[i]);
+    shader.setInt("textureCount", loadedTextures.size());
+    shader.setFloat("blendingFactor", data.blendFactor);
+    shader.setBool("coloringMode", data.coloringMode);
+
+    for (int i = 0; i < loadedTextures.size(); i++) {
+        Texture::activate(GL_TEXTURE0 + i);
+
+        std::string name = "loadedTextures[" + std::to_string(i) + "]";
+        shader.setInt(name + ".texture", i);
+        shader.setFloat(name + ".height", loadedTextures[i].height);
+        shader.setVec2(name + ".tiling", loadedTextures[i].tiling);
+        shader.setVec2(name + ".offset", loadedTextures[i].offset);
+
+        loadedTextures[i].texture.bind();
     }
 
     glBindVertexArray(arrayObj);

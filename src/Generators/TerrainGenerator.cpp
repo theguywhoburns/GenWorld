@@ -86,7 +86,7 @@ Mesh* TerrainGenerator::Generate() {
 
     CalculateNormals(vertices, indices);
 
-    return new TerrainMesh(vertices, indices, parameters.loadedTextures, parameters.blendFactor);
+    return new TerrainMesh(vertices, indices, parameters);
 }
 
 void TerrainGenerator::SetParameters(const TerrainUtilities::TerrainData& params) {

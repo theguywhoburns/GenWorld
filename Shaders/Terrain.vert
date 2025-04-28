@@ -12,10 +12,13 @@ uniform mat4 projection;
 out vec3 vertexNormal;
 out vec3 vertexColor;
 out vec2 vertexTexCoord;
+out vec3 WorldPos;
 
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
     vertexNormal = mat3(transpose(inverse(model))) * aNormal;
     vertexColor = aColor;
     vertexTexCoord = aTexCoord;
+
+    WorldPos = vec3(model * vec4(aPos, 1.0));
 }

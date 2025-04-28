@@ -16,6 +16,10 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.seed = 0;
     parameters.offset = glm::vec2(0.0f, 0.0f);
 
+    parameters.loadedTextures = {
+        { Texture("Textures/rocky_trail_diff_1k.jpg"), 0.0f, glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 0.0f) },
+    };
+
     parameters.colors = {
         {0.1f, glm::vec4(0.21f, 0.4f, 0.68f, 1.0f)},        // Shallow Water (Lighter Blue)
         {0.25f, glm::vec4(0.82f, 0.835f, 0.45f, 1.0f)},      // Sand (Yellowish)
@@ -34,11 +38,14 @@ void TerrainUI::DisplayUI() {
     // Terrain Settings
     DisplayTerrainSettingsUI();
 
-    // Texture Settings
-    DisplayTextureLayerSettings();
-
-    // Color Settings
-    DisplayColorSettingsUI();
+    if (parameters.coloringMode == 0) {
+        // Color Settings
+        DisplayColorSettingsUI();
+    }
+    else {
+        // Texture Settings
+        DisplayTextureLayerSettings();
+    }
 
     if (parameters != prevParameters && liveUpdate) {
         controller->Generate();
@@ -160,6 +167,16 @@ void TerrainUI::DisplayTerrainSettingsUI() {
     ImGui::Separator();
     ImGui::NewLine();
 
+    ImGui::Text("Coloring Mode");
+    ImGui::RadioButton("Use Colors", &parameters.coloringMode, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Use Textures", &parameters.coloringMode, 1);
+
+    ImGui::SliderFloat("Blend Range", &parameters.blendFactor, 0.0f, 1.0f, "%.1f");
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
     if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
         parameters.seed = rand() % 10000;
     }
@@ -172,43 +189,50 @@ void TerrainUI::DisplayTerrainSettingsUI() {
 }
 
 void TerrainUI::DisplayColorSettingsUI() {
-
     ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
     ImGui::Text("Color Settings");
+    ImGui::Separator();
 
     for (size_t i = 0; i < parameters.colors.size(); i++) {
-        std::string index = std::to_string(i + 1);
-        ImGui::Text(("Color " + index).c_str());
-
-        ImGui::ColorEdit3(("Color##" + index).c_str(), &parameters.colors[i].color[0]);
-        ImGui::SliderFloat(("Height##" + index).c_str(), &parameters.colors[i].height, 0.0f, 1.0f);
+        ImGui::PushID(i);
+        ImGui::Text("Color %d", i + 1);
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));         // Red background
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Lighter red on hover
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));   // Dark red when clicked
         ImGui::SameLine();
-        if (ImGui::Button(("X##" + index).c_str())) {
+        if (ImGui::Button("X")) {
             parameters.colors.erase(parameters.colors.begin() + i);
             ImGui::PopStyleColor(3);
-            continue;
+            ImGui::PopID();
+            break;
         }
         ImGui::PopStyleColor(3);
 
         if (i < parameters.colors.size() - 1) {
             ImGui::SameLine();
-            if (ImGui::ArrowButton(("Down##" + index).c_str(), ImGuiDir_Down)) {
+            if (ImGui::ArrowButton("Down", ImGuiDir_Down)) {
                 std::swap(parameters.colors[i], parameters.colors[i + 1]);
+                std::swap(parameters.colors[i].height, parameters.colors[i + 1].height);
             }
         }
         if (i > 0) {
             ImGui::SameLine();
-            if (ImGui::ArrowButton(("Up##" + index).c_str(), ImGuiDir_Up)) {
+            if (ImGui::ArrowButton("Up", ImGuiDir_Up)) {
                 std::swap(parameters.colors[i], parameters.colors[i - 1]);
+                std::swap(parameters.colors[i].height, parameters.colors[i - 1].height);
             }
         }
+
+        ImGui::ColorEdit3("Color", &parameters.colors[i].color[0]);
+        
+        ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f);
+
+        ImGui::PopID();
+        ImGui::Separator();
     }
 
-    if (ImGui::Button("Add Color")) {
+    if (ImGui::Button("Add Color", ImVec2(200, 40))) {
         TerrainUtilities::VertexColor defaultColor;
         defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
         defaultColor.height = 0.5f;
@@ -228,7 +252,32 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
         ImGui::Text("Layer %d", i + 1);
 
-        ImGui::SliderFloat("Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.2f");
+        if (i < parameters.loadedTextures.size() - 1) {
+            ImGui::SameLine();
+            if (ImGui::ArrowButton("##Down", ImGuiDir_Down)) {
+                std::swap(parameters.loadedTextures[i], parameters.loadedTextures[i + 1]);
+                std::swap(parameters.loadedTextures[i].height, parameters.loadedTextures[i + 1].height);
+            }
+        }
+        if (i > 0) {
+            ImGui::SameLine();
+            if (ImGui::ArrowButton("##Up", ImGuiDir_Up)) {
+                std::swap(parameters.loadedTextures[i], parameters.loadedTextures[i - 1]);
+                std::swap(parameters.loadedTextures[i].height, parameters.loadedTextures[i - 1].height);
+            }
+        }
+
+        ImGui::Text("Height");
+        ImGui::SameLine();
+        ImGui::SliderFloat("##Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.2f");
+
+        ImGui::Text("Tiling");
+        ImGui::SameLine();
+        ImGui::DragFloat2("##Tiling", glm::value_ptr(parameters.loadedTextures[i].tiling), 0.01f, 0.01f, 100.0f, "%.2f");
+
+        ImGui::Text("Offset");
+        ImGui::SameLine();
+        ImGui::DragFloat2("##Offset", glm::value_ptr(parameters.loadedTextures[i].offset), 0.01f, -10.0f, 10.0f, "%.2f");
 
         ImGui::BeginGroup();
         {
@@ -238,9 +287,20 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
             ImGui::BeginGroup();
             {
-
                 ImGui::Dummy(ImVec2{ 0, 128 - ImGui::GetTextLineHeight() - 30 });
                 ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture.path.c_str());
+
+                if (ImGui::Button("Change", ImVec2(72, 20))) {
+                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files\0*.png;*.jpg;*.jpeg;*.bmp\0",
+                        Application::GetInstance()->GetWindow()->getNativeWindow());
+
+                    if (!file.empty()) {
+                        Texture newTexture = Texture(file.c_str());
+                        parameters.loadedTextures[i].texture = newTexture;
+                    }
+                }
+
+                ImGui::SameLine();
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
@@ -257,27 +317,32 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
                 ImGui::EndGroup();
             }
-
             ImGui::EndGroup();
         }
-
         ImGui::PopID();
-        if (i < parameters.loadedTextures.size() - 1) ImGui::Separator();
+        ImGui::Separator();
     }
 
-    if (ImGui::Button("Add Layer", ImVec2(200, 40))) {
-        std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files\0*.png;*.jpg;*.jpeg;*.bmp\0",
-            Application::GetInstance()->GetWindow()->getNativeWindow());
+    // Limit to 16 layers
+    if (parameters.loadedTextures.size() < 16) {
+        string addLayerLabel = "Add Layer (" + to_string(16 - parameters.loadedTextures.size()) + " left)";
+        if (ImGui::Button(addLayerLabel.c_str(), ImVec2(200, 40))) {
+            std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files\0*.png;*.jpg;*.jpeg;*.bmp\0",
+                Application::GetInstance()->GetWindow()->getNativeWindow());
 
-        if (!file.empty()) {
-            Texture texture = Texture(file.c_str());
-            TerrainUtilities::TextureData layer = { texture, 0.5f };
-            parameters.loadedTextures.push_back(layer);
+            if (!file.empty()) {
+                Texture texture = Texture(file.c_str());
+                TerrainUtilities::TextureData layer = { texture, 0.5f };
+                layer.tiling = glm::vec2(1.0f, 1.0f);
+                layer.offset = glm::vec2(0.0f, 0.0f);
+                parameters.loadedTextures.push_back(layer);
+            }
         }
     }
+    else {
+        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 16 layers reached!");
+    }
 
-    ImGui::Separator();
-    ImGui::SliderFloat("Blend Range", &parameters.blendFactor, 0.0f, 1.0f, "%.1f");
     ImGui::End();
 }
 
