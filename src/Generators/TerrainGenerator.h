@@ -11,6 +11,11 @@
 class TerrainGenerator : public IGeneratorStrategy {
 public:
     Mesh* Generate() override;
+    std::vector<float> GenerateHeightMap();
+    Mesh* GenerateFromHeightMap(const std::vector<float>& heightMap);
+    
+    Mesh* GetMesh() const { return terrainMesh; }
+    std::vector<float> GetHeightMap() const { return heightMap; }
     void SetParameters(const TerrainUtilities::TerrainData& params);
 
     struct ThreadTask {
@@ -22,11 +27,14 @@ public:
 
 private:
     TerrainUtilities::TerrainData parameters;
+    Mesh* terrainMesh = nullptr;
+    std::vector<float> heightMap;
 
     float PerlinNoise(float x, float z);
     void updateSeedOffset();
     glm::vec3 getColor(float height);
     void CalculateNormals(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
+    void SaveHeightMapToPNG(const std::vector<float>& heightMap, const std::string& filename, int width, int height);
 
 };
 

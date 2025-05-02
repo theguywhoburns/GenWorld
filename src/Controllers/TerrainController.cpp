@@ -28,11 +28,6 @@ void TerrainController::UpdateParameters() {
 void TerrainController::Generate() {
     UpdateParameters();
 
-    // Clean up the old mesh
-    if (terrainMesh != nullptr) {
-        delete terrainMesh;
-    }
-
     terrainMesh = generator.Generate();
 }
 

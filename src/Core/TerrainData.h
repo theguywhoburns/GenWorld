@@ -47,6 +47,7 @@ namespace TerrainUtilities {
         unsigned int numCellsLength;
         float stepX;
         float stepZ;
+        float maxHeight;
 
         // Height Multiplier
         float heightMultiplier;

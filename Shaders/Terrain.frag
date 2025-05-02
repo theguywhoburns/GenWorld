@@ -18,8 +18,8 @@ struct LoadedTexture {
 
 uniform int textureCount;
 uniform LoadedTexture loadedTextures[MAX_TEXTURE_UNITS];
-uniform float blendingFactor;
 uniform bool coloringMode;
+uniform sampler2D heightMap;
 
 vec4 CalcTexColor() {
 	vec4 TexColor = vec4(1.0);
@@ -28,7 +28,9 @@ vec4 CalcTexColor() {
 		return TexColor;
 	}
 
+	// float Height = texture(heightMap, vertexTexCoord).r;
 	float Height = WorldPos.y;
+
 	if(Height < loadedTextures[0].height) {
 		vec2 texCoord = vertexTexCoord * loadedTextures[0].tiling + loadedTextures[0].offset;
 		TexColor = texture(loadedTextures[0].texture, texCoord);
@@ -61,5 +63,6 @@ void main() {
 	else {
 		finalColor = vec4(vertexColor, 1.0);
 	}
+
 	FragColor = finalColor;
 }

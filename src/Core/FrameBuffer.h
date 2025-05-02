@@ -1,6 +1,5 @@
 #pragma once
 
-// GL includes
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -27,6 +26,7 @@ public:
 
     void Destroy();
 
+    unsigned int GetDepthStencilID() const { return m_DepthStencilID; }
     unsigned int GetColorTextureID() const { return m_ColorTextureID; }
     unsigned int GetFramebufferID() const { return m_FramebufferID; }
     int GetWidth() const { return m_Width; }
