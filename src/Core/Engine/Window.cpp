@@ -1,11 +1,12 @@
 #include "Window.h"
+#include "../stb_image.h"
 
 Window::~Window() {
     shutdown();
 }
 
 bool Window::init() {
-    if(!glfwInit()) {
+    if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return false;
     }
@@ -33,6 +34,23 @@ bool Window::init() {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return false;
     }
+
+    // Set Icon
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("Resources/Icon.png", &width, &height, &nrChannels, 4);
+
+    if (data) {
+        GLFWimage image;
+        image.width = width;
+        image.height = height;
+        image.pixels = data;
+        glfwSetWindowIcon(window, 1, &image);
+    }
+    else {
+        std::cout << "Failed to load icon" << std::endl;
+    }
+    stbi_image_free(data);  
+
 
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
     printf("Refresh Rate: %dHz\n", glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
@@ -111,8 +129,7 @@ void Window::processInput() {
     // }
 }
 
-void Window::resize_callback(GLFWwindow* window, int width, int height)
-{
+void Window::resize_callback(GLFWwindow* window, int width, int height) {
     Window* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
     win->setSize(width, height);
 }
