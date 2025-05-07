@@ -40,12 +40,6 @@ Assimp must be compiled as a **static library**. Follow the appropriate instruct
                         -G "MinGW Makefiles"
    ```
 
-3. Build the project using:
-
-   ```sh
-   mingw32-make
-   ```
-
 ### 🐧 For Unix/Linux
 
 1. Navigate to the Assimp directory:
@@ -61,12 +55,6 @@ Assimp must be compiled as a **static library**. Follow the appropriate instruct
                         -D CMAKE_C_COMPILER=gcc \
                         -D CMAKE_CXX_COMPILER=g++ \
                         -G "Unix Makefiles"
-   ```
-
-3. Build the project:
-
-   ```sh
-   make
    ```
 
 ---
