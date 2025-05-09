@@ -282,7 +282,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
         ImGui::BeginGroup();
         {
             ImTextureID textureID = (ImTextureID)(intptr_t)parameters.loadedTextures[i].texture.ID;
-            ImGui::Image(textureID, ImVec2(128, 128), ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+            ImGui::Image(textureID, ImVec2(128, 128));
             ImGui::SameLine();
 
             ImGui::BeginGroup();

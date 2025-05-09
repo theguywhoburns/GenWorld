@@ -4,8 +4,6 @@
 #include <vector>
 #include <algorithm>
 #include "../Utils/perlin.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../Core/stb_image_write.h"
 
 Mesh* TerrainGenerator::Generate() {
     // Generate height map
@@ -64,37 +62,7 @@ std::vector<float> TerrainGenerator::GenerateHeightMap() {
         future.wait();
     }
 
-    // write height map to png
-    std::string filename = "heightmap.png";
-    SaveHeightMapToPNG(heightMap, filename, parameters.numCellsWidth, parameters.numCellsLength);
-
-
     return heightMap;
-}
-
-void TerrainGenerator::SaveHeightMapToPNG(const std::vector<float>& heightMap, const std::string& filename, int width, int height) {
-    if (heightMap.size() != width * height) {
-        std::cerr << "Heightmap size mismatch.\n";
-        return;
-    }
-
-    // Find min and max height values
-    float minVal = *std::min_element(heightMap.begin(), heightMap.end());
-    float maxVal = *std::max_element(heightMap.begin(), heightMap.end());
-    float range = maxVal - minVal;
-    if (range == 0.0f) range = 1.0f; // prevent division by zero
-
-    // Convert to 8-bit grayscale
-    std::vector<unsigned char> imageData(width * height);
-    for (int i = 0; i < width * height; ++i) {
-        float normalized = (heightMap[i] - minVal) / range; // 0 to 1
-        imageData[i] = static_cast<unsigned char>(normalized * 255.0f);
-    }
-
-    // Write to PNG
-    if (!stbi_write_png(filename.c_str(), width, height, 1, imageData.data(), width)) {
-        std::cerr << "Failed to write PNG file: " << filename << std::endl;
-    }
 }
 
 Mesh* TerrainGenerator::GenerateFromHeightMap(const std::vector<float>& heightMap) {
@@ -139,8 +107,8 @@ Mesh* TerrainGenerator::GenerateFromHeightMap(const std::vector<float>& heightMa
 
                     // Calculate UVs
                     vertex.TexCoords = glm::vec2(
-                        (float)i / (parameters.numCellsLength - 1),
-                        (float)j / (parameters.numCellsWidth - 1)
+                        (float)j / (parameters.numCellsWidth - 1),
+                        (float)i / (parameters.numCellsLength - 1)
                     );
 
                     task.vertices.push_back(vertex);

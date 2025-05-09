@@ -19,7 +19,7 @@ struct LoadedTexture {
 uniform int textureCount;
 uniform LoadedTexture loadedTextures[MAX_TEXTURE_UNITS];
 uniform bool coloringMode;
-uniform sampler2D heightMap;
+uniform sampler2D heightmap;
 
 vec4 CalcTexColor() {
 	vec4 TexColor = vec4(1.0);
@@ -28,8 +28,7 @@ vec4 CalcTexColor() {
 		return TexColor;
 	}
 
-	// float Height = texture(heightMap, vertexTexCoord).r;
-	float Height = WorldPos.y;
+	float Height = texture(heightmap, vertexTexCoord).r;
 
 	if(Height < loadedTextures[0].height) {
 		vec2 texCoord = vertexTexCoord * loadedTextures[0].tiling + loadedTextures[0].offset;

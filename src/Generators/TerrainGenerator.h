@@ -19,8 +19,8 @@ public:
     void SetParameters(const TerrainUtilities::TerrainData& params);
 
     struct ThreadTask {
-        unsigned int startI, endI; // Range of rows (length) to process
-        unsigned int startJ, endJ; // Range of columns (width) to process
+        unsigned int startI, endI; // Range of columns (length) to process
+        unsigned int startJ, endJ; // Range of rows (width) to process
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
     };
@@ -34,7 +34,6 @@ private:
     void updateSeedOffset();
     glm::vec3 getColor(float height);
     void CalculateNormals(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
-    void SaveHeightMapToPNG(const std::vector<float>& heightMap, const std::string& filename, int width, int height);
 
 };
 

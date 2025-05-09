@@ -12,6 +12,6 @@ public:
 private:
     TerrainUtilities::TerrainData data;
     vector<float> heightMap;
-    Texture* heightMapTexture = nullptr;
+    unsigned int heightmapTextureID = 0;
 
 };
