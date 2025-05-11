@@ -32,7 +32,6 @@ private:
 
     float PerlinNoise(float x, float z);
     void updateSeedOffset();
-    glm::vec3 getColor(float height);
     void CalculateNormals(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
 
 };

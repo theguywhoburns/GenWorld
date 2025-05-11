@@ -1,6 +1,7 @@
 #version 440 core
 
 #define MAX_TEXTURE_UNITS 16
+#define MAX_COLOR_UNITS 32
 
 in vec3 vertexNormal;
 in vec3 vertexColor;
@@ -16,8 +17,15 @@ struct LoadedTexture {
 	vec2 offset;
 };
 
+struct ColorData {
+	vec4 color;
+	float height;
+};
+
 uniform int textureCount;
 uniform LoadedTexture loadedTextures[MAX_TEXTURE_UNITS];
+uniform int colorCount;
+uniform ColorData colors[MAX_COLOR_UNITS];
 uniform bool coloringMode;
 uniform sampler2D heightmap;
 
@@ -29,6 +37,12 @@ vec4 CalcTexColor() {
 	}
 
 	float Height = texture(heightmap, vertexTexCoord).r;
+
+	if(textureCount == 1) {
+		vec2 texCoord = vertexTexCoord * loadedTextures[0].tiling + loadedTextures[0].offset;
+		TexColor = texture(loadedTextures[0].texture, texCoord);
+		return TexColor;
+	}
 
 	if(Height < loadedTextures[0].height) {
 		vec2 texCoord = vertexTexCoord * loadedTextures[0].tiling + loadedTextures[0].offset;
@@ -54,13 +68,30 @@ vec4 CalcTexColor() {
 	return TexColor;
 }
 
+vec4 CalcColor() {
+	if(colorCount == 0) {
+		return vec4(1.0);
+	}
+
+	float Height = texture(heightmap, vertexTexCoord).r;
+	if(Height <= colors[0].height)
+		return colors[0].color;
+
+	for(int i = 0; i < colorCount - 1; i++) {
+		if(Height <= colors[i].height) {
+			return colors[i].color;
+		}
+	}
+
+	return colors[colorCount - 1].color;
+}
+
 void main() {
 	vec4 finalColor = vec4(1.0);
 	if(coloringMode) {
 		finalColor = CalcTexColor();
-	}
-	else {
-		finalColor = vec4(vertexColor, 1.0);
+	} else {
+		finalColor = CalcColor();
 	}
 
 	FragColor = finalColor;

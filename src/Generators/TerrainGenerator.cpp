@@ -97,10 +97,6 @@ Mesh* TerrainGenerator::GenerateFromHeightMap(const std::vector<float>& heightMa
                     // Get height from the height map
                     float y = heightMap[i * parameters.numCellsWidth + j];
 
-                    // Calculate color based on height
-                    glm::vec3 vertexColor = getColor(y);
-                    vertex.Color = vertexColor;
-
                     // Now apply the height multiplier
                     y *= parameters.heightMultiplier;
                     vertex.Position = glm::vec3(x, y, z);
@@ -204,22 +200,6 @@ void TerrainGenerator::updateSeedOffset() {
     }
 
     parameters.maxHeight = maxPossibleHeight;
-}
-
-glm::vec3 TerrainGenerator::getColor(float height) {
-    if (parameters.colors.empty())
-        return glm::vec3(1.0f);
-
-    if (height <= parameters.colors[0].height)
-        return parameters.colors[0].color;
-
-    for (unsigned int i = 0; i < parameters.colors.size() - 1; i++) {
-        if (height < parameters.colors[i].height) {
-            return parameters.colors[i].color;
-        }
-    }
-
-    return parameters.colors.back().color;
 }
 
 void TerrainGenerator::CalculateNormals(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {

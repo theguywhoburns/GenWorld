@@ -5,28 +5,33 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.width = 100;
     parameters.length = 100;
     parameters.cellSize = 1;
-    parameters.heightMultiplier = 7;
-    parameters.curvePoints = { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.5f} };
+    parameters.heightMultiplier = 35;
+    parameters.curvePoints = { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f} };
 
     // Noise Data
     parameters.lacunarity = 2.0f;
     parameters.persistence = 0.5f;
     parameters.scale = 50.0f;
     parameters.octaves = 4;
-    parameters.seed = 0;
+    parameters.seed = 2258;
     parameters.offset = glm::vec2(0.0f, 0.0f);
 
     parameters.loadedTextures = {
-        { Texture("Textures/rocky_trail_diff_1k.jpg"), 0.0f, glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 0.0f) },
+        { Texture("Textures/Water_001_COLOR.jpg"), 0.0f, glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 0.0f) },
+        { Texture("Textures/coast_sand_01_diff_1k.jpg"), 0.1f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { Texture("Textures/brown_mud_leaves_01_diff_1k.jpg"), 0.25f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { Texture("Textures/aerial_rocks_04_diff_1k.jpg"), 0.35f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { Texture("Textures/aerial_rocks_04_diff_1k.jpg"), 0.85f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { Texture("Textures/snow_02_diff_1k.jpg"), 1.0f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
     };
 
     parameters.colors = {
-        {0.1f, glm::vec4(0.21f, 0.4f, 0.68f, 1.0f)},        // Shallow Water (Lighter Blue)
-        {0.25f, glm::vec4(0.82f, 0.835f, 0.45f, 1.0f)},      // Sand (Yellowish)
-        {0.5f, glm::vec4(0.35f, 0.68f, 0.24f, 1.0f)},       // Lush Grass (Brighter Green)
-        {0.75f, glm::vec4(0.3f, 0.55f, 0.17f, 1.0f)},       // Grass (Green)
-        {1.5f, glm::vec4(0.4f, 0.38f, 0.34f, 1.0f)},        // Rock (Gray)
-        {2.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},          // Snow (White)
+        {0.075f, glm::vec4(0.21f, 0.4f, 0.68f, 1.0f)},        // Shallow Water (Lighter Blue)
+        {0.15f, glm::vec4(0.82f, 0.835f, 0.45f, 1.0f)},      // Sand (Yellowish)
+        {0.35f, glm::vec4(0.35f, 0.68f, 0.24f, 1.0f)},       // Lush Grass (Brighter Green)
+        {0.65f, glm::vec4(0.3f, 0.55f, 0.17f, 1.0f)},       // Grass (Green)
+        {0.85f, glm::vec4(0.4f, 0.38f, 0.34f, 1.0f)},        // Rock (Gray)
+        {1.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},          // Snow (White)
     };
 }
 
@@ -232,11 +237,18 @@ void TerrainUI::DisplayColorSettingsUI() {
         ImGui::Separator();
     }
 
-    if (ImGui::Button("Add Color", ImVec2(200, 40))) {
-        TerrainUtilities::VertexColor defaultColor;
-        defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-        defaultColor.height = 0.5f;
-        parameters.colors.push_back(defaultColor);
+    // Limit to 32 colors
+    if (parameters.colors.size() < 32) {
+        string addColorLabel = "Add Color (" + to_string(32 - parameters.colors.size()) + " left)";
+        if (ImGui::Button(addColorLabel.c_str(), ImVec2(200, 40))) {
+            TerrainUtilities::VertexColor defaultColor;
+            defaultColor.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+            defaultColor.height = 0.5f;
+            parameters.colors.push_back(defaultColor);
+        }
+    }
+    else {
+        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 32 colors reached!");
     }
 
     ImGui::End();
@@ -291,7 +303,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
                 ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture.path.c_str());
 
                 if (ImGui::Button("Change", ImVec2(72, 20))) {
-                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files\0*.png;*.jpg;*.jpeg;*.bmp\0",
+                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files/0*.png;*.jpg;*.jpeg;*.bmp/0",
                         Application::GetInstance()->GetWindow()->getNativeWindow());
 
                     if (!file.empty()) {
@@ -327,7 +339,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
     if (parameters.loadedTextures.size() < 16) {
         string addLayerLabel = "Add Layer (" + to_string(16 - parameters.loadedTextures.size()) + " left)";
         if (ImGui::Button(addLayerLabel.c_str(), ImVec2(200, 40))) {
-            std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files\0*.png;*.jpg;*.jpeg;*.bmp\0",
+            std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files/0*.png;*.jpg;*.jpeg;*.bmp/0",
                 Application::GetInstance()->GetWindow()->getNativeWindow());
 
             if (!file.empty()) {
