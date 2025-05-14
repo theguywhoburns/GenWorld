@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/noise.hpp>
+#include <memory>
 
 #include "../Drawables/Mesh.h"
 #include "ImGuiCurveTest.h"
@@ -16,7 +17,7 @@ namespace TerrainUtilities {
     };
 
     struct TextureData {
-        Texture texture;
+        std::shared_ptr<Texture> texture;
         float height;
         glm::vec2 tiling;
         glm::vec2 offset;
@@ -100,7 +101,10 @@ namespace TerrainUtilities {
             }
 
             for (size_t i = 0; i < loadedTextures.size(); ++i) {
-                if (loadedTextures[i].height != other.loadedTextures[i].height || loadedTextures[i].texture.path != other.loadedTextures[i].texture.path) {
+                if (loadedTextures[i].texture.get()->path != other.loadedTextures[i].texture.get()->path) {
+                    return false;
+                }
+                if (loadedTextures[i].height != other.loadedTextures[i].height) {
                     return false;
                 }
                 if (loadedTextures[i].tiling != other.loadedTextures[i].tiling || loadedTextures[i].offset != other.loadedTextures[i].offset) {

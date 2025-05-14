@@ -1,6 +1,6 @@
 #include "Mesh.h"
 
-Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures) {
+Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<std::shared_ptr<Texture>> textures) {
 	this->vertices = vertices;
 	this->indices = indices;
 	this->textures = textures;
@@ -30,7 +30,7 @@ void Mesh::Draw(Shader& shader) {
 
 		string number = "0";
 		string type = "diffuse";
-		TexType name = textures[i].type;
+		TexType name = textures[i]->type;
 		if (name == TexType::diffuse) {
 			type = "diffuse";
 			number = std::to_string(diffN++);
@@ -55,7 +55,7 @@ void Mesh::Draw(Shader& shader) {
 		std::string res = "material." + type + number;
 		shader.setInt(res.c_str(), i);
 
-		textures[i].bind();
+		textures[i]->bind();
 	}
 
 	glBindVertexArray(arrayObj);

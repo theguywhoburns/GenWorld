@@ -2,7 +2,7 @@
 #include "../Core/stb_image_write.h"
 
 TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, TerrainUtilities::TerrainData terrainData,
-    vector<float> heightMap) : Mesh(vertices, indices, vector<Texture>()) {
+    vector<float> heightMap) : Mesh(vertices, indices, vector<std::shared_ptr<Texture>>()) {
 
     this->data = terrainData;
     this->heightMap = heightMap;
@@ -45,7 +45,7 @@ void TerrainMesh::Draw(Shader& shader) {
         shader.setVec2(name + ".tiling", loadedTextures[i].tiling);
         shader.setVec2(name + ".offset", loadedTextures[i].offset);
 
-        loadedTextures[i].texture.bind();
+        loadedTextures[i].texture->bind();
     }
 
     shader.setInt("colorCount", data.colors.size());

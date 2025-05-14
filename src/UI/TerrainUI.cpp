@@ -17,12 +17,12 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.offset = glm::vec2(0.0f, 0.0f);
 
     parameters.loadedTextures = {
-        { Texture("Textures/Water_001_COLOR.jpg"), 0.0f, glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 0.0f) },
-        { Texture("Textures/coast_sand_01_diff_1k.jpg"), 0.1f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
-        { Texture("Textures/brown_mud_leaves_01_diff_1k.jpg"), 0.25f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
-        { Texture("Textures/aerial_rocks_04_diff_1k.jpg"), 0.35f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
-        { Texture("Textures/aerial_rocks_04_diff_1k.jpg"), 0.85f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
-        { Texture("Textures/snow_02_diff_1k.jpg"), 1.0f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { std::make_shared<Texture>("Textures/Water_001_COLOR.jpg"), 0.0f, glm::vec2(1.0f, 1.0f), glm::vec2(0.0f, 0.0f) },
+        { std::make_shared<Texture>("Textures/coast_sand_01_diff_1k.jpg"), 0.1f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { std::make_shared<Texture>("Textures/brown_mud_leaves_01_diff_1k.jpg"), 0.25f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { std::make_shared<Texture>("Textures/aerial_rocks_04_diff_1k.jpg"), 0.35f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { std::make_shared<Texture>("Textures/aerial_rocks_04_diff_1k.jpg"), 0.85f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
+        { std::make_shared<Texture>("Textures/snow_02_diff_1k.jpg"), 1.0f, glm::vec2(5.0f, 5.0f), glm::vec2(0.0f, 0.0f) },
     };
 
     parameters.colors = {
@@ -293,21 +293,21 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
         ImGui::BeginGroup();
         {
-            ImTextureID textureID = (ImTextureID)(intptr_t)parameters.loadedTextures[i].texture.ID;
+            ImTextureID textureID = (ImTextureID)(intptr_t)parameters.loadedTextures[i].texture->ID;
             ImGui::Image(textureID, ImVec2(128, 128));
             ImGui::SameLine();
 
             ImGui::BeginGroup();
             {
                 ImGui::Dummy(ImVec2{ 0, 128 - ImGui::GetTextLineHeight() - 30 });
-                ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture.path.c_str());
+                ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture->path.c_str());
 
                 if (ImGui::Button("Change", ImVec2(72, 20))) {
                     std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files/0*.png;*.jpg;*.jpeg;*.bmp/0",
                         Application::GetInstance()->GetWindow()->getNativeWindow());
 
                     if (!file.empty()) {
-                        Texture newTexture = Texture(file.c_str());
+                        std::shared_ptr<Texture> newTexture = std::make_shared<Texture>(file.c_str());
                         parameters.loadedTextures[i].texture = newTexture;
                     }
                 }
@@ -343,7 +343,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
                 Application::GetInstance()->GetWindow()->getNativeWindow());
 
             if (!file.empty()) {
-                Texture texture = Texture(file.c_str());
+                std::shared_ptr<Texture> texture = std::make_shared<Texture>(file.c_str());
                 TerrainUtilities::TextureData layer = { texture, 0.5f };
                 layer.tiling = glm::vec2(1.0f, 1.0f);
                 layer.offset = glm::vec2(0.0f, 0.0f);

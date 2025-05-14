@@ -26,13 +26,13 @@ public:
 
 private:
 	vector<Mesh*>	meshes;
-	vector<Texture> textures_loaded;
+	vector<std::shared_ptr<Texture>> textures_loaded;
 	string directory;
 	bool gammaCorrection;
 
 	void loadModel(string path);
 	void processNode(aiNode* node, const aiScene* scene);
 	Mesh* processMesh(aiMesh* mesh, const aiScene* scene);
-	vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName);
+	vector<std::shared_ptr<Texture>> loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName);
 
 };

@@ -16,12 +16,12 @@ using namespace std;
 class Mesh : public IDrawable {
 public:
     // mesh data
-    vector<Vertex>       vertices;
-    vector<unsigned int> indices;
-    vector<Texture>      textures;
+    vector<Vertex>                      vertices;
+    vector<unsigned int>                indices;
+    vector<std::shared_ptr<Texture>>    textures;
 
     //Mesh() { setupMesh(); }
-    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures);
+    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<std::shared_ptr<Texture>> textures);
     ~Mesh();
     void Draw(Shader& shader) override;
     void Draw(const glm::mat4& view, const glm::mat4& projection) override;
