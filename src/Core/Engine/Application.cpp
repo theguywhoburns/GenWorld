@@ -4,13 +4,13 @@ Application* Application::_instance = nullptr;
 
 Application::Application() {
     m_window = new Window();
-    
+
     init();
 }
 
 Application::~Application() {
     shutdown();
-    
+
     delete m_window;
     delete terrainController;
 }
@@ -21,15 +21,14 @@ void Application::init() {
         m_isRunning = false;
         return;
     }
-    
-    ourShader = new Shader("Shaders/Terrain.vert", "Shaders/Terrain.frag");
+
+    LoadDefaultShaders();
 
     sceneView.init(m_window);
     sceneView.setCamera(&camera);
     sceneView.setRenderer(&renderer);
     uiCtx.init(m_window);
 
-    renderer.SetShader(ourShader);
     renderer.SetCamera(&camera);
 
     terrainController = new TerrainController(&renderer);
@@ -38,6 +37,14 @@ void Application::init() {
 void Application::shutdown() {
     uiCtx.shutdown();
     m_window->shutdown();
+}
+
+void Application::LoadDefaultShaders() {
+    ShaderManager* shaderManager = ShaderManager::GetInstance();
+    shaderManager->loadShader("solid", "Shaders/VertexShader.vs", "Shaders/solid.fs");
+    shaderManager->loadShader("unshaded", "Shaders/VertexShader.vs", "Shaders/FragmentShader.fs");
+    shaderManager->loadShader("terrain", "Shaders/Terrain.vert", "Shaders/Terrain.frag");
+    shaderManager->loadShader("terrainTexture", "Shaders/TerrainTexture.vert", "Shaders/TerrainTexture.frag");
 }
 
 void Application::Run() {

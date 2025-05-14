@@ -22,6 +22,7 @@ public:
 			delete mesh;
 	}
 	void Draw(Shader& shader) override;
+	void Draw(const glm::mat4& view, const glm::mat4& projection) override;
 
 private:
 	vector<Mesh*>	meshes;

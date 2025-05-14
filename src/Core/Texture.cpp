@@ -40,7 +40,7 @@ Texture::Texture(std::string path, TexType type) {
 }
 
 Texture::~Texture() {
-	//glDeleteTextures(1, &ID);
+	// glDeleteTextures(1, &ID);
 }
 
 void Texture::activate(GLenum textureUnit) {

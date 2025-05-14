@@ -10,6 +10,7 @@
 
 #include "../Shader.h"
 #include "../Camera.h"
+#include "../ShaderManager.h"
 #include "Window.h"
 
 class TerrainController;
@@ -33,14 +34,14 @@ private:
 
     void init();
     void shutdown();
+    void LoadDefaultShaders();
 
     static Application* _instance;
 
     bool m_isRunning = true;
 
     Window* m_window;
-    Camera camera = Camera(glm::vec3(0.0f, 20.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -45.0f);
-    Shader* ourShader;
+    Camera camera = Camera(glm::vec3(0.0f, 75.0f, 100.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -25.0f);
     Renderer renderer;
     SceneView sceneView;
     UiContext uiCtx;

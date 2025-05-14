@@ -24,6 +24,7 @@ public:
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures);
     ~Mesh();
     void Draw(Shader& shader) override;
+    void Draw(const glm::mat4& view, const glm::mat4& projection) override;
 
 protected:
     unsigned int arrayObj = 0;

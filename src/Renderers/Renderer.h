@@ -18,7 +18,6 @@ public:
     void ClearQueue();
     void AddToRenderQueue(IDrawable* mesh);
 
-    void SetShader(Shader* shader);
     void SetCamera(Camera* camera);
 
     void SetScreenSize(glm::vec2 size);
@@ -30,7 +29,6 @@ private:
 
     glm::vec2 screenSize;
     std::vector<IDrawable*> renderQueue;
-    Shader* currentShader;
     Camera* currentCamera;
     FrameBuffer framebuffer;
 

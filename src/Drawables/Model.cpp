@@ -1,19 +1,24 @@
 #include "Model.h"
 
-void Model::Draw(Shader& shader)
-{
+void Model::Draw(Shader& shader) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
 		meshes[i]->Draw(shader);
 	}
 }
 
-void Model::loadModel(string path)
-{
+void Model::Draw(const glm::mat4& view, const glm::mat4& projection) {
+	if (m_shader != nullptr) {
+		for (unsigned int i = 0; i < meshes.size(); i++) {
+			meshes[i]->Draw(*m_shader);
+		}
+	}
+}
+
+void Model::loadModel(string path) {
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-	{
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		cout << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
 		return;
 	}
@@ -22,31 +27,26 @@ void Model::loadModel(string path)
 	processNode(scene->mRootNode, scene);
 }
 
-void Model::processNode(aiNode* node, const aiScene* scene)
-{
+void Model::processNode(aiNode* node, const aiScene* scene) {
 	// process all the node's meshes (if any)
-	for (unsigned int i = 0; i < node->mNumMeshes; i++)
-	{
+	for (unsigned int i = 0; i < node->mNumMeshes; i++) {
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
 		meshes.push_back(processMesh(mesh, scene));
 	}
 
 	// then do the same for each of its children
-	for (unsigned int i = 0; i < node->mNumChildren; i++)
-	{
+	for (unsigned int i = 0; i < node->mNumChildren; i++) {
 		processNode(node->mChildren[i], scene);
 	}
 }
 
-Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene)
-{
+Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
 	vector<Texture> textures;
 
 	// load vertices
-	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
-	{
+	for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
 		Vertex vertex;
 		glm::vec3 vector;
 		vector.x = mesh->mVertices[i].x;
@@ -111,20 +111,16 @@ Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene)
 	return new Mesh(vertices, indices, textures);
 }
 
-vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName)
-{
+vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName) {
 	vector<Texture> textures;
-	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
-	{
+	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
 		aiString str;
 		mat->GetTexture(type, i, &str);
 		string path = directory + "/" + string(str.C_Str());
 		bool skip = false;
 
-		for (unsigned int j = 0; j < textures_loaded.size(); j++)
-		{
-			if (std::strcmp(textures_loaded[j].path.data(), path.data()) == 0)
-			{
+		for (unsigned int j = 0; j < textures_loaded.size(); j++) {
+			if (std::strcmp(textures_loaded[j].path.data(), path.data()) == 0) {
 				textures.push_back(textures_loaded[j]);
 				skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
 				break;

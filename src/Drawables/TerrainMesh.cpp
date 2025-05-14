@@ -1,12 +1,14 @@
 #include "TerrainMesh.h"
 #include "../Core/stb_image_write.h"
 
-TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, TerrainUtilities::TerrainData terrainData
-    , vector<float> heightMap)
-    : Mesh(vertices, indices, vector<Texture>()) {
+TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, TerrainUtilities::TerrainData terrainData,
+    vector<float> heightMap) : Mesh(vertices, indices, vector<Texture>()) {
 
     this->data = terrainData;
     this->heightMap = heightMap;
+
+    m_shader = ShaderManager::GetInstance()->getShader("terrain");
+    textureShader = ShaderManager::GetInstance()->getShader("terrainTexture");
 
     // Create a texture for the height map
     glGenTextures(1, &heightmapTextureID);
@@ -71,9 +73,19 @@ void TerrainMesh::Draw(Shader& shader) {
     ImGui::End();
 }
 
+void TerrainMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
+    if (m_shader != nullptr) {
+        m_shader->use();
+        glm::mat4 model = glm::mat4(1.0f);
+        m_shader->setMat4("model", model);
+        m_shader->setMat4("view", view);
+        m_shader->setMat4("projection", projection);
+        Draw(*m_shader);
+    }
+}
+
 void TerrainMesh::RenderToTexture() {
-    Shader shader("Shaders/TerrainTexture.vert", "Shaders/TerrainTexture.frag");
-    shader.use();
+    textureShader->use();
 
     FrameBuffer frameBuffer;
     frameBuffer.Resize(1024, 1024);
@@ -84,7 +96,7 @@ void TerrainMesh::RenderToTexture() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // Draw the terrain mesh to the framebuffer
-    Draw(shader);
+    Draw(*textureShader);
 
 
     // Read the pixels from the framebuffer
