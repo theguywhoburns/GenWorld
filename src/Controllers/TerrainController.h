@@ -19,7 +19,6 @@ public:
 private:
     TerrainGenerator generator;
     TerrainUI* terrainUI;
-    Mesh* terrainMesh;
 
     void UpdateParameters() override;
 

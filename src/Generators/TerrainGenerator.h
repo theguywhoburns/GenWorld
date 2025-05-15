@@ -10,11 +10,11 @@
 
 class TerrainGenerator : public IGeneratorStrategy {
 public:
-    Mesh* Generate() override;
+    void Generate() override;
     std::vector<float> GenerateHeightMap();
     Mesh* GenerateFromHeightMap(const std::vector<float>& heightMap);
-    
-    Mesh* GetMesh() const { return terrainMesh; }
+
+    Mesh* GetMesh() const override { return terrainMesh; }
     std::vector<float> GetHeightMap() const { return heightMap; }
     void SetParameters(const TerrainUtilities::TerrainData& params);
 

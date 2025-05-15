@@ -5,7 +5,7 @@
 #include <algorithm>
 #include "../Utils/perlin.h"
 
-Mesh* TerrainGenerator::Generate() {
+void TerrainGenerator::Generate() {
     // Generate height map
     heightMap = GenerateHeightMap();
 
@@ -14,8 +14,6 @@ Mesh* TerrainGenerator::Generate() {
         delete terrainMesh;
 
     terrainMesh = GenerateFromHeightMap(heightMap);
-
-    return terrainMesh;
 }
 
 std::vector<float> TerrainGenerator::GenerateHeightMap() {

@@ -5,19 +5,14 @@ TerrainController::TerrainController(Renderer* renderer)
     // Initialize the terrain generator and UI
     generator = TerrainGenerator();
     terrainUI = new TerrainUI(this);
-    terrainMesh = nullptr;
 }
 
 TerrainController::~TerrainController() {
-    if (terrainMesh != nullptr) {
-        delete terrainMesh;
-    }
+
 }
 
 void TerrainController::Update() {
-    if (terrainMesh != nullptr) {
-        renderer->AddToRenderQueue(terrainMesh);
-    }
+    renderer->AddToRenderQueue(generator.GetMesh());
 }
 
 void TerrainController::UpdateParameters() {
@@ -28,7 +23,7 @@ void TerrainController::UpdateParameters() {
 void TerrainController::Generate() {
     UpdateParameters();
 
-    terrainMesh = generator.Generate();
+    generator.Generate();
 }
 
 void TerrainController::DisplayUI() {

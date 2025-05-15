@@ -16,7 +16,8 @@ public:
         m_unShadedShader = "unshaded";
         m_shader = ShaderManager::GetInstance()->getShader(m_solidShader);
     }
-    
+    virtual ~IDrawable() = default;
+
     virtual void Draw(Shader& shader) = 0;
     virtual void Draw(const glm::mat4& view, const glm::mat4& projection) = 0;
     virtual void SetShader(std::shared_ptr<Shader> shader) { m_shader = shader; }

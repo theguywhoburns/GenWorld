@@ -5,7 +5,8 @@
 
 class IGeneratorStrategy {
 public:
-    virtual Mesh* Generate() = 0;
+    virtual void Generate() = 0;
+    virtual Mesh* GetMesh() const = 0;
 };
 
 #endif

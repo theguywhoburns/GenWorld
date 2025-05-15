@@ -230,7 +230,7 @@ void TerrainUI::DisplayColorSettingsUI() {
         }
 
         ImGui::ColorEdit3("Color", &parameters.colors[i].color[0]);
-        
+
         ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f);
 
         ImGui::PopID();
@@ -303,7 +303,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
                 ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture->path.c_str());
 
                 if (ImGui::Button("Change", ImVec2(72, 20))) {
-                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files/0*.png;*.jpg;*.jpeg;*.bmp/0",
+                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files (*.png;*.jpg;*.jpeg;*.bmp)\0*.png;*.jpg;*.jpeg;*.bmp\0",
                         Application::GetInstance()->GetWindow()->getNativeWindow());
 
                     if (!file.empty()) {
@@ -339,7 +339,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
     if (parameters.loadedTextures.size() < 16) {
         string addLayerLabel = "Add Layer (" + to_string(16 - parameters.loadedTextures.size()) + " left)";
         if (ImGui::Button(addLayerLabel.c_str(), ImVec2(200, 40))) {
-            std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files/0*.png;*.jpg;*.jpeg;*.bmp/0",
+            std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files (*.png;*.jpg;*.jpeg;*.bmp)\0*.png;*.jpg;*.jpeg;*.bmp\0",
                 Application::GetInstance()->GetWindow()->getNativeWindow());
 
             if (!file.empty()) {
