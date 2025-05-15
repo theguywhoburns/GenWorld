@@ -177,8 +177,6 @@ void TerrainUI::DisplayTerrainSettingsUI() {
     ImGui::SameLine();
     ImGui::RadioButton("Use Textures", &parameters.coloringMode, 1);
 
-    ImGui::SliderFloat("Blend Range", &parameters.blendFactor, 0.0f, 1.0f, "%.1f");
-
     ImGui::Separator();
     ImGui::NewLine();
 

@@ -71,9 +71,6 @@ namespace TerrainUtilities {
         // Texture Data
         vector<TextureData> loadedTextures;
 
-        // blending
-        float blendFactor = 0.5f;
-
         int coloringMode = 0; // 0: Color, 1: Texture
 
         // Falloff Data
@@ -122,7 +119,6 @@ namespace TerrainUtilities {
                 octaves == other.octaves &&
                 seed == other.seed &&
                 offset == other.offset &&
-                blendFactor == other.blendFactor &&
                 coloringMode == other.coloringMode &&
                 falloffParams.enabled == other.falloffParams.enabled &&
                 falloffParams.a == other.falloffParams.a &&

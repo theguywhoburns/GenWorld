@@ -33,7 +33,6 @@ void TerrainMesh::Draw(Shader& shader) {
     std::vector<TerrainUtilities::TextureData> loadedTextures = data.loadedTextures;
 
     shader.setInt("textureCount", loadedTextures.size());
-    shader.setFloat("blendingFactor", data.blendFactor);
     shader.setBool("coloringMode", data.coloringMode);
 
     for (int i = 0; i < loadedTextures.size(); i++) {
