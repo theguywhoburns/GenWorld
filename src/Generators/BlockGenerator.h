@@ -28,7 +28,10 @@ public:
     BlockGenerator();
     ~BlockGenerator();
 
-    Mesh* Generate() override;
+    void Generate() override;
+    Mesh* GetMesh() const override {
+        return generatorMesh;
+    }
 
     void SetParameters(BlockUtilities::BlockData params) {
         parameters = params;
@@ -54,6 +57,7 @@ private:
     
     // Grid of cells for Wave Function Collapse
     std::vector<std::vector<GridCell>> grid;
+    Mesh* generatorMesh = nullptr;
     
     // WFC algorithm methods
     void initializeGrid();

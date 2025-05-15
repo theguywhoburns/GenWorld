@@ -15,11 +15,20 @@ BlockGenerator::BlockGenerator() {
 
 
 BlockGenerator::~BlockGenerator() {
-    // Destructor implementation
+    if (generatorMesh != nullptr) {
+        delete generatorMesh;
+        generatorMesh = nullptr;
+    }
 }
 
 
-Mesh* BlockGenerator::Generate() {
+void BlockGenerator::Generate() {
+    // Clean up any previous mesh
+    if (generatorMesh != nullptr) {
+        delete generatorMesh;
+        generatorMesh = nullptr;
+    }
+
     // 1. Initialize the grid with all possible states
     initializeGrid();
 
@@ -29,7 +38,8 @@ Mesh* BlockGenerator::Generate() {
     
     if (!placeRandomBlockAt(centerX, centerZ)) {
         std::cerr << "Failed to place initial block at center" << std::endl;
-        return createEmptyMesh();
+        generatorMesh = createEmptyMesh();
+        return;
     }
     
     // 3. Propagate constraints and collapse cells until the grid is filled
@@ -54,7 +64,7 @@ Mesh* BlockGenerator::Generate() {
     }
     
     // 4. Generate the final mesh from the collapsed grid
-    return generateMeshFromGrid();
+    generatorMesh = generateMeshFromGrid();
 }
 
 void BlockGenerator::initializeGrid() {
@@ -263,7 +273,7 @@ Mesh* BlockGenerator::generateMeshFromGrid() {
     // This will generate a mesh based on the collapsed grid
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
-    std::vector<Texture> textures;
+    std::vector<std::shared_ptr<Texture>> textures;
     
     // Create vertices and indices based on the grid
     for (unsigned int x = 0; x < parameters.numCellsWidth; x++) {
@@ -343,5 +353,5 @@ void BlockGenerator::addBlockToMesh(int x, int z, int blockId, std::vector<Verte
 }
 
 Mesh* BlockGenerator::createEmptyMesh() {
-    return new Mesh(std::vector<Vertex>(), std::vector<unsigned int>(), std::vector<Texture>());
+    return new Mesh(std::vector<Vertex>(), std::vector<unsigned int>(), std::vector<std::shared_ptr<Texture>>());
 }

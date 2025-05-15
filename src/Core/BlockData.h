@@ -1,3 +1,8 @@
+#pragma once  // Add header guard
+
+#include <vector>
+#include <string>
+
 namespace BlockUtilities {
     enum BlockConstraint {
         LEFT,
@@ -11,7 +16,7 @@ namespace BlockUtilities {
     struct BlockData {
         // Block Data
         int id;
-        vector<BlockConstraint> constraints;
+        std::vector<BlockConstraint> constraints;  // Use std:: namespace
         std::string blockPath;
         std::string texturePath;
         float width;

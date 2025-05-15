@@ -34,6 +34,7 @@ void BlockController::Generate() {
     if (blockMesh != nullptr) {
         delete blockMesh;
     }
+    generator.Generate();
 
-    blockMesh = generator.Generate();
+    blockMesh = generator.GetMesh();
 }
