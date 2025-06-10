@@ -19,6 +19,10 @@ public:
 	TexType type;
 	std::string path;
 
+	unsigned int getID() const {
+		return ID;
+	}
+
 	Texture(std::string path, TexType type = TexType::diffuse);
 	~Texture();
 	static void activate(GLenum textureUnit);

@@ -4,33 +4,30 @@
 #include <string>
 
 namespace BlockUtilities {
-    enum BlockConstraint {
-        LEFT,
-        RIGHT,
-        FRONT,
-        BACK,
-        UP,
-        DOWN,
+    struct BlockConstraints {
+        int blockTypeId;
+        std::vector<int> allowedNeighbors;
+        std::string blockTypeName;
+        
+        BlockConstraints() : blockTypeId(-1) {}
+        BlockConstraints(int id, const std::string& name) : blockTypeId(id), blockTypeName(name) {}
     };
 
     struct BlockData {
-        // Block Data
-        int id;
-        std::vector<BlockConstraint> constraints;  // Use std:: namespace
-        std::string blockPath;
-        std::string texturePath;
+        // Grid parameters
         float width;
         float length;
-        float height;
         int cellSize;
         unsigned int numCellsWidth;
         unsigned int numCellsLength;
-        unsigned int numCellsHeight;
         float halfWidth;
         float halfLength;
-        float halfHeight;
         float stepX;
-        float stepY;
         float stepZ;
+        
+
+        float blockScale = 1.0f;
+        
+        std::vector<BlockConstraints> blockConstraints;
     };
 }

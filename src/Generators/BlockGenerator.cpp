@@ -1,18 +1,38 @@
 #include "BlockGenerator.h"
 
+// Include all necessary headers here
+#include "../Controllers/BlockController.h"
+#include "../UI/BlockUI.h"
+#include "../Drawables/Model.h"
+#include "../Core/Vertex.h"
+#include <random>
+
 
 BlockGenerator::BlockGenerator() {
+    this->controller = nullptr;
     parameters.width = 100.0f;
     parameters.length = 100.0f;
-    parameters.cellSize = 1;
+    parameters.cellSize = 5;
     parameters.numCellsWidth = static_cast<unsigned int>(parameters.width / parameters.cellSize);
     parameters.numCellsLength = static_cast<unsigned int>(parameters.length / parameters.cellSize);
     parameters.halfWidth = parameters.width / 2.0f;
     parameters.halfLength = parameters.length / 2.0f;
-    parameters.stepX = parameters.width / (parameters.numCellsWidth - 1);
-    parameters.stepZ = parameters.length / (parameters.numCellsLength - 1);
+    parameters.blockScale = 1.0f;  // Initialize block scale
+    generatorMesh = nullptr;
 }
 
+BlockGenerator::BlockGenerator(BlockController* controller) {
+    this->controller = controller;
+    parameters.width = 100.0f;
+    parameters.length = 100.0f;
+    parameters.cellSize = 5;
+    parameters.numCellsWidth = static_cast<unsigned int>(parameters.width / parameters.cellSize);
+    parameters.numCellsLength = static_cast<unsigned int>(parameters.length / parameters.cellSize);
+    parameters.halfWidth = parameters.width / 2.0f;
+    parameters.halfLength = parameters.length / 2.0f;
+    parameters.blockScale = 1.0f;  // Initialize block scale
+    generatorMesh = nullptr;
+}
 
 BlockGenerator::~BlockGenerator() {
     if (generatorMesh != nullptr) {
@@ -21,20 +41,17 @@ BlockGenerator::~BlockGenerator() {
     }
 }
 
-
 void BlockGenerator::Generate() {
-    // Clean up any previous mesh
-    if (generatorMesh != nullptr) {
-        delete generatorMesh;
-        generatorMesh = nullptr;
-    }
-
     // 1. Initialize the grid with all possible states
     initializeGrid();
 
     // 2. Start with a seed block in the center of the grid
     int centerX = parameters.numCellsWidth / 2;
     int centerZ = parameters.numCellsLength / 2;
+    
+    // DEBUG: Print center coordinates
+    std::cout << "Placing center block at grid position: " << centerX << ", " << centerZ << std::endl;
+    std::cout << "Grid dimensions: " << parameters.numCellsWidth << " x " << parameters.numCellsLength << std::endl;
     
     if (!placeRandomBlockAt(centerX, centerZ)) {
         std::cerr << "Failed to place initial block at center" << std::endl;
@@ -44,22 +61,17 @@ void BlockGenerator::Generate() {
     
     // 3. Propagate constraints and collapse cells until the grid is filled
     while (hasUnresolvedCells()) {
-        // Find cell with lowest entropy (fewest possible states)
         GridPosition nextPos = findLowestEntropyCell();
         
-        // If we couldn't find a valid cell, we're either done or have a contradiction
         if (nextPos.x == -1 || nextPos.z == -1) {
             break;
         }
         
-        // Collapse this cell to a single state
         if (!collapseCell(nextPos.x, nextPos.z)) {
             std::cerr << "Failed to collapse cell at " << nextPos.x << ", " << nextPos.z << std::endl;
-            // Handle failure - could try to backtrack or just continue
             continue;
         }
         
-        // Propagate constraints to neighboring cells
         propagateConstraints(nextPos.x, nextPos.z);
     }
     
@@ -68,7 +80,6 @@ void BlockGenerator::Generate() {
 }
 
 void BlockGenerator::initializeGrid() {
-    // Reset or initialize the grid
     grid.clear();
     grid.resize(parameters.numCellsWidth);
     
@@ -76,23 +87,38 @@ void BlockGenerator::initializeGrid() {
         grid[x].resize(parameters.numCellsLength);
         
         for (unsigned int z = 0; z < parameters.numCellsLength; z++) {
-            // Initialize each cell with all possible blocks
             grid[x][z].possibleBlockTypes = getAllBlockTypes();
             grid[x][z].collapsed = false;
-            grid[x][z].blockTypeId = -1;  // No specific type yet
+            grid[x][z].blockTypeIds.clear();
+            grid[x][z].blockPositions.clear();
+            grid[x][z].cellFillAmount = 0.0f;
         }
     }
 }
 
 std::vector<int> BlockGenerator::getAllBlockTypes() {
-    // In the future, this would return all your block types from UI or loaded assets
-    // For now, we'll return some placeholder IDs
-    // Replace this when you have actual block data
     std::vector<int> blockTypes;
     
-    // Placeholder: assume 10 different block types (IDs 0-9)
-    for (int i = 0; i < 10; i++) {
-        blockTypes.push_back(i);
+    // Get asset IDs from the UI via controller
+    if (controller && controller->GetBlockUI()) {
+        auto assets = controller->GetBlockUI()->GetLoadedAssets();
+        
+        if (assets.empty()) {
+            // Fallback to placeholder blocks if no assets are loaded
+            for (int i = 0; i < 10; i++) {
+                blockTypes.push_back(i);
+            }
+        } else {
+            // Use loaded asset IDs
+            for (const auto& asset : assets) {
+                blockTypes.push_back(asset.id);
+            }
+        }
+    } else {
+        // Fallback if no controller
+        for (int i = 0; i < 10; i++) {
+            blockTypes.push_back(i);
+        }
     }
     
     return blockTypes;
@@ -109,15 +135,26 @@ bool BlockGenerator::placeRandomBlockAt(int x, int z) {
         return false;
     }
     
-    // Choose a random possible block for this cell
     int randomIndex = rand() % cell.possibleBlockTypes.size();
     int chosenBlockType = cell.possibleBlockTypes[randomIndex];
     
-    // Collapse the cell to this block type
+    // FIXED: Use the same coordinate calculation as calculateBlockPositionInCell
+    float cellCenterX = (x * parameters.cellSize) - parameters.halfWidth;
+    float cellCenterZ = (z * parameters.cellSize) - parameters.halfLength;
+    glm::vec3 blockPosition = glm::vec3(cellCenterX, 0, cellCenterZ);
+    
+    // DEBUG: Print center block world position
+    std::cout << "Center block world position: " << blockPosition.x << ", " << blockPosition.y << ", " << blockPosition.z << std::endl;
+    
     cell.collapsed = true;
     cell.possibleBlockTypes.clear();
     cell.possibleBlockTypes.push_back(chosenBlockType);
-    cell.blockTypeId = chosenBlockType;
+    
+    // Use the new vector-based structure
+    cell.blockTypeIds.clear();
+    cell.blockTypeIds.push_back(chosenBlockType);
+    cell.blockPositions.clear();
+    cell.blockPositions.push_back(blockPosition);
     
     return true;
 }
@@ -136,15 +173,12 @@ bool BlockGenerator::hasUnresolvedCells() {
 GridPosition BlockGenerator::findLowestEntropyCell() {
     GridPosition lowestPos = {-1, -1};
     int lowestEntropy = INT_MAX;
-    
-    // Add some randomness to avoid patterns
     std::vector<GridPosition> candidates;
     
     for (unsigned int x = 0; x < parameters.numCellsWidth; x++) {
         for (unsigned int z = 0; z < parameters.numCellsLength; z++) {
             auto& cell = grid[x][z];
             
-            // Skip already collapsed cells or cells with no options
             if (cell.collapsed || cell.possibleBlockTypes.empty()) {
                 continue;
             }
@@ -162,7 +196,6 @@ GridPosition BlockGenerator::findLowestEntropyCell() {
         }
     }
     
-    // If we found candidates, choose one at random
     if (!candidates.empty()) {
         int randomIndex = rand() % candidates.size();
         return candidates[randomIndex];
@@ -182,176 +215,316 @@ bool BlockGenerator::collapseCell(int x, int z) {
         return false;
     }
     
-    // Choose a random possible block for this cell
-    // In a full implementation, you'd weight this by frequency
+    // Determine how many blocks to place in this cell
+    int numBlocksToPlace = calculateBlocksForCell(x, z);
+    
+    // Place blocks with distance constraints
+    for (int i = 0; i < numBlocksToPlace; i++) {
+        if (!placeBlockInCell(x, z, i)) {
+            break; // Stop if we can't place more blocks
+        }
+    }
+    
+    cell.collapsed = true;
+    return true;
+}
+
+int BlockGenerator::calculateBlocksForCell(int x, int z) {
+    return 1;
+}
+
+bool BlockGenerator::placeBlockInCell(int x, int z, int blockIndex) {
+    auto& cell = grid[x][z];
+    
+    if (cell.possibleBlockTypes.empty()) {
+        return false;
+    }
+    
+    // Choose block type
     int randomIndex = rand() % cell.possibleBlockTypes.size();
     int chosenBlockType = cell.possibleBlockTypes[randomIndex];
     
-    // Collapse the cell to this block type
-    cell.collapsed = true;
-    cell.possibleBlockTypes.clear();
-    cell.possibleBlockTypes.push_back(chosenBlockType);
-    cell.blockTypeId = chosenBlockType;
+    // Calculate center position of cell
+    float cellCenterX = (x * parameters.cellSize) - parameters.halfWidth;
+    float cellCenterZ = (z * parameters.cellSize) - parameters.halfLength;
+    glm::vec3 blockPosition = glm::vec3(cellCenterX, 0, cellCenterZ);
+    
+    // Add the block
+    cell.blockTypeIds.push_back(chosenBlockType);
+    cell.blockPositions.push_back(blockPosition);
     
     return true;
 }
 
-void BlockGenerator::propagateConstraints(int x, int z) {
-    // Queue of cells to update
-    std::queue<GridPosition> queue;
-    queue.push({x, z});
+glm::vec3 BlockGenerator::calculateBlockPositionInCell(int x, int z, int blockIndex, const std::vector<glm::vec3>& existingPositions) {
+    // Simply return the center of the cell
+    float cellCenterX = (x * parameters.cellSize) - parameters.halfWidth;
+    float cellCenterZ = (z * parameters.cellSize) - parameters.halfLength;
     
-    while (!queue.empty()) {
-        GridPosition current = queue.front();
-        queue.pop();
-        
-        // Get the current cell's constraints
-        auto& currentCell = grid[current.x][current.z];
-        
-        // Check all four neighbors
-        const int dx[] = {1, 0, -1, 0}; // right, down, left, up
-        const int dz[] = {0, 1, 0, -1};
-        
-        for (int dir = 0; dir < 4; dir++) {
-            int nx = current.x + dx[dir];
-            int nz = current.z + dz[dir];
-            
-            // Skip neighbors outside the grid
-            if (nx < 0 || nx >= (int)parameters.numCellsWidth || 
-                nz < 0 || nz >= (int)parameters.numCellsLength) {
-                continue;
-            }
-            
-            auto& neighborCell = grid[nx][nz];
-            
-            // Skip already collapsed neighbors
-            if (neighborCell.collapsed) {
-                continue;
-            }
-            
-            // Get the original size for comparison
-            int originalSize = neighborCell.possibleBlockTypes.size();
-            
-            // Update the neighbor's possible blocks based on current cell's constraints
-            updatePossibleBlockTypes(current.x, current.z, nx, nz);
-            
-            // If the neighbor's options changed, add it to the queue
-            if (originalSize != neighborCell.possibleBlockTypes.size()) {
-                queue.push({nx, nz});
-            }
-        }
-    }
+    return glm::vec3(cellCenterX, 0, cellCenterZ);
 }
 
-void BlockGenerator::updatePossibleBlockTypes(int x, int z, int nx, int nz) {
-    // This would use your actual constraints between block types
-    // For now, just a placeholder implementation
-    auto& cell = grid[x][z];
-    auto& neighborCell = grid[nx][nz];
-    
-    // In a real implementation, you would check which blocks can be 
-    // adjacent to the blocks in the current cell based on their constraints
-    // For this placeholder, we'll just randomly remove some options
-    
-    if (!neighborCell.possibleBlockTypes.empty() && cell.blockTypeId != -1) {
-        // Placeholder logic: blocks can only be adjacent to blocks with IDs ±2 of their own ID
-        std::vector<int> validOptions;
-        
-        for (int blockType : neighborCell.possibleBlockTypes) {
-            if (std::abs(blockType - cell.blockTypeId) <= 2) {
-                validOptions.push_back(blockType);
-            }
-        }
-        
-        if (!validOptions.empty()) {
-            neighborCell.possibleBlockTypes = validOptions;
-        }
-    }
+bool BlockGenerator::isValidBlockPosition(int x, int z, const glm::vec3& position, int blockType) {
+    // No distance constraints, always valid
+    return true;
 }
 
 Mesh* BlockGenerator::generateMeshFromGrid() {
-    // This will generate a mesh based on the collapsed grid
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<std::shared_ptr<Texture>> textures;
     
-    // Create vertices and indices based on the grid
     for (unsigned int x = 0; x < parameters.numCellsWidth; x++) {
         for (unsigned int z = 0; z < parameters.numCellsLength; z++) {
-            if (grid[x][z].collapsed && grid[x][z].blockTypeId != -1) {
-                // Add the block's geometry to the mesh
-                addBlockToMesh(x, z, grid[x][z].blockTypeId, vertices, indices);
+            const auto& cell = grid[x][z];
+            if (cell.collapsed) {
+                // Add all blocks in this cell
+                for (size_t i = 0; i < cell.blockTypeIds.size(); i++) {
+                    addBlockToMeshAtPosition(
+                        cell.blockPositions[i], 
+                        cell.blockTypeIds[i], 
+                        vertices, 
+                        indices
+                    );
+                }
             }
         }
     }
     
-    // Create and return the mesh
     return new Mesh(vertices, indices, textures);
 }
 
-void BlockGenerator::addBlockToMesh(int x, int z, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
-    // Calculate position in world coordinates
-    float worldX = (x - parameters.halfWidth) * parameters.cellSize;
-    float worldZ = (z - parameters.halfLength) * parameters.cellSize;
+void BlockGenerator::addBlockToMeshAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
+    // Check if we have a controller and can get assets
+    if (!controller || !controller->GetBlockUI()) {
+        addSimpleCubeAtPosition(worldPos, blockId, vertices, indices);
+        return;
+    }
     
-    // In a real implementation, you'd get the block's geometry based on its ID
-    // For this placeholder, we'll just create a simple cube for each block
+    const AssetInfo* asset = nullptr;
+    auto assets = controller->GetBlockUI()->GetLoadedAssets();
     
-    float blockSize = parameters.cellSize * 0.8f; // Slightly smaller than the cell for visibility
+    for (const auto& a : assets) {
+        if (a.id == blockId) {
+            asset = &a;
+            break;
+        }
+    }
+    
+    // If we found a valid asset with a model, use it
+    if (asset && asset->model && !asset->model->getMeshes().empty()) {
+        Mesh* modelMesh = asset->model->getMeshes()[0];
+
+        if (modelMesh && !modelMesh->vertices.empty() && !modelMesh->indices.empty()) {
+            unsigned int baseIndex = vertices.size();
+            
+            // Use the blockScale parameter for model scaling
+            float modelScale = parameters.blockScale;
+            
+            // Add all vertices from the model
+            for (const auto& v : modelMesh->vertices) {
+                Vertex newVertex = v;
+                newVertex.Position = newVertex.Position * modelScale;
+                newVertex.Position += worldPos;
+                vertices.push_back(newVertex);
+            }
+            
+            // Add all indices from the model, offset by our base index
+            for (unsigned int idx : modelMesh->indices) {
+                indices.push_back(baseIndex + idx);
+            }
+            
+            return;
+        }
+    }
+    
+    // Fallback: create a simple cube
+    addSimpleCubeAtPosition(worldPos, blockId, vertices, indices);
+}
+
+void BlockGenerator::addSimpleCubeAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
+    // Use the blockScale parameter for cube size
+    float blockSize = parameters.blockScale;
     float halfSize = blockSize / 2.0f;
-    float blockHeight = blockId * 0.5f + 1.0f; // Height varies based on block ID
+    float blockHeight = blockId * 0.5f + 1.0f;
+    
+    // Use the exact world position passed in
+    float worldX = worldPos.x;
+    float worldZ = worldPos.z;
     
     // Define the 8 corners of the cube
     glm::vec3 corners[8] = {
-        glm::vec3(worldX - halfSize, 0, worldZ - halfSize),               // Bottom left back
-        glm::vec3(worldX + halfSize, 0, worldZ - halfSize),               // Bottom right back
-        glm::vec3(worldX + halfSize, 0, worldZ + halfSize),               // Bottom right front
-        glm::vec3(worldX - halfSize, 0, worldZ + halfSize),               // Bottom left front
-        glm::vec3(worldX - halfSize, blockHeight, worldZ - halfSize),     // Top left back
-        glm::vec3(worldX + halfSize, blockHeight, worldZ - halfSize),     // Top right back
-        glm::vec3(worldX + halfSize, blockHeight, worldZ + halfSize),     // Top right front
-        glm::vec3(worldX - halfSize, blockHeight, worldZ + halfSize)      // Top left front
+        glm::vec3(worldX - halfSize, 0, worldZ - halfSize),
+        glm::vec3(worldX + halfSize, 0, worldZ - halfSize),
+        glm::vec3(worldX + halfSize, 0, worldZ + halfSize),
+        glm::vec3(worldX - halfSize, 0, worldZ + halfSize),
+        glm::vec3(worldX - halfSize, blockHeight, worldZ - halfSize),
+        glm::vec3(worldX + halfSize, blockHeight, worldZ - halfSize),
+        glm::vec3(worldX + halfSize, blockHeight, worldZ + halfSize),
+        glm::vec3(worldX - halfSize, blockHeight, worldZ + halfSize)
     };
     
-    // Define the 6 faces of the cube (2 triangles per face)
     unsigned int baseIndex = vertices.size();
-    unsigned int faceIndices[6][6] = {
-        {0, 1, 2, 0, 2, 3},     // Bottom
-        {4, 7, 6, 4, 6, 5},     // Top
-        {0, 4, 5, 0, 5, 1},     // Back
-        {1, 5, 6, 1, 6, 2},     // Right
-        {2, 6, 7, 2, 7, 3},     // Front
-        {3, 7, 4, 3, 4, 0}      // Left
+    
+    // Lambda function to create a properly initialized vertex
+    auto createVertex = [](const glm::vec3& pos, const glm::vec3& normal, const glm::vec2& texCoord) -> Vertex {
+        Vertex vertex;
+        vertex.Position = pos;
+        vertex.Normal = normal;
+        vertex.Color = glm::vec3(1.0f, 1.0f, 1.0f);
+        vertex.TexCoords = texCoord;
+        vertex.Tangent = glm::vec3(0.0f, 0.0f, 0.0f);
+        vertex.Bitangent = glm::vec3(0.0f, 0.0f, 0.0f);
+        
+        for (int i = 0; i < MAX_BONE_INFLUENCE; i++) {
+            vertex.m_BoneIDs[i] = -1;
+            vertex.m_Weights[i] = 0.0f;
+        }
+        
+        return vertex;
     };
     
-    // Create vertices for each corner
-    for (int i = 0; i < 8; i++) {
-        Vertex vertex;
-        vertex.Position = corners[i];
-        
-        // Set color based on block ID
-        float r = (blockId % 3) / 2.0f + 0.25f;
-        float g = ((blockId / 3) % 3) / 2.0f + 0.25f;
-        float b = ((blockId / 9) % 3) / 2.0f + 0.25f;
-        vertex.Color = glm::vec3(r, g, b);
-        
-        // Set normal (simplified)
-        vertex.Normal = glm::vec3(0.0f, 1.0f, 0.0f);
-        
-        // Set texture coordinates (simplified)
-        vertex.TexCoords = glm::vec2((i % 4) / 3.0f, (i / 4) / 3.0f);
-        
-        vertices.push_back(vertex);
-    }
+    // Bottom face (y = 0)
+    vertices.push_back(createVertex(corners[0], glm::vec3(0, -1, 0), glm::vec2(0, 0)));
+    vertices.push_back(createVertex(corners[1], glm::vec3(0, -1, 0), glm::vec2(1, 0)));
+    vertices.push_back(createVertex(corners[2], glm::vec3(0, -1, 0), glm::vec2(1, 1)));
+    vertices.push_back(createVertex(corners[3], glm::vec3(0, -1, 0), glm::vec2(0, 1)));
     
-    // Add indices for the 6 faces
+    // Top face (y = blockHeight)
+    vertices.push_back(createVertex(corners[4], glm::vec3(0, 1, 0), glm::vec2(0, 0)));
+    vertices.push_back(createVertex(corners[5], glm::vec3(0, 1, 0), glm::vec2(1, 0)));
+    vertices.push_back(createVertex(corners[6], glm::vec3(0, 1, 0), glm::vec2(1, 1)));
+    vertices.push_back(createVertex(corners[7], glm::vec3(0, 1, 0), glm::vec2(0, 1)));
+    
+    // Front face (z+)
+    vertices.push_back(createVertex(corners[3], glm::vec3(0, 0, 1), glm::vec2(0, 0)));
+    vertices.push_back(createVertex(corners[2], glm::vec3(0, 0, 1), glm::vec2(1, 0)));
+    vertices.push_back(createVertex(corners[6], glm::vec3(0, 0, 1), glm::vec2(1, 1)));
+    vertices.push_back(createVertex(corners[7], glm::vec3(0, 0, 1), glm::vec2(0, 1)));
+    
+    // Back face (z-)
+    vertices.push_back(createVertex(corners[1], glm::vec3(0, 0, -1), glm::vec2(0, 0)));
+    vertices.push_back(createVertex(corners[0], glm::vec3(0, 0, -1), glm::vec2(1, 0)));
+    vertices.push_back(createVertex(corners[4], glm::vec3(0, 0, -1), glm::vec2(1, 1)));
+    vertices.push_back(createVertex(corners[5], glm::vec3(0, 0, -1), glm::vec2(0, 1)));
+    
+    // Right face (x+)
+    vertices.push_back(createVertex(corners[2], glm::vec3(1, 0, 0), glm::vec2(0, 0)));
+    vertices.push_back(createVertex(corners[1], glm::vec3(1, 0, 0), glm::vec2(1, 0)));
+    vertices.push_back(createVertex(corners[5], glm::vec3(1, 0, 0), glm::vec2(1, 1)));
+    vertices.push_back(createVertex(corners[6], glm::vec3(1, 0, 0), glm::vec2(0, 1)));
+    
+    // Left face (x-)
+    vertices.push_back(createVertex(corners[0], glm::vec3(-1, 0, 0), glm::vec2(0, 0)));
+    vertices.push_back(createVertex(corners[3], glm::vec3(-1, 0, 0), glm::vec2(1, 0)));
+    vertices.push_back(createVertex(corners[7], glm::vec3(-1, 0, 0), glm::vec2(1, 1)));
+    vertices.push_back(createVertex(corners[4], glm::vec3(-1, 0, 0), glm::vec2(0, 1)));
+    
+    // Define indices for all faces
     for (int face = 0; face < 6; face++) {
-        for (int idx = 0; idx < 6; idx++) {
-            indices.push_back(baseIndex + faceIndices[face][idx]);
-        }
+        unsigned int faceBase = baseIndex + face * 4;
+        indices.push_back(faceBase + 0);
+        indices.push_back(faceBase + 1);
+        indices.push_back(faceBase + 2);
+        indices.push_back(faceBase + 0);
+        indices.push_back(faceBase + 2);
+        indices.push_back(faceBase + 3);
     }
 }
 
 Mesh* BlockGenerator::createEmptyMesh() {
     return new Mesh(std::vector<Vertex>(), std::vector<unsigned int>(), std::vector<std::shared_ptr<Texture>>());
+}
+
+void BlockGenerator::propagateConstraints(int x, int z) {
+    // After collapsing a cell, we need to update neighboring cells
+    // to remove incompatible block types based on adjacency rules
+    
+    const int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    const int dz[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    
+    // Check all 8 neighboring cells
+    for (int i = 0; i < 8; i++) {
+        int nx = x + dx[i];
+        int nz = z + dz[i];
+        
+        // Skip if neighbor is out of bounds
+        if (nx < 0 || nx >= (int)parameters.numCellsWidth || 
+            nz < 0 || nz >= (int)parameters.numCellsLength) {
+            continue;
+        }
+        
+        auto& neighborCell = grid[nx][nz];
+        
+        // Skip if neighbor is already collapsed
+        if (neighborCell.collapsed) {
+            continue;
+        }
+        
+        // Update neighbor's possible block types based on what we just placed
+        updateNeighborConstraints(nx, nz, x, z);
+    }
+}
+
+void BlockGenerator::updateNeighborConstraints(int neighborX, int neighborZ, int sourceX, int sourceZ) {
+    auto& neighborCell = grid[neighborX][neighborZ];
+    const auto& sourceCell = grid[sourceX][sourceZ];
+    
+    if (!sourceCell.collapsed || sourceCell.blockTypeIds.empty()) {
+        return;
+    }
+    
+    // For now, we'll implement basic constraint propagation
+    // You can expand this based on your specific block rules
+    
+    std::vector<int> validTypes;
+    
+    for (int blockType : neighborCell.possibleBlockTypes) {
+        bool isValid = true;
+        
+        // Check if this block type can be adjacent to any of the source cell's blocks
+        for (int sourceBlockType : sourceCell.blockTypeIds) {
+            if (!areBlockTypesCompatible(blockType, sourceBlockType)) {
+                isValid = false;
+                break;
+            }
+        }
+        
+        if (isValid) {
+            validTypes.push_back(blockType);
+        }
+    }
+    
+    neighborCell.possibleBlockTypes = validTypes;
+}
+
+bool BlockGenerator::areBlockTypesCompatible(int blockType1, int blockType2) {
+    // Check if we have constraints defined
+    if (!controller || !controller->GetBlockUI()) {
+        return true; // Default: all compatible if no UI
+    }
+    
+    auto constraints = controller->GetBlockUI()->GetParameters().blockConstraints;
+    
+    // Find constraint for blockType1
+    for (const auto& constraint : constraints) {
+        if (constraint.blockTypeId == blockType1) {
+            // Check if blockType2 is in the allowed neighbors
+            return std::find(constraint.allowedNeighbors.begin(), 
+                           constraint.allowedNeighbors.end(), 
+                           blockType2) != constraint.allowedNeighbors.end();
+        }
+    }
+    
+    // If no constraint found, check the reverse (blockType2 -> blockType1)
+    for (const auto& constraint : constraints) {
+        if (constraint.blockTypeId == blockType2) {
+            return std::find(constraint.allowedNeighbors.begin(), 
+                           constraint.allowedNeighbors.end(), 
+                           blockType1) != constraint.allowedNeighbors.end();
+        }
+    }
+    
+    // If no constraints defined for either block, they're compatible
+    return constraints.empty();
 }

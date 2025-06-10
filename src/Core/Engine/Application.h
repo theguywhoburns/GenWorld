@@ -4,16 +4,15 @@
 #include "../../Renderers/UiContext.h"
 #include "../../Renderers/SceneView.h"
 #include "../../Renderers/Renderer.h"
-#include "../../Generators/TerrainGenerator.h"
-#include "../../Controllers/TerrainController.h"
 #include "../../Utils/Time.h"
-
 #include "../Shader.h"
 #include "../Camera.h"
 #include "../ShaderManager.h"
 #include "Window.h"
 
 class TerrainController;
+class BlockController;
+class GeneratorController;
 
 class Application {
 public:
@@ -45,7 +44,7 @@ private:
     Renderer renderer;
     SceneView sceneView;
     UiContext uiCtx;
-    TerrainController* terrainController;
+    GeneratorController* generatorController;
 
     friend int main(void);
 };

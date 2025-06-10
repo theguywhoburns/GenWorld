@@ -1,12 +1,10 @@
-#ifndef GENERATORSTRATEGY_H
-#define GENERATORSTRATEGY_H
+#pragma once
 
-#include "../Drawables/Mesh.h"
+class Mesh;
 
 class IGeneratorStrategy {
 public:
+    virtual ~IGeneratorStrategy() = default;
     virtual void Generate() = 0;
     virtual Mesh* GetMesh() const = 0;
 };
-
-#endif

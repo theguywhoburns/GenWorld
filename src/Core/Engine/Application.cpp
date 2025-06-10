@@ -1,4 +1,9 @@
 #include "Application.h"
+#include "../../Controllers/BlockController.h"
+#include "../../Controllers/TerrainController.h"
+#include "../../Generators/BlockGenerator.h"
+#include "../../Generators/TerrainGenerator.h"
+#include <iostream>
 
 Application* Application::_instance = nullptr;
 
@@ -12,26 +17,37 @@ Application::~Application() {
     shutdown();
 
     delete m_window;
-    delete terrainController;
+    delete generatorController;
 }
 
 void Application::init() {
+    std::cout << "Starting window initialization..." << std::endl;
     if (!m_window->init()) {
         std::cerr << "Failed to initialize window" << std::endl;
         m_isRunning = false;
         return;
     }
+    std::cout << "Window initialized successfully" << std::endl;
 
+    std::cout << "Loading shaders..." << std::endl;
     LoadDefaultShaders();
+    std::cout << "Shaders loaded" << std::endl;
 
+    std::cout << "Initializing scene view..." << std::endl;
     sceneView.init(m_window);
     sceneView.setCamera(&camera);
     sceneView.setRenderer(&renderer);
+    std::cout << "Scene view initialized" << std::endl;
+
+    std::cout << "Initializing UI context..." << std::endl;
     uiCtx.init(m_window);
+    std::cout << "UI context initialized" << std::endl;
 
     renderer.SetCamera(&camera);
 
-    terrainController = new TerrainController(&renderer);
+    std::cout << "Creating BlockController..." << std::endl;
+    generatorController = new BlockController(&renderer);
+    std::cout << "BlockController created successfully" << std::endl;
 }
 
 void Application::shutdown() {
@@ -57,8 +73,8 @@ void Application::Run() {
         uiCtx.preRender();
 
         uiCtx.render();	                    // Renders the Main Docking Window
-        terrainController->DisplayUI();	    // Renders the TerrainUI Windows
-        terrainController->Update();        // pushes the terrain data to Renderer
+        generatorController->DisplayUI();	    // Renders the TerrainUI Windows
+        generatorController->Update();        // pushes the terrain data to Renderer
         sceneView.render();		            // Renders the Scene Window
 
         uiCtx.postRender();
