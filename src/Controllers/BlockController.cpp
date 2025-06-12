@@ -59,14 +59,19 @@ void BlockController::LoadModel(const std::string& filepath) {
 
 void BlockController::Generate() {
     UpdateParameters();
+    
+    // Trigger auto-detection of cell size if not already done
+    if (generator) {
+        generator->DetectCellSizeFromAssets();
+    }
 
-    // Clean up the old mesh
+    ShaderManager* shaderManager = ShaderManager::GetInstance();
+    shaderManager->getShader("unshaded")->use();
+    
     if (blockMesh != nullptr) {
         delete blockMesh;
         blockMesh = nullptr;
-
         renderer->ClearQueue();
-
     }
     
     generator->Generate();

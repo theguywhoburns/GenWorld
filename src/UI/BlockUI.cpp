@@ -10,23 +10,19 @@
 #include <algorithm>
 #include <string>
 #include <cstring>
+#include <vector>
+#include <map>
+#include <memory>
 
 // ONLY include what we absolutely need for file dialogs
 #include "../Core/Engine/Application.h"
 #include "../Utils/FileDialogs.h"
+#include "../Drawables/Model.h"
 
 BlockUI::BlockUI(IBlockUIController* controller) : controller(controller) {
-    parameters.width = 100;
-    parameters.length = 100;
-    parameters.cellSize = 1;
-    parameters.numCellsWidth = static_cast<unsigned int>(parameters.width / parameters.cellSize);
-    parameters.numCellsLength = static_cast<unsigned int>(parameters.length / parameters.cellSize);
-    parameters.halfWidth = parameters.width / 2.0f;
-    parameters.halfLength = parameters.length / 2.0f;
-    parameters.stepX = parameters.width / (parameters.numCellsWidth - 1);
-    parameters.stepZ = parameters.length / (parameters.numCellsLength - 1);
-
-    // Initialize new parameters
+    // Initialize with block count instead of world units
+    parameters.gridWidth = 20;     // 20 blocks wide
+    parameters.gridLength = 20;    // 20 blocks long
     parameters.blockScale = 1.0f;
 }
 
@@ -37,9 +33,9 @@ void BlockUI::DisplayUI() {
     ImGui::Separator();
     DisplayAssetManagement();
     ImGui::Separator();
-    DisplayConstraints();
+    DisplayBlockSettings();
     ImGui::Separator();
-    DisplayConstraintManagement();  // Add this new section
+    DisplayDirectionalConstraints();
     
     if (ImGui::Button("Generate", ImVec2(200, 40))) {
         if (controller) {
@@ -53,35 +49,29 @@ void BlockUI::DisplayUI() {
 void BlockUI::DisplayGridSettings() {
     ImGui::Text("Grid Settings");
     
-    float oldWidth = parameters.width;
-    float oldLength = parameters.length;
-    int oldCellSize = parameters.cellSize;
+    int oldGridWidth = parameters.gridWidth;
+    int oldGridLength = parameters.gridLength;
     
-    ImGui::DragFloat("Width", &parameters.width, 0.1f, 10, 500);
-    ImGui::DragFloat("Length", &parameters.length, 0.1f, 10, 500);
-    ImGui::DragInt("Cell Size", &parameters.cellSize, 0.1f, 1, 50);  // Increased max to 50
-    
-    if (parameters.width != oldWidth || parameters.length != oldLength || parameters.cellSize != oldCellSize) {
-        parameters.numCellsWidth = static_cast<unsigned int>(parameters.width / parameters.cellSize);
-        parameters.numCellsLength = static_cast<unsigned int>(parameters.length / parameters.cellSize);
-        parameters.halfWidth = parameters.width / 2.0f;
-        parameters.halfLength = parameters.length / 2.0f;
-    }
+    ImGui::DragInt("Grid Width (blocks)", reinterpret_cast<int*>(&parameters.gridWidth), 1, 5, 100);
+    ImGui::DragInt("Grid Length (blocks)", reinterpret_cast<int*>(&parameters.gridLength), 1, 5, 100);
     
     ImGui::Text("Grid Info:");
-    ImGui::Text("Cells: %u x %u = %u total", parameters.numCellsWidth, parameters.numCellsLength, 
-                parameters.numCellsWidth * parameters.numCellsLength);
-    ImGui::Text("Cell size: %d units", parameters.cellSize);
-    ImGui::Text("World bounds: %.1f x %.1f", parameters.width, parameters.length);
+    ImGui::Text("Grid size: %u x %u = %u total blocks", 
+                parameters.gridWidth, parameters.gridLength, 
+                parameters.gridWidth * parameters.gridLength);
     
-    // DEBUG: Show coordinate ranges
-    ImGui::Separator();
-    ImGui::Text("Debug Info:");
-    ImGui::Text("X range: %.1f to %.1f", -parameters.halfWidth, parameters.halfWidth);
-    ImGui::Text("Z range: %.1f to %.1f", -parameters.halfLength, parameters.halfLength);
+    // Show detected cell dimensions if available
+    if (parameters.dimensionsDetected) {
+        ImGui::Separator();
+        ImGui::Text("Auto-detected from first model:");
+        ImGui::Text("Cell width: %.2f units", parameters.cellWidth);
+        ImGui::Text("Cell length: %.2f units", parameters.cellLength);
+        ImGui::Text("World size: %.1f x %.1f units", 
+                    parameters.worldWidth, parameters.worldLength);
+    }
 }
 
-void BlockUI::DisplayConstraints() {
+void BlockUI::DisplayBlockSettings() {
     ImGui::Text("Block Settings");
     
     // Block scale control
@@ -96,137 +86,6 @@ void BlockUI::DisplayConstraints() {
     ImGui::Separator();
     ImGui::Text("Preview");
     ImGui::Text("Block scale: %.2f", parameters.blockScale);
-}
-
-void BlockUI::DisplayConstraintManagement() {
-    ImGui::Text("Block Constraints");
-    
-    // Add constraint button
-    if (ImGui::Button("Add Constraint", ImVec2(150, 0))) {
-        AddNewConstraint();
-    }
-    
-    // Display existing constraints
-    if (!parameters.blockConstraints.empty()) {
-        ImGui::Separator();
-        ImGui::Text("Current Constraints:");
-        
-        for (size_t i = 0; i < parameters.blockConstraints.size(); i++) {
-            auto& constraint = parameters.blockConstraints[i];
-            
-            ImGui::PushID(static_cast<int>(i));
-            
-            // Constraint header
-            ImGui::Text("Block: %s (ID: %d)", constraint.blockTypeName.c_str(), constraint.blockTypeId);
-            
-            // Dropdown for block type selection
-            std::string comboLabel = "Block Type##" + std::to_string(i);
-            if (ImGui::BeginCombo(comboLabel.c_str(), constraint.blockTypeName.c_str())) {
-                for (const auto& asset : loadedAssets) {
-                    bool isSelected = (constraint.blockTypeId == asset.id);
-                    std::string itemName = asset.name + " (ID: " + std::to_string(asset.id) + ")";
-                    
-                    if (ImGui::Selectable(itemName.c_str(), isSelected)) {
-                        constraint.blockTypeId = asset.id;
-                        constraint.blockTypeName = asset.name;
-                    }
-                    
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
-            
-            // Allowed neighbors section
-            ImGui::Text("Allowed Neighbors:");
-            ImGui::Indent();
-            
-            // Add neighbor button
-            if (ImGui::Button(("Add Neighbor##" + std::to_string(i)).c_str())) {
-                // Add a dropdown to select neighbors
-                ImGui::OpenPopup(("SelectNeighbor##" + std::to_string(i)).c_str());
-            }
-            
-            // Neighbor selection popup
-            if (ImGui::BeginPopup(("SelectNeighbor##" + std::to_string(i)).c_str())) {
-                ImGui::Text("Select allowed neighbor:");
-                ImGui::Separator();
-                
-                for (const auto& asset : loadedAssets) {
-                    // Don't allow self-reference and avoid duplicates
-                    bool alreadyAdded = std::find(constraint.allowedNeighbors.begin(), 
-                                                constraint.allowedNeighbors.end(), 
-                                                asset.id) != constraint.allowedNeighbors.end();
-                    
-                    if (asset.id != constraint.blockTypeId && !alreadyAdded) {
-                        std::string itemName = asset.name + " (ID: " + std::to_string(asset.id) + ")";
-                        if (ImGui::Selectable(itemName.c_str())) {
-                            constraint.allowedNeighbors.push_back(asset.id);
-                            ImGui::CloseCurrentPopup();
-                        }
-                    }
-                }
-                ImGui::EndPopup();
-            }
-            
-            // Display current neighbors with remove buttons
-            for (size_t j = 0; j < constraint.allowedNeighbors.size(); j++) {
-                int neighborId = constraint.allowedNeighbors[j];
-                
-                // Find the asset name for this ID
-                std::string neighborName = "Unknown";
-                for (const auto& asset : loadedAssets) {
-                    if (asset.id == neighborId) {
-                        neighborName = asset.name;
-                        break;
-                    }
-                }
-                
-                ImGui::Text("- %s (ID: %d)", neighborName.c_str(), neighborId);
-                ImGui::SameLine();
-                
-                if (ImGui::SmallButton(("Remove##neighbor_" + std::to_string(i) + "_" + std::to_string(j)).c_str())) {
-                    constraint.allowedNeighbors.erase(constraint.allowedNeighbors.begin() + j);
-                    break; // Break to avoid iterator invalidation
-                }
-            }
-            
-            ImGui::Unindent();
-            
-            // Remove constraint button
-            if (ImGui::Button(("Remove Constraint##" + std::to_string(i)).c_str())) {
-                RemoveConstraint(static_cast<int>(i));
-                ImGui::PopID();
-                break; // Break to avoid iterator invalidation
-            }
-            
-            ImGui::PopID();
-            ImGui::Separator();
-        }
-    } else {
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No constraints defined.");
-    }
-}
-
-void BlockUI::AddNewConstraint() {
-    if (loadedAssets.empty()) {
-        // Could show an error popup here
-        return;
-    }
-    
-    // Create a new constraint with the first available asset
-    BlockUtilities::BlockConstraints newConstraint;
-    newConstraint.blockTypeId = loadedAssets[0].id;
-    newConstraint.blockTypeName = loadedAssets[0].name;
-    
-    parameters.blockConstraints.push_back(newConstraint);
-}
-
-void BlockUI::RemoveConstraint(int index) {
-    if (index >= 0 && index < static_cast<int>(parameters.blockConstraints.size())) {
-        parameters.blockConstraints.erase(parameters.blockConstraints.begin() + index);
-    }
 }
 
 void BlockUI::OpenModelFileDialog() {
@@ -251,7 +110,6 @@ void BlockUI::OnModelLoaded(std::shared_ptr<Model> model, const std::string& fil
     newAsset.name = "Model_" + std::to_string(newAsset.id);
     newAsset.blockPath = filepath;
     newAsset.model = model;
-    // REMOVE: newAsset.texture and texturePath handling
     loadedAssets.push_back(newAsset);
 }
 
@@ -263,12 +121,11 @@ void BlockUI::OnModelLoadError(const std::string& error) {
 void BlockUI::DisplayAssetManagement() {
     ImGui::Text("Asset Management");
     
-    // REMOVE the texture button - only keep model loading
     if (ImGui::Button("Load Model", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
         OpenModelFileDialog();
     }
     
-    // Error popups - REMOVE texture error popup
+    // Error popup
     if (showModelError) {
         ImGui::OpenPopup("Model Load Error");
         showModelError = false;
@@ -289,7 +146,6 @@ void BlockUI::DisplayAssetManagement() {
     if (loadedAssets.empty()) {
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No assets loaded.");
     } else {
-        // UPDATED: Remove texture column
         if (ImGui::BeginTable("AssetsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("ID");
             ImGui::TableSetupColumn("Name");
@@ -319,6 +175,80 @@ std::string BlockUI::GetFileName(const std::string& filepath) {
         return filepath.substr(lastSlash + 1);
     }
     return filepath;
+}
+
+void BlockUI::DisplayDirectionalConstraints() {
+    ImGui::Text("Directional Block Constraints");
+    ImGui::Separator();
+    
+    if (loadedAssets.empty()) {
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Load assets first to set up constraints.");
+        return;
+    }
+    
+    static int selectedAssetIndex = 0;
+    static int selectedSideIndex = 0;
+    
+    // Ensure selectedAssetIndex is within bounds
+    if (selectedAssetIndex >= static_cast<int>(loadedAssets.size())) {
+        selectedAssetIndex = 0;
+    }
+    
+    // Asset selection
+    std::vector<const char*> assetNames;
+    for (const auto& asset : loadedAssets) {
+        assetNames.push_back(asset.name.c_str());
+    }
+    
+    if (!assetNames.empty()) {
+        ImGui::Combo("Block Type", &selectedAssetIndex, assetNames.data(), static_cast<int>(assetNames.size()));
+    }
+    
+    // Side selection
+    const char* sideNames[] = {"Front (+Z)", "Back (-Z)", "Left (-X)", "Right (+X)", "Top (+Y)", "Bottom (-Y)"};
+    ImGui::Combo("Side", &selectedSideIndex, sideNames, 6);
+    
+    if (selectedAssetIndex >= 0 && selectedAssetIndex < static_cast<int>(loadedAssets.size())) {
+        int currentBlockId = loadedAssets[selectedAssetIndex].id;
+        BlockUtilities::BlockSide currentSide = static_cast<BlockUtilities::BlockSide>(selectedSideIndex);
+        
+        // Find or create constraint for this block
+        auto& constraints = parameters.directionalConstraints;
+        auto constraintIt = std::find_if(constraints.begin(), constraints.end(),
+            [currentBlockId](const BlockUtilities::DirectionalConstraint& c) {
+                return c.blockTypeId == currentBlockId;
+            });
+        
+        if (constraintIt == constraints.end()) {
+            // Create new constraint
+            constraints.emplace_back(currentBlockId, loadedAssets[selectedAssetIndex].name);
+            constraintIt = constraints.end() - 1;
+        }
+        
+        // Display current allowed neighbors for this side
+        ImGui::Text("Allowed neighbors on %s:", sideNames[selectedSideIndex]);
+        
+        auto& sideConstraints = constraintIt->allowedNeighbors[currentSide];
+        
+        // Checkboxes for each possible neighbor
+        for (const auto& asset : loadedAssets) {
+            bool isAllowed = std::find(sideConstraints.begin(), sideConstraints.end(), asset.id) != sideConstraints.end();
+            
+            std::string checkboxLabel = asset.name + "##" + std::to_string(asset.id);
+            if (ImGui::Checkbox(checkboxLabel.c_str(), &isAllowed)) {
+                if (isAllowed) {
+                    if (std::find(sideConstraints.begin(), sideConstraints.end(), asset.id) == sideConstraints.end()) {
+                        sideConstraints.push_back(asset.id);
+                    }
+                } else {
+                    sideConstraints.erase(
+                        std::remove(sideConstraints.begin(), sideConstraints.end(), asset.id),
+                        sideConstraints.end()
+                    );
+                }
+            }
+        }
+    }
 }
 
 BlockUI::~BlockUI() {

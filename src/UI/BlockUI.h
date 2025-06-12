@@ -1,11 +1,12 @@
 #pragma once
 
-#include "GeneratorUI.h"
 #include "../Core/BlockData.h"
-#include <string>
 #include <vector>
+#include <string>
 #include <memory>
+#include <map>
 
+// Forward declarations
 class IBlockUIController;
 class Model;
 
@@ -16,45 +17,33 @@ struct AssetInfo {
     std::shared_ptr<Model> model;
 };
 
-class BlockUI : public GeneratorUI {
-public:
-    BlockUI(IBlockUIController* controller);
-    ~BlockUI();
-    void DisplayUI() override;
-
-    void SetParameters(BlockUtilities::BlockData params) {
-        parameters = params;
-    }
-
-    BlockUtilities::BlockData GetParameters() {
-        return parameters;
-    }
-    
-    std::vector<AssetInfo> GetLoadedAssets() const {
-        return loadedAssets;
-    }
-
-    // Methods for controller to call back
-    void OnModelLoaded(std::shared_ptr<Model> model, const std::string& filepath);
-    void OnModelLoadError(const std::string& error);
-
+class BlockUI {
 private:
-    void DisplayGridSettings();
-    void DisplayAssetManagement();
-    void DisplayConstraints();
-    void OpenModelFileDialog();
-    std::string GetFileName(const std::string& path);
-
+    IBlockUIController* controller;
     BlockUtilities::BlockData parameters;
-    IBlockUIController* controller;  // Use interface
     std::vector<AssetInfo> loadedAssets;
     
-    // Error tracking
     bool showModelError = false;
     std::string lastError;
 
-    // Constraint management
-    void DisplayConstraintManagement();
-    void AddNewConstraint();
-    void RemoveConstraint(int index);
+public:
+    BlockUI(IBlockUIController* controller);
+    ~BlockUI();
+    
+    void DisplayUI();
+    void DisplayGridSettings();
+    void DisplayBlockSettings();
+    void DisplayAssetManagement();
+    void DisplayDirectionalConstraints();
+    
+    void OpenModelFileDialog();
+    
+    void OnModelLoaded(std::shared_ptr<Model> model, const std::string& filepath);
+    void OnModelLoadError(const std::string& error);
+    
+    BlockUtilities::BlockData& GetParameters() { return parameters; }
+    const std::vector<AssetInfo>& GetLoadedAssets() const { return loadedAssets; }
+    
+private:
+    std::string GetFileName(const std::string& filepath);
 };

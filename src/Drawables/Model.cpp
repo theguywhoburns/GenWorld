@@ -116,7 +116,10 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
 		aiString str;
 		mat->GetTexture(type, i, &str);
-		string path = directory + "/" + string(str.C_Str());
+
+		directory = directory.substr(0, directory.find_last_of('\\'));
+		
+		string path = directory + "\\" + string(str.C_Str());
 		bool skip = false;
 
 		for (unsigned int j = 0; j < textures_loaded.size(); j++) {
