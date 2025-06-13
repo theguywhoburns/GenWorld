@@ -12,7 +12,12 @@ TerrainController::~TerrainController() {
 }
 
 void TerrainController::Update() {
-    renderer->AddToRenderQueue(generator.GetMesh());
+    Mesh* mesh = generator.GetMesh();
+    if (mesh == nullptr) {
+        return; // No mesh to render
+    }
+    
+    renderer->AddToRenderQueue(mesh);
 }
 
 void TerrainController::UpdateParameters() {

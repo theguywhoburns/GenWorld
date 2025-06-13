@@ -75,7 +75,7 @@ void TerrainMesh::Draw(Shader& shader) {
 void TerrainMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
     if (m_shader != nullptr) {
         m_shader->use();
-        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 model = transform.getModelMatrix();
         m_shader->setMat4("model", model);
         m_shader->setMat4("view", view);
         m_shader->setMat4("projection", projection);

@@ -25,6 +25,8 @@ void Mesh::Draw(Shader& shader) {
 	unsigned int emissionN = 1;
 	unsigned int heightN = 1;
 
+	shader.setMat4("model", transform.getModelMatrix());
+
 	for (unsigned int i = 0; i < textures.size(); i++) {
 		Texture::activate(GL_TEXTURE0 + i);
 
@@ -70,7 +72,7 @@ void Mesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
 	if (m_shader != nullptr) {
 		m_shader->use();
 
-		glm::mat4 model = glm::mat4(1.0f); // Change this to transformation matrix later
+		glm::mat4 model = transform.getModelMatrix();
 		m_shader->setMat4("model", model);
 		m_shader->setMat4("view", view);
 		m_shader->setMat4("projection", projection);
