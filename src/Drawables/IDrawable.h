@@ -47,10 +47,6 @@ public:
     void rotate(const glm::vec3& rotation) { transform.rotate(rotation); }
     void scaleBy(const glm::vec3& scale) { transform.scaleBy(scale); }
     void scaleBy(float uniformScale) { transform.scaleBy(uniformScale); }
-
-    glm::vec3 getForward() const { return transform.getForward(); }
-    glm::vec3 getRight() const { return transform.getRight(); }
-    glm::vec3 getUp() const { return transform.getUp(); }
     
     void resetTransform() { transform.reset(); }
 
