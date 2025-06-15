@@ -3,6 +3,8 @@
 #include <future>
 #include <vector>
 #include <algorithm>
+#include <unordered_set>
+#include <random>
 #include "../Utils/perlin.h"
 
 void TerrainGenerator::Generate() {
@@ -14,6 +16,11 @@ void TerrainGenerator::Generate() {
         delete terrainMesh;
 
     terrainMesh = GenerateFromHeightMap(heightMap);
+
+    // Spawn Trees
+    if (parameters.decorationEnabled) {
+        GenerateDecorations();
+    }
 }
 
 std::vector<float> TerrainGenerator::GenerateHeightMap() {
@@ -137,6 +144,56 @@ Mesh* TerrainGenerator::GenerateFromHeightMap(const std::vector<float>& heightMa
     CalculateNormals(vertices, indices);
 
     return new TerrainMesh(vertices, indices, parameters, heightMap);
+}
+
+void TerrainGenerator::GenerateDecorations() {
+    // This function spawns trees, rocks, etc.
+    if (terrainMesh == nullptr) {
+        return;
+    }
+
+    TerrainMesh* terrain = dynamic_cast<TerrainMesh*>(terrainMesh);
+    std::unordered_set<int> usedVertexIndices;
+    std::mt19937 rng(parameters.seed);
+
+    for (const auto& rule : parameters.decorationRules) {
+        std::vector<int> validIndices;
+
+        // Step 1: Collect valid vertex indices
+        for (int i = 0; i < terrain->vertices.size(); i++) {
+            float height = terrain->vertices[i].Position.y;
+            if (height >= rule.heightLimits.x && height <= rule.heightLimits.y) {
+                validIndices.push_back(i);
+            }
+        }
+
+        // Step 2: Shuffle
+        std::shuffle(validIndices.begin(), validIndices.end(), rng);
+
+        // Step 3: Pick a fraction of them based on density
+        int countToSpawn = static_cast<int>(rule.density * validIndices.size());
+
+        for (int k = 0; k < countToSpawn; k++) {
+            int i = validIndices[k];
+
+            if (usedVertexIndices.count(i)) continue; // Already used
+            usedVertexIndices.insert(i);             // Mark as used
+
+            glm::vec3 pos = terrain->vertices[i].Position;
+
+            float scale = rule.scaleRange.x + static_cast<float>(rand()) / RAND_MAX * (rule.scaleRange.y - rule.scaleRange.x);
+            float rotY = rule.randomRotation ? ((rand() / float(RAND_MAX)) * glm::two_pi<float>()) : 0.0f;
+
+            // glm::mat4 model = glm::mat4(1.0f);
+            // model = glm::translate(model, pos);
+            // model = glm::rotate(model, rotY, glm::vec3(0, 1, 0));
+            // model = glm::scale(model, glm::vec3(scale));
+
+            Transform transform(pos, glm::vec3(0.0f, glm::degrees(rotY), 0.0f), glm::vec3(scale));
+
+            terrain->AddInstance(rule.modelPath, transform);
+        }
+    }
 }
 
 void TerrainGenerator::SetParameters(const TerrainUtilities::TerrainData& params) {

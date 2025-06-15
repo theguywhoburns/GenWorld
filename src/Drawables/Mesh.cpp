@@ -25,7 +25,7 @@ void Mesh::Draw(Shader& shader) {
 	unsigned int emissionN = 1;
 	unsigned int heightN = 1;
 
-	shader.setMat4("model", transform.getModelMatrix());
+	// shader.setMat4("model", transform.getModelMatrix());
 
 	for (unsigned int i = 0; i < textures.size(); i++) {
 		Texture::activate(GL_TEXTURE0 + i);
@@ -54,7 +54,7 @@ void Mesh::Draw(Shader& shader) {
 			number = std::to_string(heightN++);
 		}
 
-		std::string res = "material." + type + number;
+		std::string res = type + number;
 		shader.setInt(res.c_str(), i);
 
 		textures[i]->bind();

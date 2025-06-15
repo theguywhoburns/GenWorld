@@ -13,6 +13,7 @@ public:
     void Generate() override;
     std::vector<float> GenerateHeightMap();
     Mesh* GenerateFromHeightMap(const std::vector<float>& heightMap);
+    void GenerateDecorations();
 
     Mesh* GetMesh() const override { return terrainMesh; }
     std::vector<float> GetHeightMap() const { return heightMap; }

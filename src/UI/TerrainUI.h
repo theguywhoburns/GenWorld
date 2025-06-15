@@ -25,5 +25,6 @@ private:
     void DisplayTerrainSettingsUI();
     void DisplayColorSettingsUI();
     void DisplayTextureLayerSettings();
+    void DisplayDecorationSettings();
 
 };

@@ -24,6 +24,20 @@ public:
 	void Draw(Shader& shader) override;
 	void Draw(const glm::mat4& view, const glm::mat4& projection) override;
 
+	void SetShader(std::shared_ptr<Shader> shader) override {
+		m_shader = shader;
+		for (auto& mesh : meshes) {
+			mesh->SetShader(shader);
+		}
+	}
+
+	void setTransform(const Transform& newTransform) override {
+		transform = newTransform;
+		for (auto& mesh : meshes) {
+			mesh->setTransform(newTransform);
+		}
+	}
+
 private:
 	vector<Mesh*>	meshes;
 	vector<std::shared_ptr<Texture>> textures_loaded;
