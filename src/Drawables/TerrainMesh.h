@@ -15,6 +15,8 @@ public:
 
     void AddInstance(const std::string& modelPath, const Transform& transform);
 
+    float GetHeightAt(float x, float z) const;
+
 private:
     TerrainUtilities::TerrainData data;
     vector<float> heightMap;
@@ -25,6 +27,6 @@ private:
     void RenderToTexture();
 
     std::unordered_map<std::string, std::shared_ptr<Model>> instanceMeshes;
-    std::unordered_map<std::string, std::vector<Transform>> modelInstances;
+    std::unordered_map<std::string, std::vector<glm::mat4>> modelInstances;
     void DrawInstances(const glm::mat4& view, const glm::mat4& projection);
 };

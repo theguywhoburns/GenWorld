@@ -386,26 +386,42 @@ void TerrainUI::DisplayDecorationSettings() {
         ImGui::SameLine();
         ImGui::Text("%s", parameters.decorationRules[i].modelPath.c_str());
 
-        if (ImGui::Button("Change Model")) {
-            std::string file = Utils::FileDialogs::OpenFile("Select Model", "Model Files (*.fbx;*.obj)\0*.fbx;*.obj\0",
-                Application::GetInstance()->GetWindow()->getNativeWindow());
+        ImGui::BeginGroup();
+        {
+            if (ImGui::Button("Change Model")) {
+                std::string file = Utils::FileDialogs::OpenFile("Select Model", "Model Files (*.fbx;*.obj)\0*.fbx;*.obj\0",
+                    Application::GetInstance()->GetWindow()->getNativeWindow());
 
-            if (!file.empty()) {
-                bool exists = false;
-                for (const auto& rule : parameters.decorationRules) {
-                    if (rule.modelPath == file && rule.modelPath != parameters.decorationRules[i].modelPath) {
-                        exists = true;
-                        break;
+                if (!file.empty()) {
+                    bool exists = false;
+                    for (const auto& rule : parameters.decorationRules) {
+                        if (rule.modelPath == file && rule.modelPath != parameters.decorationRules[i].modelPath) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (exists) {
+                        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Model already exists in the list!");
+                    }
+                    else {
+                        parameters.decorationRules[i].modelPath = file;
                     }
                 }
-
-                if (exists) {
-                    ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Model already exists in the list!");
-                }
-                else {
-                    parameters.decorationRules[i].modelPath = file;
-                }
             }
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+            if (ImGui::Button("Remove", ImVec2(72, 20))) {
+                parameters.decorationRules.erase(parameters.decorationRules.begin() + i);
+                ImGui::EndGroup();
+                ImGui::PopID();
+                ImGui::PopStyleColor(3);
+                break;
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::EndGroup();
         }
 
         ImGui::PopID();
@@ -419,7 +435,6 @@ void TerrainUI::DisplayDecorationSettings() {
                 Application::GetInstance()->GetWindow()->getNativeWindow());
 
             if (!file.empty()) {
-
                 // Check if the file is already in the list
                 bool exists = false;
                 for (const auto& rule : parameters.decorationRules) {
@@ -435,10 +450,10 @@ void TerrainUI::DisplayDecorationSettings() {
                 else {
                     parameters.decorationRules.push_back(
                         {
-                            glm::vec2(0.0f, 1.0f), // height limits
-                            glm::vec2(1.0f, 1.0f), // scale range
-                            true,                  // random rotation
-                            0.1f,                  // density
+                            glm::vec2(0.15f, 0.35f),    // height limits
+                            glm::vec2(0.8f, 1.2f),      // scale range
+                            true,                       // random rotation
+                            0.004f,                     // density
                             file
                         }
                     );

@@ -23,20 +23,9 @@ public:
 	}
 	void Draw(Shader& shader) override;
 	void Draw(const glm::mat4& view, const glm::mat4& projection) override;
+	void DrawInstanced(const glm::mat4& view, const glm::mat4& projection, const std::vector<glm::mat4>& instances);
 
-	void SetShader(std::shared_ptr<Shader> shader) override {
-		m_shader = shader;
-		for (auto& mesh : meshes) {
-			mesh->SetShader(shader);
-		}
-	}
-
-	void setTransform(const Transform& newTransform) override {
-		transform = newTransform;
-		for (auto& mesh : meshes) {
-			mesh->setTransform(newTransform);
-		}
-	}
+	void SetShader(std::shared_ptr<Shader> shader) override;
 
 private:
 	vector<Mesh*>	meshes;

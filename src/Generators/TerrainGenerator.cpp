@@ -161,7 +161,8 @@ void TerrainGenerator::GenerateDecorations() {
 
         // Step 1: Collect valid vertex indices
         for (int i = 0; i < terrain->vertices.size(); i++) {
-            float height = terrain->vertices[i].Position.y;
+            float height = terrain->GetHeightAt(terrain->vertices[i].Position.x, terrain->vertices[i].Position.z);
+
             if (height >= rule.heightLimits.x && height <= rule.heightLimits.y) {
                 validIndices.push_back(i);
             }
@@ -183,11 +184,6 @@ void TerrainGenerator::GenerateDecorations() {
 
             float scale = rule.scaleRange.x + static_cast<float>(rand()) / RAND_MAX * (rule.scaleRange.y - rule.scaleRange.x);
             float rotY = rule.randomRotation ? ((rand() / float(RAND_MAX)) * glm::two_pi<float>()) : 0.0f;
-
-            // glm::mat4 model = glm::mat4(1.0f);
-            // model = glm::translate(model, pos);
-            // model = glm::rotate(model, rotY, glm::vec3(0, 1, 0));
-            // model = glm::scale(model, glm::vec3(scale));
 
             Transform transform(pos, glm::vec3(0.0f, glm::degrees(rotY), 0.0f), glm::vec3(scale));
 

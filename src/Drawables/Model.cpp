@@ -14,6 +14,20 @@ void Model::Draw(const glm::mat4& view, const glm::mat4& projection) {
 	}
 }
 
+void Model::DrawInstanced(const glm::mat4& view, const glm::mat4& projection, const std::vector<glm::mat4>& instanceMatrices) {
+	for (Mesh* mesh : meshes) {
+		mesh->UpdateInstanceData(instanceMatrices); // buffer updated here
+		mesh->DrawInstanced(instanceMatrices.size(), view, projection);
+	}
+}
+
+void Model::SetShader(std::shared_ptr<Shader> shader) {
+	m_shader = shader;
+	for (auto& mesh : meshes) {
+		mesh->SetShader(shader);
+	}
+}
+
 void Model::loadModel(string path) {
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
