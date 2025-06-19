@@ -66,7 +66,6 @@ void BlockController::Generate() {
     }
 
     ShaderManager* shaderManager = ShaderManager::GetInstance();
-    shaderManager->getShader("unshaded")->use();
     
     if (blockMesh != nullptr) {
         delete blockMesh;
@@ -75,5 +74,8 @@ void BlockController::Generate() {
     }
     
     generator->Generate();
+    
     blockMesh = generator->GetMesh();
+
+    blockMesh->SetShader(shaderManager->getShader("unshaded"));
 }

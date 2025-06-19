@@ -10,6 +10,7 @@
 #include "IDrawable.h"
 #include "../Core/Texture.h"
 #include "../Core/Vertex.h"
+#include "../Core/Engine/Transform.h"
 
 using namespace std;
 
@@ -20,11 +21,14 @@ public:
     vector<unsigned int>                indices;
     vector<std::shared_ptr<Texture>>    textures;
 
-    //Mesh() { setupMesh(); }
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<std::shared_ptr<Texture>> textures);
+    Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<std::shared_ptr<Texture>> textures, const Transform& initialTransform);
     virtual ~Mesh();
+    
+    // Drawing methods
     void Draw(Shader& shader) override;
     void Draw(const glm::mat4& view, const glm::mat4& projection) override;
+    void Draw(Shader& shader, const glm::mat4& parentTransform);
 
 protected:
     unsigned int arrayObj = 0;

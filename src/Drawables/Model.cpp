@@ -138,3 +138,5 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 	}
 	return textures;
 }
+
+
