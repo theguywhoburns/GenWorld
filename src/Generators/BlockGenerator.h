@@ -10,6 +10,7 @@
 class BlockController;
 struct Vertex;
 class Model;
+class BlockMesh; // Add this forward declaration
 
 struct GridPosition {
     int x, z;
@@ -35,7 +36,7 @@ public:
     BlockGenerator(BlockController* controller);
     ~BlockGenerator();
     void Generate() override;
-    Mesh* GetMesh() const override { return generatorMesh; }
+    Mesh* GetMesh() const { return generatorMesh; }
     BlockUtilities::BlockData& GetParameters() { return parameters; }
     void SetParameters(const BlockUtilities::BlockData& params) { parameters = params; }
     
@@ -56,9 +57,9 @@ private:
 
     void updateWorldDimensions();
     
-    // Mesh generation
-    Mesh* generateMeshFromGrid();
-    Mesh* createEmptyMesh();
+    // Mesh generation - updated methods
+    BlockMesh* generateMeshFromGrid(); // Changed return type
+    BlockMesh* createEmptyMesh(); // Changed return type
     void addBlockToMeshAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
     void addSimpleCubeAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
     

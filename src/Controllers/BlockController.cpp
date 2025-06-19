@@ -4,6 +4,7 @@
 #include "../Drawables/Model.h"
 #include "../Renderers/Renderer.h"
 #include "../Drawables/Mesh.h"
+#include "../Drawables/BlockMesh.h" // Add this line
 #include <iostream>
 
 BlockController::BlockController(Renderer* renderer)
@@ -60,22 +61,22 @@ void BlockController::LoadModel(const std::string& filepath) {
 void BlockController::Generate() {
     UpdateParameters();
     
-    // Trigger auto-detection of cell size if not already done
-    if (generator) {
-        generator->DetectCellSizeFromAssets();
-    }
-
-    ShaderManager* shaderManager = ShaderManager::GetInstance();
+    Transform currentTransform;
+    bool hasExistingTransform = false;
     
     if (blockMesh != nullptr) {
+        currentTransform = blockMesh->getTransform();
+        hasExistingTransform = true;
         delete blockMesh;
         blockMesh = nullptr;
         renderer->ClearQueue();
     }
     
     generator->Generate();
-    
     blockMesh = generator->GetMesh();
-
-    blockMesh->SetShader(shaderManager->getShader("unshaded"));
+    
+    // Restore transform to new mesh
+    if (hasExistingTransform && blockMesh) {
+        blockMesh->setTransform(currentTransform);
+    }
 }

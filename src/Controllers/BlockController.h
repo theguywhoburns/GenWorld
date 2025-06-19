@@ -2,7 +2,6 @@
 #include "GeneratorController.h"
 #include "../UI/IBlockUIController.h"
 
-
 class BlockGenerator;
 class BlockUI;
 class Mesh;

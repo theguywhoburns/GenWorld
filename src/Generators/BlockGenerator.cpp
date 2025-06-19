@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <set>
+#include "../Drawables/BlockMesh.h"
 
 
 BlockGenerator::BlockGenerator() {
@@ -333,59 +334,71 @@ bool BlockGenerator::isValidBlockPosition(int x, int z, const glm::vec3& positio
     return true;
 }
 
-Mesh* BlockGenerator::generateMeshFromGrid() {
+BlockMesh* BlockGenerator::generateMeshFromGrid() {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<std::shared_ptr<Texture>> textures;
     
     std::set<std::shared_ptr<Texture>> uniqueTextures;
     
+    // Create the BlockMesh first
+    BlockMesh* blockMesh = new BlockMesh(vertices, indices, parameters, textures);
+    
+    // Add block instances instead of combining vertices
     for (unsigned int x = 0; x < parameters.gridWidth; x++) {
         for (unsigned int z = 0; z < parameters.gridLength; z++) {
             const auto& cell = grid[x][z];
             if (cell.collapsed) {
-                // Collect textures from models used in this cell
                 for (size_t i = 0; i < cell.blockTypeIds.size(); i++) {
                     int blockId = cell.blockTypeIds[i];
+                    glm::vec3 position = cell.blockPositions[i];
                     
-                    // Find the asset for this block ID
+                    // Create transform for this block
+                    Transform blockTransform;
+                    blockTransform.setPosition(position);
+                    blockTransform.setScale(parameters.blockScale);
+                    
+                    // Find the asset path for this block ID
                     if (controller && controller->GetBlockUI()) {
                         auto assets = controller->GetBlockUI()->GetLoadedAssets();
                         
                         for (const auto& asset : assets) {
-                            if (asset.id == blockId && asset.model) {
-                                // Collect textures from all meshes in the model
-                                for (auto* mesh : asset.model->getMeshes()) {
-                                    if (mesh) {
-                                        for (auto& texture : mesh->textures) {
-                                            uniqueTextures.insert(texture);
+                            if (asset.id == blockId) {
+                                // Add block instance to BlockMesh
+                                blockMesh->AddBlockInstance(asset.blockPath, blockTransform);
+                                
+                                // Collect textures
+                                if (asset.model) {
+                                    for (auto* mesh : asset.model->getMeshes()) {
+                                        if (mesh) {
+                                            for (auto& texture : mesh->textures) {
+                                                uniqueTextures.insert(texture);
+                                            }
                                         }
                                     }
                                 }
                                 break;
                             }
                         }
+                    } else {
+                        // Fallback: add by ID for simple cubes
+                        blockMesh->AddBlockInstance(blockId, blockTransform);
                     }
-                    
-                    // Add the block to mesh
-                    addBlockToMeshAtPosition(
-                        cell.blockPositions[i], 
-                        cell.blockTypeIds[i], 
-                        vertices, 
-                        indices
-                    );
                 }
             }
         }
     }
     
-    // Convert set to vector
-    textures.assign(uniqueTextures.begin(), uniqueTextures.end());
+    // Set collected textures
+    std::vector<std::shared_ptr<Texture>> textureVector(uniqueTextures.begin(), uniqueTextures.end());
+    blockMesh->SetBlockTextures(textureVector);
     
-    return new Mesh(vertices, indices, textures);
+    return blockMesh;
 }
 
-void BlockGenerator::addBlockToMeshAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
+void BlockGenerator::addBlockToMeshAtPosition(const glm::vec3& worldPos, int blockId, 
+                                            std::vector<Vertex>& vertices, 
+                                            std::vector<unsigned int>& indices) {
     // Check if we have a controller and can get assets
     if (!controller || !controller->GetBlockUI()) {
         addSimpleCubeAtPosition(worldPos, blockId, vertices, indices);
@@ -405,26 +418,21 @@ void BlockGenerator::addBlockToMeshAtPosition(const glm::vec3& worldPos, int blo
     // If we found a valid asset with a model, use it
     if (asset && asset->model && !asset->model->getMeshes().empty()) {
         Mesh* modelMesh = asset->model->getMeshes()[0];
-
-        if (modelMesh && !modelMesh->vertices.empty() && !modelMesh->indices.empty()) {
+        
+        if (modelMesh && !modelMesh->vertices.empty()) {
             unsigned int baseIndex = vertices.size();
             
-            // Use the blockScale parameter for model scaling
-            float modelScale = parameters.blockScale;
-            
+            // DON'T modify vertices - just copy them as-is
             for (const auto& v : modelMesh->vertices) {
-                Vertex newVertex = v; // Copy ALL vertex data including texture coordinates
-                newVertex.Position = newVertex.Position * modelScale;
-                newVertex.Position += worldPos;
-                // Keep TexCoords, Normal, Color, etc. unchanged
-                vertices.push_back(newVertex);
+                vertices.push_back(v); // Copy original vertex data
             }
             
-            // Add all indices from the model, offset by our base index
+            // Add indices
             for (unsigned int idx : modelMesh->indices) {
                 indices.push_back(baseIndex + idx);
             }
             
+            // Use Transform system for positioning/scaling later
             return;
         }
     }
@@ -523,8 +531,14 @@ void BlockGenerator::addSimpleCubeAtPosition(const glm::vec3& worldPos, int bloc
     }
 }
 
-Mesh* BlockGenerator::createEmptyMesh() {
-    return new Mesh(std::vector<Vertex>(), std::vector<unsigned int>(), std::vector<std::shared_ptr<Texture>>());
+BlockMesh* BlockGenerator::createEmptyMesh() {
+    return new BlockMesh(std::vector<Vertex>(), std::vector<unsigned int>(), parameters);
+}
+
+
+void positionBlock(BlockMesh* blockMesh, const glm::vec3& worldPos, float scale) {
+    blockMesh->setPosition(worldPos);
+    blockMesh->setScale(scale);
 }
 
 
