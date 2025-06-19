@@ -52,6 +52,11 @@ void TerrainUI::DisplayUI() {
         DisplayTextureLayerSettings();
     }
 
+    // Decoration Settings
+    if (parameters.decorationEnabled) {
+        DisplayDecorationSettings();
+    }
+
     if (parameters != prevParameters && liveUpdate) {
         controller->Generate();
     }
@@ -163,6 +168,11 @@ void TerrainUI::DisplayTerrainSettingsUI() {
     ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
     ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
     ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    ImGui::Checkbox("Enable Decoration", &parameters.decorationEnabled); // show decoration window
 
     ImGui::Separator();
     ImGui::NewLine();
@@ -346,6 +356,108 @@ void TerrainUI::DisplayTextureLayerSettings() {
                 layer.tiling = glm::vec2(1.0f, 1.0f);
                 layer.offset = glm::vec2(0.0f, 0.0f);
                 parameters.loadedTextures.push_back(layer);
+            }
+        }
+    }
+    else {
+        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 16 layers reached!");
+    }
+
+    ImGui::End();
+}
+
+void TerrainUI::DisplayDecorationSettings() {
+    ImGui::Begin("Decoration Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Text("Decoration Settings");
+    ImGui::Separator();
+    for (size_t i = 0; i < parameters.decorationRules.size(); ++i) {
+        ImGui::PushID(i);
+
+        ImGui::Text("Decoration %zu", i + 1);
+
+        ImGui::DragFloat2("HeightLimits", glm::value_ptr(parameters.decorationRules[i].heightLimits), 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat2("ScaleRange", glm::value_ptr(parameters.decorationRules[i].scaleRange), 0.01f, 0.01f, 10.0f);
+
+        ImGui::Checkbox("Random Rotation", &parameters.decorationRules[i].randomRotation);
+        ImGui::DragFloat("Density", &parameters.decorationRules[i].density, 0.01f, 0.01f, 1.0f);
+
+        // Model selection
+        ImGui::Text("Model Path");
+        ImGui::SameLine();
+        ImGui::Text("%s", parameters.decorationRules[i].modelPath.c_str());
+
+        ImGui::BeginGroup();
+        {
+            if (ImGui::Button("Change Model")) {
+                std::string file = Utils::FileDialogs::OpenFile("Select Model", "Model Files (*.fbx;*.obj)\0*.fbx;*.obj\0",
+                    Application::GetInstance()->GetWindow()->getNativeWindow());
+
+                if (!file.empty()) {
+                    bool exists = false;
+                    for (const auto& rule : parameters.decorationRules) {
+                        if (rule.modelPath == file && rule.modelPath != parameters.decorationRules[i].modelPath) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (exists) {
+                        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Model already exists in the list!");
+                    }
+                    else {
+                        parameters.decorationRules[i].modelPath = file;
+                    }
+                }
+            }
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+            if (ImGui::Button("Remove", ImVec2(72, 20))) {
+                parameters.decorationRules.erase(parameters.decorationRules.begin() + i);
+                ImGui::EndGroup();
+                ImGui::PopID();
+                ImGui::PopStyleColor(3);
+                break;
+            }
+            ImGui::PopStyleColor(3);
+            ImGui::EndGroup();
+        }
+
+        ImGui::PopID();
+        ImGui::Separator();
+    }
+
+    if (parameters.decorationRules.size() < 16) {
+        string addLayerLabel = "Add Layer (" + to_string(16 - parameters.decorationRules.size()) + " left)";
+        if (ImGui::Button(addLayerLabel.c_str(), ImVec2(200, 40))) {
+            std::string file = Utils::FileDialogs::OpenFile("Select Model", "Model Files (*.fbx;*.obj)\0*.fbx;*.obj\0",
+                Application::GetInstance()->GetWindow()->getNativeWindow());
+
+            if (!file.empty()) {
+                // Check if the file is already in the list
+                bool exists = false;
+                for (const auto& rule : parameters.decorationRules) {
+                    if (rule.modelPath == file) {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (exists) {
+                    ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Model already exists in the list!");
+                }
+                else {
+                    parameters.decorationRules.push_back(
+                        {
+                            glm::vec2(0.15f, 0.35f),    // height limits
+                            glm::vec2(0.8f, 1.2f),      // scale range
+                            true,                       // random rotation
+                            0.004f,                     // density
+                            file
+                        }
+                    );
+                }
             }
         }
     }

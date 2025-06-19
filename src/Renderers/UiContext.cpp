@@ -199,6 +199,7 @@ void UiContext::defaultLayout() {
 
     ImGui::DockBuilderDockWindow("Scene View", dockspace_id);
     ImGui::DockBuilderDockWindow("Terrain Settings", right);
+    ImGui::DockBuilderDockWindow("Decoration Settings", right);
     ImGui::DockBuilderDockWindow("Color Settings", right);
     ImGui::DockBuilderDockWindow("Texture Settings", right);
     // Add more windows later

@@ -37,6 +37,15 @@ namespace TerrainUtilities {
         FalloffType type = SQUARE;
     };
 
+    // Decoration Rules
+    struct DecorationRule {
+        glm::vec2 heightLimits;
+        glm::vec2 scaleRange;
+        bool randomRotation;
+        float density;
+        std::string modelPath;
+    };
+
     struct TerrainData {
         // Terrain Data
         float width;
@@ -76,6 +85,10 @@ namespace TerrainUtilities {
         // Falloff Data
         FalloffParameters falloffParams;
 
+        // Decoration Rules
+        bool decorationEnabled = false;
+        vector<DecorationRule> decorationRules;
+
         bool operator==(const TerrainData& other) const {
             for (int i = 0; i < 4; ++i) {
                 if (curvePoints[i].x != other.curvePoints[i].x || curvePoints[i].y != other.curvePoints[i].y) {
@@ -109,6 +122,20 @@ namespace TerrainUtilities {
                 }
             }
 
+            if (decorationRules.size() != other.decorationRules.size()) {
+                return false;
+            }
+
+            for (size_t i = 0; i < decorationRules.size(); ++i) {
+                if (decorationRules[i].heightLimits != other.decorationRules[i].heightLimits ||
+                    decorationRules[i].scaleRange != other.decorationRules[i].scaleRange ||
+                    decorationRules[i].randomRotation != other.decorationRules[i].randomRotation ||
+                    decorationRules[i].density != other.decorationRules[i].density ||
+                    decorationRules[i].modelPath != other.decorationRules[i].modelPath) {
+                    return false;
+                }
+            }
+
             return width == other.width &&
                 length == other.length &&
                 cellSize == other.cellSize &&
@@ -123,7 +150,8 @@ namespace TerrainUtilities {
                 falloffParams.enabled == other.falloffParams.enabled &&
                 falloffParams.a == other.falloffParams.a &&
                 falloffParams.b == other.falloffParams.b &&
-                falloffParams.type == other.falloffParams.type;
+                falloffParams.type == other.falloffParams.type &&
+                decorationEnabled == other.decorationEnabled;
         }
 
         bool operator!=(const TerrainData& other) const {

@@ -9,8 +9,22 @@ void Model::Draw(Shader& shader) {
 void Model::Draw(const glm::mat4& view, const glm::mat4& projection) {
 	if (m_shader != nullptr) {
 		for (unsigned int i = 0; i < meshes.size(); i++) {
-			meshes[i]->Draw(*m_shader);
+			meshes[i]->Draw(view, projection);
 		}
+	}
+}
+
+void Model::DrawInstanced(const glm::mat4& view, const glm::mat4& projection, const std::vector<glm::mat4>& instanceMatrices) {
+	for (Mesh* mesh : meshes) {
+		mesh->UpdateInstanceData(instanceMatrices); // buffer updated here
+		mesh->DrawInstanced(instanceMatrices.size(), view, projection);
+	}
+}
+
+void Model::SetShader(std::shared_ptr<Shader> shader) {
+	m_shader = shader;
+	for (auto& mesh : meshes) {
+		mesh->SetShader(shader);
 	}
 }
 
@@ -117,9 +131,9 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 		aiString str;
 		mat->GetTexture(type, i, &str);
 
-		directory = directory.substr(0, directory.find_last_of('\\'));
-		
-		string path = directory + "\\" + string(str.C_Str());
+		string dir = directory.substr(0, directory.find_last_of('\\'));
+		string path = dir + "\\" + string(str.C_Str());
+
 		bool skip = false;
 
 		for (unsigned int j = 0; j < textures_loaded.size(); j++) {

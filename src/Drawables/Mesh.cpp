@@ -19,53 +19,13 @@ Mesh::~Mesh() {
 }
 
 void Mesh::Draw(Shader& shader) {
-	unsigned int diffN = 1;
-	unsigned int specN = 1;
-	unsigned int normN = 1;
-	unsigned int emissionN = 1;
-	unsigned int heightN = 1;
-
-	shader.setMat4("model", transform.getModelMatrix());
-
-	for (unsigned int i = 0; i < textures.size(); i++) {
-		Texture::activate(GL_TEXTURE0 + i);
-
-		string number = "0";
-		string type = "diffuse";
-		TexType name = textures[i]->type;
-		if (name == TexType::diffuse) {
-			type = "diffuse";
-			number = std::to_string(diffN++);
-		}
-		else if (name == TexType::specular) {
-			type = "specular";
-			number = std::to_string(specN++);
-		}
-		else if (name == TexType::normal) {
-			type = "normal";
-			number = std::to_string(normN++);
-		}
-		else if (name == TexType::emission) {
-			type = "emission";
-			number = std::to_string(emissionN++);
-		}
-		else if (name == TexType::height) {
-			type = "height";
-			number = std::to_string(heightN++);
-		}
-
-		std::string res = "material." + type + number;
-		shader.setInt(res.c_str(), i);
-
-		textures[i]->bind();
-	}
+	bindTextures(shader);
 
 	glBindVertexArray(arrayObj);
 	glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 
-	Texture::activate(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	unbindTextures();
 }
 
 void Mesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
@@ -78,6 +38,20 @@ void Mesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
 		m_shader->setMat4("projection", projection);
 		Draw(*m_shader);
 	}
+}
+
+void Mesh::DrawInstanced(unsigned int instanceCount, const glm::mat4& view, const glm::mat4& projection) {
+	m_shader->use();
+	m_shader->setMat4("view", view);
+	m_shader->setMat4("projection", projection);
+
+	bindTextures(*m_shader);
+
+	glBindVertexArray(arrayObj);
+	glDrawElementsInstanced(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0, instanceCount);
+	glBindVertexArray(0);
+
+	unbindTextures();
 }
 
 void Mesh::setupMesh() {
@@ -124,4 +98,79 @@ void Mesh::setupMesh() {
 	glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
 
 	glBindVertexArray(0);
+}
+
+void Mesh::bindTextures(Shader& shader) {
+	unsigned int diffN = 1;
+	unsigned int specN = 1;
+	unsigned int normN = 1;
+	unsigned int emissionN = 1;
+	unsigned int heightN = 1;
+
+	for (unsigned int i = 0; i < textures.size(); i++) {
+		Texture::activate(GL_TEXTURE0 + i);
+
+		string number = "0";
+		string type = "diffuse";
+		TexType name = textures[i]->type;
+		if (name == TexType::diffuse) {
+			type = "diffuse";
+			number = std::to_string(diffN++);
+		}
+		else if (name == TexType::specular) {
+			type = "specular";
+			number = std::to_string(specN++);
+		}
+		else if (name == TexType::normal) {
+			type = "normal";
+			number = std::to_string(normN++);
+		}
+		else if (name == TexType::emission) {
+			type = "emission";
+			number = std::to_string(emissionN++);
+		}
+		else if (name == TexType::height) {
+			type = "height";
+			number = std::to_string(heightN++);
+		}
+
+		std::string res = type + number;
+		m_shader->setInt(res.c_str(), i);
+
+		textures[i]->bind();
+	}
+}
+
+void Mesh::unbindTextures() {
+	Texture::activate(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Mesh::InitializeInstanceBuffer() {
+	if (instancingInitialized) return;
+
+	glGenBuffers(1, &instanceVBO);
+	glBindVertexArray(arrayObj);
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+
+	// Set attribute layout for mat4 (locations 4,5,6,7)
+	std::size_t vec4Size = sizeof(glm::vec4);
+	for (int i = 0; i < 4; ++i) {
+		glEnableVertexAttribArray(8 + i);
+		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * sizeof(glm::vec4)));
+		glVertexAttribDivisor(8 + i, 1);
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	instancingInitialized = true;
+}
+
+void Mesh::UpdateInstanceData(const std::vector<glm::mat4>& instanceMatrices) {
+	if (!instancingInitialized) InitializeInstanceBuffer();
+
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	glBufferData(GL_ARRAY_BUFFER, instanceMatrices.size() * sizeof(glm::mat4), instanceMatrices.data(), GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

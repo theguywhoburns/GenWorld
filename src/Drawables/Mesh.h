@@ -30,13 +30,23 @@ public:
     void Draw(const glm::mat4& view, const glm::mat4& projection) override;
     void Draw(Shader& shader, const glm::mat4& parentTransform);
 
+    void DrawInstanced(unsigned int instanceCount, const glm::mat4& view, const glm::mat4& projection);
+    void InitializeInstanceBuffer();
+    void UpdateInstanceData(const std::vector<glm::mat4>& instanceMatrices);
+
 protected:
     unsigned int arrayObj = 0;
 
 private:
     unsigned int vertexBuffer, indexBuffer;
 
+    unsigned int instanceVBO = 0;
+    bool instancingInitialized = false;
+
     void setupMesh();
+    void bindTextures(Shader& shader);
+    void unbindTextures();
+
 };
 
 #endif

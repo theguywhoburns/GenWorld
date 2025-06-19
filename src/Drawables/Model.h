@@ -25,7 +25,12 @@ public:
 	void Draw(const glm::mat4& view, const glm::mat4& projection) override;
 	std::vector<Mesh*> getMeshes() {
 		return meshes;
-	}
+	}	
+	
+	void DrawInstanced(const glm::mat4& view, const glm::mat4& projection, const std::vector<glm::mat4>& instances);
+
+	void SetShader(std::shared_ptr<Shader> shader) override;
+
 private:
 	vector<Mesh*>	meshes;
 	vector<std::shared_ptr<Texture>> textures_loaded;

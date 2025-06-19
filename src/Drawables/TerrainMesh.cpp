@@ -80,7 +80,27 @@ void TerrainMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
         m_shader->setMat4("view", view);
         m_shader->setMat4("projection", projection);
         Draw(*m_shader);
+
+        // Draw instances
+        DrawInstances(view, projection);
     }
+}
+
+void TerrainMesh::AddInstance(const std::string& modelPath, const Transform& transform) {
+    // Check if the model is already loaded
+    if (instanceMeshes.find(modelPath) == instanceMeshes.end()) {
+        // Load the model if not already loaded
+        std::shared_ptr<Model> model = std::make_shared<Model>(modelPath.c_str());
+        if (model) {
+            instanceMeshes[modelPath] = model;
+        }
+        else {
+            std::cerr << "Model not found: " << modelPath << std::endl;
+            return;
+        }
+    }
+
+    modelInstances[modelPath].push_back(transform.getModelMatrix());
 }
 
 void TerrainMesh::RenderToTexture() {
@@ -119,4 +139,30 @@ void TerrainMesh::RenderToTexture() {
 
     // Unbind the framebuffer
     frameBuffer.Destroy();
+}
+
+void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projection) {
+    for (const auto& pair : modelInstances) {
+        const std::string& modelPath = pair.first;
+        const std::vector<glm::mat4>& instances = pair.second;
+
+        if(instances.empty()) continue;
+
+        std::shared_ptr<Model> model = instanceMeshes[modelPath];
+        if (model) {
+            model->SetShader(ShaderManager::GetInstance()->getShader("unshaded"));  // TODO: change this to the appropriate shader if needed according to the viewport render mode
+            model->DrawInstanced(view, projection, instances);
+        }
+    }
+}
+
+float TerrainMesh::GetHeightAt(float x, float z) const {
+    int gridX = static_cast<int>((x + data.halfWidth) / data.stepX);
+    int gridZ = static_cast<int>((z + data.halfLength) / data.stepZ);
+
+    if (gridX < 0 || gridX >= data.numCellsWidth || gridZ < 0 || gridZ >= data.numCellsLength) {
+        return 0.0f;
+    }
+
+    return heightMap[gridZ * data.numCellsWidth + gridX];
 }
