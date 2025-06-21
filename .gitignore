@@ -48,3 +48,6 @@ CMakeCache.txt
 imgui.ini
 include/CMakeLists.txt
 libs/CMakeLists.txt
+
+# Allow everything in Models folder
+!Models/**
