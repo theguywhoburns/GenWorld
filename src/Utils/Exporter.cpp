@@ -4,8 +4,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <../src/Core/stb_image_write.h>
 
-#define PI 3.14
-
 // Extracts the resultTextureID from the TerrainMesh and saves it as a PNG
 bool ExportTerrainTextureFromGPU(const TerrainMesh& terrain, const std::string& outputPath)
 {

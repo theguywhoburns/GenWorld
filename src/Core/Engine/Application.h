@@ -27,7 +27,6 @@ public:
     }
 
     Window* GetWindow() const { return m_window; }
-    //bool getRunningState() const { return m_isRunning; }
 
 private:
     Application();
