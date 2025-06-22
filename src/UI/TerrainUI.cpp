@@ -6,7 +6,7 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     parameters.length = 100;
     parameters.cellSize = 1;
     parameters.heightMultiplier = 35;
-    parameters.curvePoints = { {0.0f, 0.0f}, {0.5f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f} };
+    parameters.curvePoints = { {0.0f, 0.0f}, {1.0f, 1.0f} };
 
     // Noise Data
     parameters.lacunarity = 2.0f;
@@ -155,8 +155,13 @@ void TerrainUI::DisplayTerrainSettingsUI() {
     ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
     ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
     ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
-    ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
 
+
+    ImGui::Separator();
+    ImGui::NewLine();
+    ImGui::Text("Curve Settings");
+    ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
+    
     ImGui::NewLine();
     ImGui::Separator();
     ImGui::NewLine();
