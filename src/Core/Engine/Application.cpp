@@ -32,6 +32,7 @@ void Application::init() {
     renderer.SetCamera(&camera);
 
     terrainController = new TerrainController(&renderer);
+    uiCtx.setTerrainGenerator(&terrainController->getGenerator());
 }
 
 void Application::shutdown() {

@@ -34,6 +34,22 @@ glm::vec2 Renderer::GetScreenSize() {
     return screenSize;
 }
 
+vector<Mesh*> Renderer::getRenderQueueMeshes() const {
+    vector<Mesh*> meshObjects;
+
+    for (IDrawable* drawable : renderQueue) {
+        if (drawable != nullptr) {
+            // Try to cast to Mesh*
+            Mesh* mesh = dynamic_cast<TerrainMesh*>(drawable);
+            if (mesh != nullptr) {
+                meshObjects.push_back(mesh);
+            }
+        }
+    }
+
+    return meshObjects;
+}
+
 void Renderer::renderScene() {
     if (currentCamera == nullptr) return;
 

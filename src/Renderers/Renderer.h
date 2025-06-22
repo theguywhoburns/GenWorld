@@ -6,6 +6,8 @@
 #include "../Core/Shader.h"
 #include "../Core/Camera.h"
 #include "../Core/Framebuffer.h"
+#include "../Drawables/TerrainMesh.h"
+#include "../Utils/Exporter.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -23,6 +25,8 @@ public:
     void SetScreenSize(glm::vec2 size);
     void SetScreenSize(float width, float height);
     glm::vec2 GetScreenSize();
+
+    vector<Mesh*> getRenderQueueMeshes() const;
 
 private:
     void renderScene();

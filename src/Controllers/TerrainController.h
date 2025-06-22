@@ -15,6 +15,10 @@ public:
     void Generate() override;
     void DisplayUI() override;
     void Update() override;
+    TerrainGenerator& getGenerator() {
+        return generator;
+    }
+
 
 private:
     TerrainGenerator generator;

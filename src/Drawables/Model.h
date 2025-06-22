@@ -27,6 +27,10 @@ public:
 
 	void SetShader(std::shared_ptr<Shader> shader) override;
 
+	const std::vector<Mesh*>& getMeshes() const {
+		return meshes;
+	}
+
 private:
 	vector<Mesh*>	meshes;
 	vector<std::shared_ptr<Texture>> textures_loaded;

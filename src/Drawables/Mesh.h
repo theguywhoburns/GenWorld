@@ -34,6 +34,15 @@ public:
     void InitializeInstanceBuffer();
     void UpdateInstanceData(const std::vector<glm::mat4>& instanceMatrices);
 
+    std::string getTexturePath() const {
+        for (const auto& tex : textures) {
+            if (tex && tex->type == TexType::diffuse) {
+                return tex->path; // Make sure Texture class has a `path` field
+            }
+        }
+        return ""; // fallback if no diffuse texture found
+    }
+
 protected:
     unsigned int arrayObj = 0;
 

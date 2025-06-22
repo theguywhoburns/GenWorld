@@ -1,4 +1,8 @@
 #include "UiContext.h"
+#include "../src/Drawables/Mesh.h" 
+#include "../Generators/TerrainGenerator.h"
+#include "../src/Core/Engine/Application.h"
+
 
 bool UiContext::init(Window* window) {
     this->window = window;
@@ -53,9 +57,12 @@ void UiContext::preRender() {
 void UiContext::render() {
     // Render the Menu bar
     renderMenuBar();
-    
+
     // Render the docking window
     renderDockingWindow();
+
+    // Render the universal buttons (generate, export) window
+    renderUniversalButtons();
 }
 
 void UiContext::postRender() {
@@ -70,6 +77,35 @@ void UiContext::postRender() {
         glfwMakeContextCurrent(backup_current_context);
     }
 }
+
+void UiContext::setTerrainGenerator(TerrainGenerator* tg) {
+    terrainGen = tg;
+}
+
+void UiContext::exportTerrain() {
+    if (!terrainGen) {
+        std::cerr << "TerrainGenerator not set.\n";
+        return;
+    }
+
+    Mesh* meshData = terrainGen->GetMesh();
+    if (meshData) {
+        // Safely cast from Mesh* to TerrainMesh*
+        TerrainMesh* terrainData = dynamic_cast<TerrainMesh*>(meshData);
+        if (terrainData) {
+
+            // Export using base class interface
+            ExportMeshAsFBX(*terrainData, "terrain.fbx");
+        }
+        else {
+            std::cerr << "Mesh is not a TerrainMesh.\n";
+        }
+    }
+    else {
+        std::cerr << "Terrain mesh not generated.\n";
+    }
+}
+
 
 void UiContext::renderDockingWindow() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -112,45 +148,10 @@ void UiContext::renderMenuBar() {
             if (ImGui::MenuItem("New", "Ctrl+N")) {
                 // Handle New action
             }
-            if (ImGui::MenuItem("Open", "Ctrl+O")) {
-                // Handle Open action
-            }
-            if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                // Handle Save action
-            }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit", "Alt+F4")) {
                 // Handle Exit action
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Edit")) {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
-                // Handle Undo action
-            }
-            if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
-                // Handle Redo action
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Cut", "Ctrl+X")) {
-                // Handle Cut action
-            }
-            if (ImGui::MenuItem("Copy", "Ctrl+C")) {
-                // Handle Copy action
-            }
-            if (ImGui::MenuItem("Paste", "Ctrl+V")) {
-                // Handle Paste action
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("View")) {
-            if (ImGui::MenuItem("Scene View")) {
-                // Toggle Scene View visibility
-            }
-            if (ImGui::MenuItem("Properties")) {
-                // Toggle Properties visibility
+                
             }
             ImGui::EndMenu();
         }
@@ -191,18 +192,79 @@ void UiContext::defaultLayout() {
     ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
-    // regions
-    ImGuiID top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.2f, nullptr, &dockspace_id);
-    ImGuiID down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
-    ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.25f, nullptr, &dockspace_id);
-    ImGuiID right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.25f, nullptr, &dockspace_id);
+    // First split the dockspace into main top and bottom regions
+    ImGuiID bottom_main;
+    ImGuiID top_main = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.7f, nullptr, &bottom_main);
 
-    ImGui::DockBuilderDockWindow("Scene View", dockspace_id);
-    ImGui::DockBuilderDockWindow("Terrain Settings", right);
-    ImGui::DockBuilderDockWindow("Decoration Settings", right);
-    ImGui::DockBuilderDockWindow("Color Settings", right);
-    ImGui::DockBuilderDockWindow("Texture Settings", right);
-    // Add more windows later
+    // Split the top region into left, center, and right
+    ImGuiID top_right;
+    ImGuiID top_left = ImGui::DockBuilderSplitNode(top_main, ImGuiDir_Left, 0.25f, nullptr, &top_main);
+    top_right = ImGui::DockBuilderSplitNode(top_main, ImGuiDir_Right, 0.25f, nullptr, &top_main);
+
+    // Split the bottom region into left, center, and right
+    ImGuiID bottom_right;
+    ImGuiID bottom_left = ImGui::DockBuilderSplitNode(bottom_main, ImGuiDir_Left, 0.25f, nullptr, &bottom_main);
+    bottom_right = ImGui::DockBuilderSplitNode(bottom_main, ImGuiDir_Right, 0.25f, nullptr, &bottom_main);
+
+    // Now we have:
+    // - top_left, top_main (center), top_right
+    // - bottom_left, bottom_main (center), bottom_right
+
+    // Dock windows to appropriate regions
+    ImGui::DockBuilderDockWindow("Scene View", top_main);  // Main view in center-top
+
+    // Right side panels
+    ImGui::DockBuilderDockWindow("Terrain Settings", top_right);
+    ImGui::DockBuilderDockWindow("Color Settings", top_right);
+    ImGui::DockBuilderDockWindow("Texture Settings", top_right);
+
+    // Left side panels
+    // (Add your left-side windows here if needed)
+
+    // Bottom regions
+    ImGui::DockBuilderDockWindow("Universal buttons", bottom_left);  // Main bottom area
+    // (You can dock other windows to bottom_left or bottom_right as needed)
 
     ImGui::DockBuilderFinish(dockspace_id);
+}
+
+void UiContext::renderUniversalButtons() {
+    // Remove user resizing and moving, lock position and size
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove;
+
+    // Get main viewport to position relative to window
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    // Set window position to bottom-left corner
+    ImVec2 windowPos = ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - (ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().WindowPadding.y * 2));
+    ImGui::SetNextWindowPos(windowPos);
+
+    // Set fixed window size
+    ImGui::SetNextWindowSize(ImVec2(500, ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().WindowPadding.y * 2));
+
+    // Begin window with updated flags 
+    ImGui::Begin("Universal buttons", nullptr, flags);
+
+    // Calculate button width (half the window width minus padding and spacing)
+    float windowWidth = ImGui::GetWindowWidth();
+    float buttonWidth = (windowWidth - ImGui::GetStyle().WindowPadding.x * 2 - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+    // Generate button (left side)
+    if (ImGui::Button("Generate", ImVec2(buttonWidth, -1))) {
+        // Add your generate functionality here
+    }
+
+    ImGui::SameLine();
+
+    // Export button (right side)
+    if (ImGui::Button("Export", ImVec2(buttonWidth, -1))) {
+        exportTerrain();
+    }
+
+    ImGui::End();
 }
