@@ -1,3 +1,11 @@
+/*
+ * Changes made:
+ * 1. Updated all references of Window to AppWindow in method signatures and inheritance
+ * 
+ * This ensures consistency with the renamed Window class to AppWindow to avoid
+ * X11 Window typedef conflicts on Linux.
+ */
+
 #pragma once
 
 #include "IRenderContext.h"
@@ -11,7 +19,7 @@ class UiContext : public IRenderContext {
 public:
     ~UiContext() override = default;
 
-    bool init(Window* window) override;
+    bool init(AppWindow* window) override;
     void shutdown() override;
 
     void preRender() override;

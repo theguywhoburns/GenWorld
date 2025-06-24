@@ -1,6 +1,14 @@
+/*
+ * Changes made:
+ * 1. Updated all references of Window to AppWindow in method signatures and member variables
+ * 
+ * This ensures consistency with the renamed Window class to AppWindow to avoid
+ * X11 Window typedef conflicts on Linux.
+ */
+
 #include "SceneView.h"
 
-bool SceneView::init(Window* wind) {
+bool SceneView::init(AppWindow* wind) {
     window = wind;
     m_ViewportSize = window->getSize();
     return true;

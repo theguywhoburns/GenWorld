@@ -1,16 +1,32 @@
+/*
+ * Changes made:
+ * 1. Renamed Window class to AppWindow to avoid conflicts with X11 Window typedef
+ * 2. Updated all method declarations to use AppWindow instead of Window
+ * 3. Updated comment to reflect the new class name
+ * 
+ * This prevents compilation errors on Linux where X11 defines Window as a typedef,
+ * causing conflicts with our Window class definition.
+ */
+
 #pragma once
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+// Prevent X11 Window typedef from conflicting with our AppWindow class
+#ifdef Window
+#undef Window
+#endif
+
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <iostream>
 
 #include "../../Utils/Time.h"
 
-class Window {
+class AppWindow {
 public:
-    ~Window();
+    ~AppWindow();
 
     bool init();
     void shutdown();

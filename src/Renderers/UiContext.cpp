@@ -1,6 +1,14 @@
+/*
+ * Changes made:
+ * 1. Updated all references of Window to AppWindow in method signatures and member variables
+ * 
+ * This ensures consistency with the renamed Window class to AppWindow to avoid
+ * X11 Window typedef conflicts on Linux.
+ */
+
 #include "UiContext.h"
 
-bool UiContext::init(Window* window) {
+bool UiContext::init(AppWindow* window) {
     this->window = window;
     if (window == nullptr) {
         std::cerr << "Window is null!" << std::endl;

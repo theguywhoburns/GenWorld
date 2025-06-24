@@ -1,6 +1,14 @@
+/*
+ * Changes made:
+ * 1. Updated all references of Window to AppWindow in method signatures and member variables
+ * 
+ * This ensures consistency with the renamed Window class to AppWindow to avoid
+ * X11 Window typedef conflicts on Linux.
+ */
+
 #pragma once
 
-#include "../Core/Framebuffer.h"
+#include "../Core/FrameBuffer.h"
 #include "../Core/Camera.h"
 #include "../Utils/Time.h"
 #include "../Core/Engine/Window.h"
@@ -12,7 +20,7 @@
 
 class SceneView {
 public:
-    bool init(Window* window);
+    bool init(AppWindow* window);
     void render();
 
     void setCamera(Camera* camera) { this->camera = camera; }
@@ -22,7 +30,7 @@ private:
     Renderer* renderer;
     FrameBuffer framebuffer;
     Camera* camera;
-    Window* window;
+    AppWindow* window;
     glm::vec2 m_ViewportSize;
 
     bool camMode = false;
