@@ -2,15 +2,21 @@
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+// Prevent X11 Window typedef from conflicting with our AppWindow class
+#ifdef Window
+#undef Window
+#endif
+
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <iostream>
 
 #include "../../Utils/Time.h"
 
-class Window {
+class AppWindow {
 public:
-    ~Window();
+    ~AppWindow();
 
     bool init();
     void shutdown();

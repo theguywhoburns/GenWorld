@@ -1,6 +1,6 @@
 #include "UiContext.h"
 
-bool UiContext::init(Window* window) {
+bool UiContext::init(AppWindow* window) {
     this->window = window;
     if (window == nullptr) {
         std::cerr << "Window is null!" << std::endl;

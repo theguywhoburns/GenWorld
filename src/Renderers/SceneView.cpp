@@ -1,6 +1,6 @@
 #include "SceneView.h"
 
-bool SceneView::init(Window* wind) {
+bool SceneView::init(AppWindow* wind) {
     window = wind;
     m_ViewportSize = window->getSize();
     return true;

@@ -5,7 +5,7 @@
 #include "../Drawables/IDrawable.h"
 #include "../Core/Shader.h"
 #include "../Core/Camera.h"
-#include "../Core/Framebuffer.h"
+#include "../Core/FrameBuffer.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

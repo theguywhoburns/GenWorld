@@ -1,11 +1,11 @@
 #include "Window.h"
 #include "../stb_image.h"
 
-Window::~Window() {
+AppWindow::~AppWindow() {
     shutdown();
 }
 
-bool Window::init() {
+bool AppWindow::init() {
     if (!glfwInit()) {
         std::cout << "Failed to initialize GLFW" << std::endl;
         return false;
@@ -70,13 +70,13 @@ bool Window::init() {
     return true;
 }
 
-void Window::shutdown() {
+void AppWindow::shutdown() {
     // Cleanup resources
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
-void Window::newFrame() {
+void AppWindow::newFrame() {
     processInput();
     calculateMousePos();
     updateTitle();
@@ -85,40 +85,40 @@ void Window::newFrame() {
     clearBuffers();
 }
 
-void Window::onUpdate() {
+void AppWindow::onUpdate() {
     // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
     // -------------------------------------------------------------------------------
     glfwSwapBuffers(window);
     glfwPollEvents();
 }
 
-void Window::setSize(int width, int height) {
+void AppWindow::setSize(int width, int height) {
     SCR_WIDTH = width;
     SCR_HEIGHT = height;
     glViewport(0, 0, width, height);
 }
 
-void Window::setSize(const glm::vec2& size) {
+void AppWindow::setSize(const glm::vec2& size) {
     SCR_WIDTH = (int)size.x;
     SCR_HEIGHT = (int)size.y;
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 }
 
-void Window::calculateMousePos() {
+void AppWindow::calculateMousePos() {
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
     cursorPos.x = xpos;
     cursorPos.y = ypos;
 }
 
-void Window::updateTitle() {
+void AppWindow::updateTitle() {
     char newTitle[256];
     sprintf(newTitle, "%s | FPS: %.1f | Cursor Position: %.0f, %.0f",
         title.c_str(), Utils::Time::frameRate, cursorPos.x, cursorPos.y);
     glfwSetWindowTitle(window, newTitle);
 }
 
-void Window::processInput() {
+void AppWindow::processInput() {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         close();
     }
@@ -129,7 +129,7 @@ void Window::processInput() {
     // }
 }
 
-void Window::resize_callback(GLFWwindow* window, int width, int height) {
-    Window* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
+void AppWindow::resize_callback(GLFWwindow* window, int width, int height) {
+    AppWindow* win = static_cast<AppWindow*>(glfwGetWindowUserPointer(window));
     win->setSize(width, height);
 }

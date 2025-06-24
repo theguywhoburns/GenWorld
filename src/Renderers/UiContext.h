@@ -11,7 +11,7 @@ class UiContext : public IRenderContext {
 public:
     ~UiContext() override = default;
 
-    bool init(Window* window) override;
+    bool init(AppWindow* window) override;
     void shutdown() override;
 
     void preRender() override;

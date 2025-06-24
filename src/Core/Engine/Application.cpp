@@ -3,7 +3,7 @@
 Application* Application::_instance = nullptr;
 
 Application::Application() {
-    m_window = new Window();
+    m_window = new AppWindow();
 
     init();
 }
