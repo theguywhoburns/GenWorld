@@ -1,13 +1,3 @@
-/*
- * Changes made:
- * 1. Renamed Window class to AppWindow to avoid conflicts with X11 Window typedef
- * 2. Updated all method implementations to use AppWindow instead of Window
- * 3. Updated the static callback function to cast to AppWindow* instead of Window*
- * 
- * This prevents compilation errors on Linux where X11 defines Window as a typedef,
- * causing conflicts with our Window class definition.
- */
-
 #include "Window.h"
 #include "../stb_image.h"
 

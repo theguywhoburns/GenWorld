@@ -1,13 +1,3 @@
-/*
- * Changes made:
- * 1. Renamed Window class to AppWindow to avoid conflicts with X11 Window typedef
- * 2. Updated all method declarations to use AppWindow instead of Window
- * 3. Updated comment to reflect the new class name
- * 
- * This prevents compilation errors on Linux where X11 defines Window as a typedef,
- * causing conflicts with our Window class definition.
- */
-
 #pragma once
 
 #define GLFW_INCLUDE_NONE

@@ -1,12 +1,3 @@
-/*
- * Changes made:
- * 1. Updated all usages of Window to AppWindow for window creation, deletion, and method calls
- * 2. Ensured all references to the window object are consistent with the new AppWindow class
- * 
- * This ensures consistency with the renamed Window class to AppWindow to avoid
- * X11 Window typedef conflicts on Linux.
- */
-
 #include "Application.h"
 
 Application* Application::_instance = nullptr;
