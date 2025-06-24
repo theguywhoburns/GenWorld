@@ -1,4 +1,6 @@
+// safe guard to prevent compilation on non-Linux platforms
 #ifdef __linux__
+
 #include "../FileDialogs.h"
 #include <gtk/gtk.h>
 
