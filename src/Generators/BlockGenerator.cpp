@@ -1,67 +1,48 @@
 #include "BlockGenerator.h"
-
-// Include all necessary headers here
 #include "../Controllers/BlockController.h"
 #include "../UI/BlockUI.h"
 #include "../Drawables/Model.h"
 #include "../Core/Vertex.h"
+#include "../Drawables/BlockMesh.h"
 #include <random>
 #include <iostream>
 #include <algorithm>
 #include <cfloat>
 #include <set>
-#include "../Drawables/BlockMesh.h"
+#include <thread>
+#include <mutex>
+#include <atomic>
 
+std::mutex gridMutex;
 
-BlockGenerator::BlockGenerator() {
-    this->controller = nullptr;
-    
-    // Initialize with block count instead of world units
-    parameters.gridWidth = 20;     // 20 blocks wide
-    parameters.gridLength = 20;    // 20 blocks long
-    parameters.cellWidth = 5.0f;   // Each block is 5 units wide
-    parameters.cellLength = 5.0f;  // Each block is 5 units long
-    
-    // Calculate world dimensions
-    updateWorldDimensions();
-    
-    parameters.blockScale = 1.0f;
-    generatorMesh = nullptr;
+BlockGenerator::BlockGenerator(BlockController* controller) : controller(controller) {
+    initializeDefaults();
 }
 
-BlockGenerator::BlockGenerator(BlockController* controller) {
-    this->controller = controller;
-    
-    // Initialize with block count instead of world units
-    parameters.gridWidth = 20;     // 20 blocks wide
-    parameters.gridLength = 20;    // 20 blocks long
-    parameters.cellWidth = 5.0f;   // Each block is 5 units wide
-    parameters.cellLength = 5.0f;  // Each block is 5 units long
-    
-    // Calculate world dimensions
-    updateWorldDimensions();
-    
-    parameters.blockScale = 1.0f;
-    generatorMesh = nullptr;
+BlockGenerator::BlockGenerator() : controller(nullptr) {
+    initializeDefaults();
 }
 
 BlockGenerator::~BlockGenerator() {
-    if (generatorMesh != nullptr) {
-        delete generatorMesh;
-        generatorMesh = nullptr;
-    }
+    delete generatorMesh;
+}
+
+void BlockGenerator::initializeDefaults() {
+    parameters = {20, 20, 5.0f, 5.0f, 1.0f};
+    updateWorldDimensions();
+    generatorMesh = nullptr;
 }
 
 void BlockGenerator::Generate() {
-    // Auto-detect cell size from loaded assets if not already detected
+    initializeBlockConstraints();
+    
     if (!parameters.dimensionsDetected) {
         DetectCellSizeFromAssets();
     }
     
-    // 1. Initialize the grid with all possible states
     initializeGrid();
-
-    // 2. Start with a seed block in the center of the grid
+    
+    // Place seed block at center
     int centerX = parameters.gridWidth / 2;
     int centerZ = parameters.gridLength / 2;
     
@@ -71,25 +52,73 @@ void BlockGenerator::Generate() {
         return;
     }
     
-    // 3. Fill the grid using simple random placement (no constraints for now)
-    while (hasUnresolvedCells()) {
-        GridPosition nextPos = findLowestEntropyCell();
-        
-        if (nextPos.x == -1 || nextPos.z == -1) {
-            break;
+    generateGridMultithreaded();
+    
+    std::cout << "Starting mesh generation..." << std::endl;
+    generatorMesh = generateMeshFromGrid();
+    std::cout << "Mesh generation complete!" << std::endl;
+}
+
+void BlockGenerator::generateGridMultithreaded() {
+    const unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency());
+    std::vector<std::thread> workerThreads;
+    std::atomic<int> totalProcessed(0);
+    std::atomic<bool> workCompleted(false);
+    
+    auto processChunk = [&](unsigned int threadId) {
+        int cellsProcessed = 0;
+        while (!workCompleted) {
+            GridPosition nextPos{-1, -1};
+            bool foundWork = false;
+            
+            {
+                std::lock_guard<std::mutex> lock(gridMutex);
+                nextPos = findLowestEntropyCell();
+                foundWork = (nextPos.x != -1 && nextPos.z != -1);
+                if (!foundWork) workCompleted = true;
+            }
+            
+            if (!foundWork) break;
+            
+            {
+                std::lock_guard<std::mutex> lock(gridMutex);
+                if (!grid[nextPos.x][nextPos.z].collapsed && 
+                    collapseCell(nextPos.x, nextPos.z)) {
+                    cellsProcessed++;
+                    totalProcessed++;
+                }
+            }
+            
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
-        
-        if (!collapseCell(nextPos.x, nextPos.z)) {
-            std::cerr << "Failed to collapse cell at " << nextPos.x << ", " << nextPos.z << std::endl;
-            continue;
+    };
+    
+    // Launch and join worker threads
+    for (unsigned int i = 0; i < numThreads; i++) {
+        workerThreads.emplace_back(processChunk, i);
+    }
+    
+    for (auto& thread : workerThreads) {
+        thread.join();
+    }
+    
+    // Process remaining cells
+    processRemainingCells();
+}
+
+void BlockGenerator::processRemainingCells() {
+    int remainingCells = 0;
+    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
+        for (unsigned int z = 0; z < parameters.gridLength; z++) {
+            if (!grid[x][z].collapsed && !grid[x][z].possibleBlockTypes.empty()) {
+                if (collapseCell(x, z)) remainingCells++;
+            }
         }
     }
     
-    // 4. Generate the final mesh from the collapsed grid
-    generatorMesh = generateMeshFromGrid();
+    std::cout << "Grid generation complete. Processed " << remainingCells << " remaining cells." << std::endl;
 }
 
-// Add this new method to calculate world dimensions
 void BlockGenerator::updateWorldDimensions() {
     parameters.worldWidth = parameters.gridWidth * parameters.cellWidth;
     parameters.worldLength = parameters.gridLength * parameters.cellLength;
@@ -97,48 +126,35 @@ void BlockGenerator::updateWorldDimensions() {
     parameters.halfWorldLength = parameters.worldLength / 2.0f;
 }
 
-// Update DetectCellSizeFromAssets method
 void BlockGenerator::DetectCellSizeFromAssets() {
-    if (!controller || !controller->GetBlockUI()) {
-        return;
-    }
-    
+    if (!controller->GetBlockUI()) return;
+
     auto assets = controller->GetBlockUI()->GetLoadedAssets();
-    if (assets.empty()) {
-        return;
-    }
+    if (assets.empty()) return;
     
-    // Use the first asset to determine cell size
     const auto& firstAsset = assets[0];
-    if (firstAsset.model) {
-        glm::vec3 bounds = calculateModelBounds(firstAsset.model);
-        
-        parameters.detectedBlockWidth = bounds.x;
-        parameters.detectedBlockLength = bounds.z;
-        parameters.detectedBlockHeight = bounds.y;
-        parameters.dimensionsDetected = true;
-        
-        // Set cell dimensions to the actual block dimensions
-        parameters.cellWidth = bounds.x;
-        parameters.cellLength = bounds.z;
-        
-        // Recalculate world dimensions based on new cell size
-        updateWorldDimensions();
-    }
+    if (!firstAsset.model) return;
+    
+    glm::vec3 bounds = calculateModelBounds(firstAsset.model);
+    parameters.detectedBlockWidth = bounds.x;
+    parameters.detectedBlockLength = bounds.z;
+    parameters.detectedBlockHeight = bounds.y;
+    parameters.dimensionsDetected = true;
+    parameters.cellWidth = bounds.x;
+    parameters.cellLength = bounds.z;
+    
+    updateWorldDimensions();
 }
 
 glm::vec3 BlockGenerator::calculateModelBounds(const std::shared_ptr<Model>& model) {
     if (!model || model->getMeshes().empty()) {
-        return glm::vec3(5.0f); // Default size if no model
+        return glm::vec3(5.0f);
     }
     
-    glm::vec3 minBounds(FLT_MAX);
-    glm::vec3 maxBounds(-FLT_MAX);
+    glm::vec3 minBounds(FLT_MAX), maxBounds(-FLT_MAX);
     
-    // Calculate bounds from all meshes in the model
     for (auto* mesh : model->getMeshes()) {
         if (!mesh) continue;
-        
         for (const auto& vertex : mesh->vertices) {
             minBounds = glm::min(minBounds, vertex.Position);
             maxBounds = glm::max(maxBounds, vertex.Position);
@@ -149,396 +165,311 @@ glm::vec3 BlockGenerator::calculateModelBounds(const std::shared_ptr<Model>& mod
 }
 
 void BlockGenerator::initializeGrid() {
-    grid.clear();
-    grid.resize(parameters.gridWidth);  // Use gridWidth instead of numCellsWidth
+    grid.assign(parameters.gridWidth, std::vector<GridCell>(parameters.gridLength));
+    auto allBlockTypes = getAllBlockTypes();
     
-    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
-        grid[x].resize(parameters.gridLength);  // Use gridLength instead of numCellsLength
-        
-        for (unsigned int z = 0; z < parameters.gridLength; z++) {
-            grid[x][z].possibleBlockTypes = getAllBlockTypes();
-            grid[x][z].collapsed = false;
-            grid[x][z].blockTypeIds.clear();
-            grid[x][z].blockPositions.clear();
-            grid[x][z].cellFillAmount = 0.0f;
+    for (auto& row : grid) {
+        for (auto& cell : row) {
+            cell = {allBlockTypes, false, {}, {}, 0.0f};
         }
     }
 }
 
 std::vector<int> BlockGenerator::getAllBlockTypes() {
     std::vector<int> blockTypes;
-    
-    // Get asset IDs from the UI via controller
-    if (controller && controller->GetBlockUI()) {
+
+    if (controller->GetBlockUI()) {
         auto assets = controller->GetBlockUI()->GetLoadedAssets();
-        
-        if (assets.empty()) {
-            // Fallback to placeholder blocks if no assets are loaded
-            for (int i = 0; i < 10; i++) {
-                blockTypes.push_back(i);
-            }
-        } else {
-            // Use loaded asset IDs
+        if (!assets.empty()) {
             for (const auto& asset : assets) {
                 blockTypes.push_back(asset.id);
             }
-        }
-    } else {
-        // Fallback if no controller
-        for (int i = 0; i < 10; i++) {
-            blockTypes.push_back(i);
+            return blockTypes;
         }
     }
     
+    // Fallback
+    for (int i = 0; i < 10; i++) {
+        blockTypes.push_back(i);
+    }
     return blockTypes;
 }
 
 bool BlockGenerator::placeRandomBlockAt(int x, int z) {
-    if (x < 0 || x >= (int)parameters.gridWidth || 
-        z < 0 || z >= (int)parameters.gridLength) {
-        return false;
-    }
+    if (!isValidGridPosition(x, z)) return false;
     
     auto& cell = grid[x][z];
+    if (cell.possibleBlockTypes.empty()) return false;
+    
+    updateCellPossibilities(x, z);
     if (cell.possibleBlockTypes.empty()) {
+        std::cerr << "No valid blocks for initial placement at (" << x << ", " << z << ")" << std::endl;
         return false;
     }
     
-    int randomIndex = rand() % cell.possibleBlockTypes.size();
-    int chosenBlockType = cell.possibleBlockTypes[randomIndex];
-    
-    // Calculate position using new grid system
-    float cellCenterX = (x * parameters.cellWidth) - parameters.halfWorldWidth;
-    float cellCenterZ = (z * parameters.cellLength) - parameters.halfWorldLength;
-    glm::vec3 blockPosition = glm::vec3(cellCenterX, 0, cellCenterZ);
-    
-    cell.collapsed = true;
-    cell.possibleBlockTypes.clear();
-    cell.possibleBlockTypes.push_back(chosenBlockType);
-    
-    cell.blockTypeIds.clear();
-    cell.blockTypeIds.push_back(chosenBlockType);
-    cell.blockPositions.clear();
-    cell.blockPositions.push_back(blockPosition);
-    
-    return true;
-}
-
-bool BlockGenerator::hasUnresolvedCells() {
-    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
-        for (unsigned int z = 0; z < parameters.gridLength; z++) {
-            if (!grid[x][z].collapsed && !grid[x][z].possibleBlockTypes.empty()) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return collapseCell(x, z);
 }
 
 GridPosition BlockGenerator::findLowestEntropyCell() {
-    GridPosition lowestPos = {-1, -1};
     int lowestEntropy = INT_MAX;
     std::vector<GridPosition> candidates;
     
     for (unsigned int x = 0; x < parameters.gridWidth; x++) {
         for (unsigned int z = 0; z < parameters.gridLength; z++) {
-            auto& cell = grid[x][z];
-            
-            if (cell.collapsed || cell.possibleBlockTypes.empty()) {
-                continue;
-            }
+            const auto& cell = grid[x][z];
+            if (cell.collapsed || cell.possibleBlockTypes.empty()) continue;
             
             int entropy = cell.possibleBlockTypes.size();
-            
             if (entropy < lowestEntropy) {
                 lowestEntropy = entropy;
                 candidates.clear();
                 candidates.push_back({(int)x, (int)z});
-            } 
-            else if (entropy == lowestEntropy) {
+            } else if (entropy == lowestEntropy) {
                 candidates.push_back({(int)x, (int)z});
             }
         }
     }
     
-    if (!candidates.empty()) {
-        int randomIndex = rand() % candidates.size();
-        return candidates[randomIndex];
-    }
-    
-    return lowestPos;
+    return candidates.empty() ? GridPosition{-1, -1} : 
+           candidates[rand() % candidates.size()];
 }
 
 bool BlockGenerator::collapseCell(int x, int z) {
-    if (x < 0 || x >= (int)parameters.gridWidth || 
-        z < 0 || z >= (int)parameters.gridLength) {
-        return false;
-    }
+    if (!isValidGridPosition(x, z)) return false;
     
     auto& cell = grid[x][z];
-    if (cell.collapsed || cell.possibleBlockTypes.empty()) {
+    if (cell.collapsed || cell.possibleBlockTypes.empty()) return false;
+    
+    updateCellPossibilities(x, z);
+    if (cell.possibleBlockTypes.empty()) {
+        std::cerr << "Warning: No valid blocks remaining for position (" << x << ", " << z << ")" << std::endl;
         return false;
     }
     
-    // Determine how many blocks to place in this cell
-    int numBlocksToPlace = calculateBlocksForCell(x, z);
+    // Choose and place block
+    int chosenBlockType = cell.possibleBlockTypes[rand() % cell.possibleBlockTypes.size()];
+    glm::vec3 blockPosition = calculateBlockPosition(x, z);
     
-    // Place blocks with distance constraints
-    for (int i = 0; i < numBlocksToPlace; i++) {
-        if (!placeBlockInCell(x, z, i)) {
-            break; // Stop if we can't place more blocks
+    // Collapse cell
+    cell.collapsed = true;
+    cell.possibleBlockTypes = {chosenBlockType};
+    cell.blockTypeIds = {chosenBlockType};
+    cell.blockPositions = {blockPosition};
+    
+    propagateConstraints(x, z);
+    return true;
+}
+
+void BlockGenerator::updateCellPossibilities(int x, int z) {
+    auto& cell = grid[x][z];
+    if (cell.collapsed) return;
+    
+    std::vector<int> validBlocks;
+    for (int blockId : cell.possibleBlockTypes) {
+        if (isBlockValidAtPosition(x, z, blockId)) {
+            validBlocks.push_back(blockId);
         }
     }
+    cell.possibleBlockTypes = validBlocks;
+}
+
+bool BlockGenerator::isBlockValidAtPosition(int x, int z, int blockId) {
+    const std::vector<std::tuple<int, int, std::string>> neighbors = {
+        {x, z+1, "+Z"}, {x, z-1, "-Z"}, {x+1, z, "+X"}, {x-1, z, "-X"}
+    };
     
-    cell.collapsed = true;
+    for (const auto& [nx, nz, direction] : neighbors) {
+        if (!isValidGridPosition(nx, nz)) {
+            if (!canFaceBeExposed(blockId, direction)) return false;
+            continue;
+        }
+        
+        const auto& neighborCell = grid[nx][nz];
+        if (!validateNeighborCompatibility(blockId, direction, neighborCell)) {
+            return false;
+        }
+    }
     return true;
 }
 
-int BlockGenerator::calculateBlocksForCell(int x, int z) {
-    return 1;
-}
-
-bool BlockGenerator::placeBlockInCell(int x, int z, int blockIndex) {
-    auto& cell = grid[x][z];
+bool BlockGenerator::validateNeighborCompatibility(int blockId, const std::string& direction, 
+                                                  const GridCell& neighborCell) {
+    std::string oppositeFace = getOppositeFace(direction);
     
-    if (cell.possibleBlockTypes.empty()) {
-        return false;
+    if (neighborCell.collapsed && !neighborCell.blockTypeIds.empty()) {
+        return canBlocksConnectMutually(blockId, direction, neighborCell.blockTypeIds[0], oppositeFace);
     }
     
-    // Choose block type
-    int randomIndex = rand() % cell.possibleBlockTypes.size();
-    int chosenBlockType = cell.possibleBlockTypes[randomIndex];
+    if (!neighborCell.collapsed) {
+        for (int possibleNeighborId : neighborCell.possibleBlockTypes) {
+            if (canBlocksConnectMutually(blockId, direction, possibleNeighborId, oppositeFace)) {
+                return true;
+            }
+        }
+        return canFaceBeExposed(blockId, direction);
+    }
     
-    // Calculate center position of cell
-    float cellCenterX = (x * parameters.cellWidth) - parameters.halfWorldWidth;
-    float cellCenterZ = (z * parameters.cellLength) - parameters.halfWorldLength;
-    glm::vec3 blockPosition = glm::vec3(cellCenterX, 0, cellCenterZ);
-    
-    // Add the block
-    cell.blockTypeIds.push_back(chosenBlockType);
-    cell.blockPositions.push_back(blockPosition);
-    
-    return true;
-}
-
-glm::vec3 BlockGenerator::calculateBlockPositionInCell(int x, int z, int blockIndex, const std::vector<glm::vec3>& existingPositions) {
-    // Simply return the center of the cell
-    float cellCenterX = (x * parameters.cellWidth) - parameters.halfWorldWidth;
-    float cellCenterZ = (z * parameters.cellLength) - parameters.halfWorldLength;
-    
-    return glm::vec3(cellCenterX, 0, cellCenterZ);
-}
-
-bool BlockGenerator::isValidBlockPosition(int x, int z, const glm::vec3& position, int blockType) {
-    // No distance constraints, always valid
-    return true;
+    return canFaceBeExposed(blockId, direction);
 }
 
 BlockMesh* BlockGenerator::generateMeshFromGrid() {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<std::shared_ptr<Texture>> textures;
-    
     std::set<std::shared_ptr<Texture>> uniqueTextures;
     
-    // Create the BlockMesh first
     BlockMesh* blockMesh = new BlockMesh(vertices, indices, parameters, textures);
     
-    // Add block instances instead of combining vertices
     for (unsigned int x = 0; x < parameters.gridWidth; x++) {
         for (unsigned int z = 0; z < parameters.gridLength; z++) {
             const auto& cell = grid[x][z];
-            if (cell.collapsed) {
-                for (size_t i = 0; i < cell.blockTypeIds.size(); i++) {
-                    int blockId = cell.blockTypeIds[i];
-                    glm::vec3 position = cell.blockPositions[i];
-                    
-                    // Create transform for this block
-                    Transform blockTransform;
-                    blockTransform.setPosition(position);
-                    blockTransform.setScale(parameters.blockScale);
-                    
-                    // Find the asset path for this block ID
-                    if (controller && controller->GetBlockUI()) {
-                        auto assets = controller->GetBlockUI()->GetLoadedAssets();
-                        
-                        for (const auto& asset : assets) {
-                            if (asset.id == blockId) {
-                                // Add block instance to BlockMesh
-                                blockMesh->AddBlockInstance(asset.blockPath, blockTransform);
-                                
-                                // Collect textures
-                                if (asset.model) {
-                                    for (auto* mesh : asset.model->getMeshes()) {
-                                        if (mesh) {
-                                            for (auto& texture : mesh->textures) {
-                                                uniqueTextures.insert(texture);
-                                            }
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    } else {
-                        // Fallback: add by ID for simple cubes
-                        blockMesh->AddBlockInstance(blockId, blockTransform);
-                    }
-                }
+            if (!cell.collapsed) continue;
+            
+            for (size_t i = 0; i < cell.blockTypeIds.size(); i++) {
+                addBlockToMesh(blockMesh, cell.blockTypeIds[i], cell.blockPositions[i], uniqueTextures);
             }
         }
     }
     
-    // Set collected textures
-    std::vector<std::shared_ptr<Texture>> textureVector(uniqueTextures.begin(), uniqueTextures.end());
-    blockMesh->SetBlockTextures(textureVector);
-    
+    blockMesh->SetBlockTextures({uniqueTextures.begin(), uniqueTextures.end()});
     return blockMesh;
 }
 
-void BlockGenerator::addBlockToMeshAtPosition(const glm::vec3& worldPos, int blockId, 
-                                            std::vector<Vertex>& vertices, 
-                                            std::vector<unsigned int>& indices) {
-    // Check if we have a controller and can get assets
-    if (!controller || !controller->GetBlockUI()) {
-        addSimpleCubeAtPosition(worldPos, blockId, vertices, indices);
-        return;
-    }
-    
-    const AssetInfo* asset = nullptr;
-    auto assets = controller->GetBlockUI()->GetLoadedAssets();
-    
-    for (const auto& a : assets) {
-        if (a.id == blockId) {
-            asset = &a;
-            break;
+void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position,
+                                   std::set<std::shared_ptr<Texture>>& uniqueTextures) {
+    Transform blockTransform;
+    blockTransform.setPosition(position);
+    blockTransform.setScale(parameters.blockScale);
+
+    if (controller->GetBlockUI()) {
+        auto assets = controller->GetBlockUI()->GetLoadedAssets();
+        for (const auto& asset : assets) {
+            if (asset.id == blockId) {
+                blockMesh->AddBlockInstance(asset.blockPath, blockTransform);
+                collectTexturesFromModel(asset.model, uniqueTextures);
+                return;
+            }
         }
     }
     
-    // If we found a valid asset with a model, use it
-    if (asset && asset->model && !asset->model->getMeshes().empty()) {
-        Mesh* modelMesh = asset->model->getMeshes()[0];
-        
-        if (modelMesh && !modelMesh->vertices.empty()) {
-            unsigned int baseIndex = vertices.size();
-            
-            // DON'T modify vertices - just copy them as-is
-            for (const auto& v : modelMesh->vertices) {
-                vertices.push_back(v); // Copy original vertex data
-            }
-            
-            // Add indices
-            for (unsigned int idx : modelMesh->indices) {
-                indices.push_back(baseIndex + idx);
-            }
-            
-            // Use Transform system for positioning/scaling later
-            return;
-        }
-    }
-    
-    // Fallback: create a simple cube
-    addSimpleCubeAtPosition(worldPos, blockId, vertices, indices);
+    blockMesh->AddBlockInstance(blockId, blockTransform);
 }
 
-void BlockGenerator::addSimpleCubeAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
-    // Use the blockScale parameter for cube size
-    float blockSize = parameters.blockScale;
-    float halfSize = blockSize / 2.0f;
-    float blockHeight = blockId * 0.5f + 1.0f;
+void BlockGenerator::collectTexturesFromModel(const std::shared_ptr<Model>& model,
+                                             std::set<std::shared_ptr<Texture>>& uniqueTextures) {
+    if (!model) return;
     
-    // Use the exact world position passed in
-    float worldX = worldPos.x;
-    float worldZ = worldPos.z;
-    
-    // Define the 8 corners of the cube
-    glm::vec3 corners[8] = {
-        glm::vec3(worldX - halfSize, 0, worldZ - halfSize),
-        glm::vec3(worldX + halfSize, 0, worldZ - halfSize),
-        glm::vec3(worldX + halfSize, 0, worldZ + halfSize),
-        glm::vec3(worldX - halfSize, 0, worldZ + halfSize),
-        glm::vec3(worldX - halfSize, blockHeight, worldZ - halfSize),
-        glm::vec3(worldX + halfSize, blockHeight, worldZ - halfSize),
-        glm::vec3(worldX + halfSize, blockHeight, worldZ + halfSize),
-        glm::vec3(worldX - halfSize, blockHeight, worldZ + halfSize)
-    };
-    
-    unsigned int baseIndex = vertices.size();
-    
-    // Lambda function to create a properly initialized vertex
-    auto createVertex = [](const glm::vec3& pos, const glm::vec3& normal, const glm::vec2& texCoord) -> Vertex {
-        Vertex vertex;
-        vertex.Position = pos;
-        vertex.Normal = normal;
-        vertex.Color = glm::vec3(1.0f, 1.0f, 1.0f);
-        vertex.TexCoords = texCoord;
-        vertex.Tangent = glm::vec3(0.0f, 0.0f, 0.0f);
-        vertex.Bitangent = glm::vec3(0.0f, 0.0f, 0.0f);
-        
-        for (int i = 0; i < MAX_BONE_INFLUENCE; i++) {
-            vertex.m_BoneIDs[i] = -1;
-            vertex.m_Weights[i] = 0.0f;
+    for (auto* mesh : model->getMeshes()) {
+        if (mesh) {
+            for (auto& texture : mesh->textures) {
+                uniqueTextures.insert(texture);
+            }
         }
-        
-        return vertex;
+    }
+}
+
+bool BlockGenerator::canBlocksConnect(int blockId1, const std::string& face1, int blockId2, const std::string& face2) {
+    auto it = blockConstraints.find(blockId1);
+    if (it == blockConstraints.end()) return true;
+    
+    const BlockFaceConstraints* faceConstraints = getFaceConstraints(it->second, face1);
+    if (!faceConstraints || faceConstraints->validConnections.empty()) return true;
+    
+    return std::find(faceConstraints->validConnections.begin(), 
+                    faceConstraints->validConnections.end(), 
+                    blockId2) != faceConstraints->validConnections.end();
+}
+
+const BlockFaceConstraints* BlockGenerator::getFaceConstraints(const BlockConstraints& constraints, 
+                                                              const std::string& face) {
+    static const std::map<std::string, std::function<const BlockFaceConstraints&(const BlockConstraints&)>> faceMap = {
+        {"+Z", [](const auto& c) -> const auto& { return c.posZ; }},
+        {"-Z", [](const auto& c) -> const auto& { return c.negZ; }},
+        {"+X", [](const auto& c) -> const auto& { return c.posX; }},
+        {"-X", [](const auto& c) -> const auto& { return c.negX; }},
+        {"+Y", [](const auto& c) -> const auto& { return c.posY; }},
+        {"-Y", [](const auto& c) -> const auto& { return c.negY; }}
     };
     
-    // Bottom face (y = 0)
-    vertices.push_back(createVertex(corners[0], glm::vec3(0, -1, 0), glm::vec2(0, 0)));
-    vertices.push_back(createVertex(corners[1], glm::vec3(0, -1, 0), glm::vec2(1, 0)));
-    vertices.push_back(createVertex(corners[2], glm::vec3(0, -1, 0), glm::vec2(1, 1)));
-    vertices.push_back(createVertex(corners[3], glm::vec3(0, -1, 0), glm::vec2(0, 1)));
+    auto it = faceMap.find(face);
+    return it != faceMap.end() ? &it->second(constraints) : nullptr;
+}
+
+std::string BlockGenerator::getOppositeFace(const std::string& face) {
+    static const std::map<std::string, std::string> opposites = {
+        {"+Z", "-Z"}, {"-Z", "+Z"}, {"+X", "-X"}, 
+        {"-X", "+X"}, {"+Y", "-Y"}, {"-Y", "+Y"}
+    };
     
-    // Top face (y = blockHeight)
-    vertices.push_back(createVertex(corners[4], glm::vec3(0, 1, 0), glm::vec2(0, 0)));
-    vertices.push_back(createVertex(corners[5], glm::vec3(0, 1, 0), glm::vec2(1, 0)));
-    vertices.push_back(createVertex(corners[6], glm::vec3(0, 1, 0), glm::vec2(1, 1)));
-    vertices.push_back(createVertex(corners[7], glm::vec3(0, 1, 0), glm::vec2(0, 1)));
+    auto it = opposites.find(face);
+    return it != opposites.end() ? it->second : face;
+}
+
+bool BlockGenerator::canBlocksConnectMutually(int blockId1, const std::string& face1, 
+                                              int blockId2, const std::string& face2) {
+    return canBlocksConnect(blockId1, face1, blockId2, face2) && 
+           canBlocksConnect(blockId2, face2, blockId1, face1);
+}
+
+bool BlockGenerator::canFaceBeExposed(int blockId, const std::string& face) {
+    auto it = blockConstraints.find(blockId);
+    if (it == blockConstraints.end()) return true;
+
+    const BlockFaceConstraints* faceConstraints = getFaceConstraints(it->second, face);
+    return faceConstraints ? faceConstraints->canBeExposed : true;
+}
+
+void BlockGenerator::propagateConstraints(int x, int z) {
+    const std::vector<std::pair<int, int>> neighbors = {{x, z+1}, {x, z-1}, {x+1, z}, {x-1, z}};
     
-    // Front face (z+)
-    vertices.push_back(createVertex(corners[3], glm::vec3(0, 0, 1), glm::vec2(0, 0)));
-    vertices.push_back(createVertex(corners[2], glm::vec3(0, 0, 1), glm::vec2(1, 0)));
-    vertices.push_back(createVertex(corners[6], glm::vec3(0, 0, 1), glm::vec2(1, 1)));
-    vertices.push_back(createVertex(corners[7], glm::vec3(0, 0, 1), glm::vec2(0, 1)));
-    
-    // Back face (z-)
-    vertices.push_back(createVertex(corners[1], glm::vec3(0, 0, -1), glm::vec2(0, 0)));
-    vertices.push_back(createVertex(corners[0], glm::vec3(0, 0, -1), glm::vec2(1, 0)));
-    vertices.push_back(createVertex(corners[4], glm::vec3(0, 0, -1), glm::vec2(1, 1)));
-    vertices.push_back(createVertex(corners[5], glm::vec3(0, 0, -1), glm::vec2(0, 1)));
-    
-    // Right face (x+)
-    vertices.push_back(createVertex(corners[2], glm::vec3(1, 0, 0), glm::vec2(0, 0)));
-    vertices.push_back(createVertex(corners[1], glm::vec3(1, 0, 0), glm::vec2(1, 0)));
-    vertices.push_back(createVertex(corners[5], glm::vec3(1, 0, 0), glm::vec2(1, 1)));
-    vertices.push_back(createVertex(corners[6], glm::vec3(1, 0, 0), glm::vec2(0, 1)));
-    
-    // Left face (x-)
-    vertices.push_back(createVertex(corners[0], glm::vec3(-1, 0, 0), glm::vec2(0, 0)));
-    vertices.push_back(createVertex(corners[3], glm::vec3(-1, 0, 0), glm::vec2(1, 0)));
-    vertices.push_back(createVertex(corners[7], glm::vec3(-1, 0, 0), glm::vec2(1, 1)));
-    vertices.push_back(createVertex(corners[4], glm::vec3(-1, 0, 0), glm::vec2(0, 1)));
-    
-    // Define indices for all faces
-    for (int face = 0; face < 6; face++) {
-        unsigned int faceBase = baseIndex + face * 4;
-        indices.push_back(faceBase + 0);
-        indices.push_back(faceBase + 1);
-        indices.push_back(faceBase + 2);
-        indices.push_back(faceBase + 0);
-        indices.push_back(faceBase + 2);
-        indices.push_back(faceBase + 3);
+    for (const auto& [nx, nz] : neighbors) {
+        if (isValidGridPosition(nx, nz) && !grid[nx][nz].collapsed) {
+            updateCellPossibilities(nx, nz);
+        }
     }
+}
+
+void BlockGenerator::initializeBlockConstraints() {
+    blockConstraints.clear();
+    
+    auto createDefaultConstraints = [](int blockId) {
+        return BlockConstraints{blockId, {{}, true}, {{}, true}, {{}, true}, 
+                               {{}, true}, {{}, true}, {{}, true}};
+    };
+    
+    if (controller->GetBlockUI()) {
+        auto uiConstraints = controller->GetBlockUI()->GetConstraints();
+        if (!uiConstraints.empty()) {
+            blockConstraints = uiConstraints;
+        } else {
+            auto assets = controller->GetBlockUI()->GetLoadedAssets();
+            for (const auto& asset : assets) {
+                blockConstraints[asset.id] = createDefaultConstraints(asset.id);
+            }
+        }
+    } else {
+        auto allBlockTypes = getAllBlockTypes();
+        for (int blockId : allBlockTypes) {
+            blockConstraints[blockId] = createDefaultConstraints(blockId);
+        }
+    }
+    
+    std::cout << "Initialized constraints for " << blockConstraints.size() << " block types." << std::endl;
+}
+
+// Helper functions
+bool BlockGenerator::isValidGridPosition(int x, int z) const {
+    return x >= 0 && x < (int)parameters.gridWidth && z >= 0 && z < (int)parameters.gridLength;
+}
+
+glm::vec3 BlockGenerator::calculateBlockPosition(int x, int z) const {
+    float cellCenterX = (x * parameters.cellWidth) - parameters.halfWorldWidth;
+    float cellCenterZ = (z * parameters.cellLength) - parameters.halfWorldLength;
+    return glm::vec3(cellCenterX, 0, cellCenterZ);
 }
 
 BlockMesh* BlockGenerator::createEmptyMesh() {
     return new BlockMesh(std::vector<Vertex>(), std::vector<unsigned int>(), parameters);
-}
-
-
-void positionBlock(BlockMesh* blockMesh, const glm::vec3& worldPos, float scale) {
-    blockMesh->setPosition(worldPos);
-    blockMesh->setScale(scale);
 }
 
 

@@ -13,6 +13,9 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <iostream>
+#include <functional>
+#include <thread>
 
 // ONLY include what we absolutely need for file dialogs
 #include "../Core/Engine/Application.h"
@@ -20,72 +23,252 @@
 #include "../Drawables/Model.h"
 
 BlockUI::BlockUI(IBlockUIController* controller) : controller(controller) {
-    // Initialize with block count instead of world units
-    parameters.gridWidth = 20;     // 20 blocks wide
-    parameters.gridLength = 20;    // 20 blocks long
-    parameters.blockScale = 1.0f;
+    // Initialize parameters and settings
+    parameters = {20, 20, 1.0f};
+    genSettings = {4, true, 20, 20, 1.0f, false, 50.0f};
+    resetConstraintsToDefault();
 }
 
 void BlockUI::DisplayUI() {
-    ImGui::Begin("Block Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-    
-    DisplayGridSettings();
-    ImGui::Separator();
-    DisplayAssetManagement();
-    ImGui::Separator();
-    DisplayBlockSettings();
-    ImGui::Separator();
-    DisplayDirectionalConstraints();
-    
-    if (ImGui::Button("Generate", ImVec2(200, 40))) {
-        if (controller) {
+    if (ImGui::Begin("Block World Generator")) {
+        if (ImGui::BeginTabBar("MainTabs")) {
+            if (ImGui::BeginTabItem("Basic")) {
+                DisplayBasicSettings();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Constraints")) {
+                DisplayConstraints();
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
+        
+        ImGui::Separator();
+        if (ImGui::Button("Generate World", ImVec2(200, 40)) && controller) {
             controller->Generate();
         }
     }
-
     ImGui::End();
 }
 
-void BlockUI::DisplayGridSettings() {
-    ImGui::Text("Grid Settings");
+void BlockUI::DisplayBasicSettings() {
+    // Grid Settings
+    if (ImGui::CollapsingHeader("Grid Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::DragInt("Grid Width (blocks)", reinterpret_cast<int*>(&parameters.gridWidth), 1, 5, 100);
+        ImGui::DragInt("Grid Length (blocks)", reinterpret_cast<int*>(&parameters.gridLength), 1, 5, 100);
+        
+        // Sync settings
+        genSettings.gridWidth = parameters.gridWidth;
+        genSettings.gridHeight = parameters.gridLength;
+        
+        ImGui::Text("Grid size: %u x %u = %u total blocks", 
+                    parameters.gridWidth, parameters.gridLength, 
+                    parameters.gridWidth * parameters.gridLength);
+        
+        // Show detected cell dimensions if available
+        if (parameters.dimensionsDetected) {
+            ImGui::Text("Cell size: %.2f x %.2f units", parameters.cellWidth, parameters.cellLength);
+            ImGui::Text("World size: %.1f x %.1f units", parameters.worldWidth, parameters.worldLength);
+        }
+    }
     
-    int oldGridWidth = parameters.gridWidth;
-    int oldGridLength = parameters.gridLength;
+    // Block Settings
+    if (ImGui::CollapsingHeader("Block Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::DragFloat("Block Scale", &parameters.blockScale, 0.01f, 0.1f, 5.0f);
+        genSettings.blockScale = parameters.blockScale;
+        
+        if (ImGui::Button("Reset Scale")) {
+            parameters.blockScale = genSettings.blockScale = 1.0f;
+        }
+    }
     
-    ImGui::DragInt("Grid Width (blocks)", reinterpret_cast<int*>(&parameters.gridWidth), 1, 5, 100);
-    ImGui::DragInt("Grid Length (blocks)", reinterpret_cast<int*>(&parameters.gridLength), 1, 5, 100);
+    // Asset Management
+    if (ImGui::CollapsingHeader("Asset Management", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button("Load Model", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+            OpenModelFileDialog();
+        }
+        
+        // Error popup
+        if (showModelError) {
+            ImGui::OpenPopup("Model Load Error");
+            showModelError = false;
+        }
+        
+        if (ImGui::BeginPopupModal("Model Load Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Failed to load model file!\n%s", lastError.c_str());
+            if (ImGui::Button("OK", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+        
+        ImGui::Text("Loaded Assets:");
+        if (loadedAssets.empty()) {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No assets loaded.");
+        } else {
+            for (const auto& asset : loadedAssets) {
+                ImGui::Text("ID %d: %s", asset.id, GetFileName(asset.blockPath).c_str());
+            }
+        }
+    }
     
-    ImGui::Text("Grid Info:");
-    ImGui::Text("Grid size: %u x %u = %u total blocks", 
-                parameters.gridWidth, parameters.gridLength, 
-                parameters.gridWidth * parameters.gridLength);
-    
-    // Show detected cell dimensions if available
-    if (parameters.dimensionsDetected) {
+    // Generation Settings
+    if (ImGui::CollapsingHeader("Generation Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::SliderInt("Thread Count", &genSettings.threadCount, 1, 16);
+        ImGui::Text("Recommended: %d threads", std::thread::hardware_concurrency());
+        
+        ImGui::Checkbox("Enable Constraints", &genSettings.useConstraints);
+        
+        // Add animation settings
         ImGui::Separator();
-        ImGui::Text("Auto-detected from first model:");
-        ImGui::Text("Cell width: %.2f units", parameters.cellWidth);
-        ImGui::Text("Cell length: %.2f units", parameters.cellLength);
-        ImGui::Text("World size: %.1f x %.1f units", 
-                    parameters.worldWidth, parameters.worldLength);
+        ImGui::Checkbox("Enable Popping Animation", &genSettings.enablePoppingAnimation);
+        
+        if (genSettings.enablePoppingAnimation) {
+            ImGui::SliderFloat("Animation Delay (ms)", &genSettings.animationDelay, 10.0f, 500.0f, "%.1f ms");
+            ImGui::Text("Blocks will appear with %.1f ms delay between each", genSettings.animationDelay);
+            
+            // Disable multithreading when animation is enabled
+            if (genSettings.threadCount > 1) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Note: Animation forces single-threaded generation");
+            }
+        }
     }
 }
 
-void BlockUI::DisplayBlockSettings() {
-    ImGui::Text("Block Settings");
-    
-    // Block scale control
-    ImGui::DragFloat("Block Scale", &parameters.blockScale, 0.01f, 0.1f, 5.0f);
-    
-    // Reset to defaults button
-    if (ImGui::Button("Reset to Default")) {
-        parameters.blockScale = 1.0f;
+void BlockUI::DisplayConstraints() {
+    if (loadedAssets.empty()) {
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Load assets first to set up constraints.");
+        return;
     }
     
-    // Visual preview
-    ImGui::Separator();
-    ImGui::Text("Preview");
-    ImGui::Text("Block scale: %.2f", parameters.blockScale);
+    if (!ImGui::CollapsingHeader("Block Constraint Editor", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    
+    // Block selection
+    if (ImGui::BeginCombo("Select Block", selectedBlockId >= 0 ? std::to_string(selectedBlockId).c_str() : "Choose block...")) {
+        for (const auto& asset : loadedAssets) {
+            bool isSelected = (selectedBlockId == asset.id);
+            std::string label = "Block " + std::to_string(asset.id) + " (" + asset.name + ")";
+            
+            if (ImGui::Selectable(label.c_str(), isSelected)) {
+                selectedBlockId = asset.id;
+                
+                // Create default constraints if they don't exist
+                if (uiConstraints.find(asset.id) == uiConstraints.end()) {
+                    uiConstraints[asset.id] = createDefaultConstraints(asset.id);
+                }
+            }
+        }
+        ImGui::EndCombo();
+    }
+    
+    // Edit selected block constraints
+    if (selectedBlockId >= 0 && uiConstraints.find(selectedBlockId) != uiConstraints.end()) {
+        ImGui::Separator();
+        ImGui::Text("Editing Block %d", selectedBlockId);
+        
+        auto& constraints = uiConstraints[selectedBlockId];
+        
+        ImGui::Separator();
+        ImGui::Text("Face Constraints:");
+        ImGui::Text("Select which models can connect to each face of this block:");
+        
+        const char* faceNames[] = {"+Z", "-Z", "+X", "-X", "+Y", "-Y"};
+        BlockFaceConstraints* faces[] = {&constraints.posZ, &constraints.negZ, &constraints.posX, 
+                                       &constraints.negX, &constraints.posY, &constraints.negY};
+        
+        for (int f = 0; f < 6; f++) {
+            if (ImGui::TreeNode(faceNames[f])) {
+                ImGui::Checkbox("Can be exposed to air", &faces[f]->canBeExposed);
+                ImGui::Text("Allowed connecting models:");
+                
+                // Show checkboxes for each loaded asset
+                for (const auto& asset : loadedAssets) {
+                    bool isAllowed = std::find(faces[f]->validConnections.begin(), 
+                                             faces[f]->validConnections.end(), 
+                                             asset.id) != faces[f]->validConnections.end();
+                    
+                    std::string checkboxLabel = "Model " + std::to_string(asset.id) + " (" + asset.name + ")";
+                    
+                    if (ImGui::Checkbox(checkboxLabel.c_str(), &isAllowed)) {
+                        updateConstraintConnection(faces[f], asset.id, isAllowed);
+                    }
+                }
+                
+                // Quick action buttons
+                if (ImGui::Button("Allow All Models")) {
+                    faces[f]->validConnections.clear();
+                    for (const auto& asset : loadedAssets) {
+                        faces[f]->validConnections.push_back(asset.id);
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Clear All")) {
+                    faces[f]->validConnections.clear();
+                }
+                
+                // Show current state
+                if (faces[f]->validConnections.empty()) {
+                    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No restrictions - can connect to any model");
+                } else {
+                    ImGui::Text("Restricted to %zu model(s)", faces[f]->validConnections.size());
+                }
+                
+                ImGui::TreePop();
+            }
+        }
+    }
+    
+    if (ImGui::Button("Reset All Constraints")) {
+        resetConstraintsToDefault();
+    }
+}
+
+BlockConstraints BlockUI::createDefaultConstraints(int blockId) {
+    BlockConstraints constraints;
+    constraints.blockId = blockId;
+    constraints.posZ = constraints.negZ = constraints.posX = 
+    constraints.negX = constraints.posY = constraints.negY = {{}, true};
+    return constraints;
+}
+
+void BlockUI::updateConstraintConnection(BlockFaceConstraints* face, int assetId, bool isAllowed) {
+    auto& connections = face->validConnections;
+    auto it = std::find(connections.begin(), connections.end(), assetId);
+    
+    if (isAllowed && it == connections.end()) {
+        connections.push_back(assetId);
+    } else if (!isAllowed && it != connections.end()) {
+        connections.erase(it);
+    }
+}
+
+void BlockUI::resetConstraintsToDefault() {
+    uiConstraints.clear();
+    for (const auto& asset : loadedAssets) {
+        uiConstraints[asset.id] = createDefaultConstraints(asset.id);
+    }
+}
+
+const std::map<int, BlockConstraints>& BlockUI::GetConstraints() const {
+    return uiConstraints;
+}
+
+void BlockUI::SetConstraints(const std::map<int, BlockConstraints>& constraints) {
+    uiConstraints = constraints;
+}
+
+void BlockUI::AddAsset(const AssetInfo& asset) {
+    loadedAssets.push_back(asset);
+    resetConstraintsToDefault();
+}
+
+void BlockUI::RemoveAsset(int id) {
+    loadedAssets.erase(
+        std::remove_if(loadedAssets.begin(), loadedAssets.end(),
+            [id](const AssetInfo& asset) { return asset.id == id; }),
+        loadedAssets.end()
+    );
+    uiConstraints.erase(id);
 }
 
 void BlockUI::OpenModelFileDialog() {
@@ -98,19 +281,19 @@ void BlockUI::OpenModelFileDialog() {
     );
     
     if (!filepath.empty() && controller) {
-        // Let the controller handle the actual loading
         controller->LoadModel(filepath);
     }
 }
 
-// Callback methods for controller to report results
 void BlockUI::OnModelLoaded(std::shared_ptr<Model> model, const std::string& filepath) {
-    AssetInfo newAsset;
-    newAsset.id = loadedAssets.empty() ? 0 : loadedAssets.back().id + 1;
-    newAsset.name = "Model_" + std::to_string(newAsset.id);
-    newAsset.blockPath = filepath;
-    newAsset.model = model;
+    AssetInfo newAsset = {
+        loadedAssets.empty() ? 0 : loadedAssets.back().id + 1,
+        "Model_" + std::to_string(loadedAssets.size()),
+        filepath,
+        model
+    };
     loadedAssets.push_back(newAsset);
+    resetConstraintsToDefault();
 }
 
 void BlockUI::OnModelLoadError(const std::string& error) {
@@ -118,137 +301,9 @@ void BlockUI::OnModelLoadError(const std::string& error) {
     showModelError = true;
 }
 
-void BlockUI::DisplayAssetManagement() {
-    ImGui::Text("Asset Management");
-    
-    if (ImGui::Button("Load Model", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-        OpenModelFileDialog();
-    }
-    
-    // Error popup
-    if (showModelError) {
-        ImGui::OpenPopup("Model Load Error");
-        showModelError = false;
-    }
-    
-    if (ImGui::BeginPopupModal("Model Load Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Failed to load model file!");
-        ImGui::Text("%s", lastError.c_str());
-        if (ImGui::Button("OK", ImVec2(120, 0))) {
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-    
-    ImGui::Separator();
-    ImGui::Text("Loaded Assets");
-    
-    if (loadedAssets.empty()) {
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No assets loaded.");
-    } else {
-        if (ImGui::BeginTable("AssetsTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-            ImGui::TableSetupColumn("ID");
-            ImGui::TableSetupColumn("Name");
-            ImGui::TableSetupColumn("Model Path");
-            ImGui::TableHeadersRow();
-            
-            for (size_t i = 0; i < loadedAssets.size(); i++) {
-                ImGui::TableNextRow();
-                
-                ImGui::TableNextColumn();
-                ImGui::Text("%d", loadedAssets[i].id);
-                
-                ImGui::TableNextColumn();
-                ImGui::Text("%s", loadedAssets[i].name.c_str());
-                
-                ImGui::TableNextColumn();
-                ImGui::Text("%s", GetFileName(loadedAssets[i].blockPath).c_str());
-            }
-            ImGui::EndTable();
-        }
-    }
-}
-
 std::string BlockUI::GetFileName(const std::string& filepath) {
     size_t lastSlash = filepath.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        return filepath.substr(lastSlash + 1);
-    }
-    return filepath;
-}
-
-void BlockUI::DisplayDirectionalConstraints() {
-    ImGui::Text("Directional Block Constraints");
-    ImGui::Separator();
-    
-    if (loadedAssets.empty()) {
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Load assets first to set up constraints.");
-        return;
-    }
-    
-    static int selectedAssetIndex = 0;
-    static int selectedSideIndex = 0;
-    
-    // Ensure selectedAssetIndex is within bounds
-    if (selectedAssetIndex >= static_cast<int>(loadedAssets.size())) {
-        selectedAssetIndex = 0;
-    }
-    
-    // Asset selection
-    std::vector<const char*> assetNames;
-    for (const auto& asset : loadedAssets) {
-        assetNames.push_back(asset.name.c_str());
-    }
-    
-    if (!assetNames.empty()) {
-        ImGui::Combo("Block Type", &selectedAssetIndex, assetNames.data(), static_cast<int>(assetNames.size()));
-    }
-    
-    // Side selection
-    const char* sideNames[] = {"Front (+Z)", "Back (-Z)", "Left (-X)", "Right (+X)", "Top (+Y)", "Bottom (-Y)"};
-    ImGui::Combo("Side", &selectedSideIndex, sideNames, 6);
-    
-    if (selectedAssetIndex >= 0 && selectedAssetIndex < static_cast<int>(loadedAssets.size())) {
-        int currentBlockId = loadedAssets[selectedAssetIndex].id;
-        BlockUtilities::BlockSide currentSide = static_cast<BlockUtilities::BlockSide>(selectedSideIndex);
-        
-        // Find or create constraint for this block
-        auto& constraints = parameters.directionalConstraints;
-        auto constraintIt = std::find_if(constraints.begin(), constraints.end(),
-            [currentBlockId](const BlockUtilities::DirectionalConstraint& c) {
-                return c.blockTypeId == currentBlockId;
-            });
-        
-        if (constraintIt == constraints.end()) {
-            // Create new constraint
-            constraints.emplace_back(currentBlockId, loadedAssets[selectedAssetIndex].name);
-            constraintIt = constraints.end() - 1;
-        }
-        
-        // Display current allowed neighbors for this side
-        ImGui::Text("Allowed neighbors on %s:", sideNames[selectedSideIndex]);
-        
-        auto& sideConstraints = constraintIt->allowedNeighbors[currentSide];
-        
-        // Checkboxes for each possible neighbor
-        for (const auto& asset : loadedAssets) {
-            bool isAllowed = std::find(sideConstraints.begin(), sideConstraints.end(), asset.id) != sideConstraints.end();
-            
-            std::string checkboxLabel = asset.name + "##" + std::to_string(asset.id);
-            if (ImGui::Checkbox(checkboxLabel.c_str(), &isAllowed)) {
-                if (isAllowed) {
-                    if (std::find(sideConstraints.begin(), sideConstraints.end(), asset.id) == sideConstraints.end()) {
-                        sideConstraints.push_back(asset.id);
-                    }
-                } else {
-                    sideConstraints.erase(
-                        std::remove(sideConstraints.begin(), sideConstraints.end(), asset.id),
-                        sideConstraints.end()
-                    );
-                }
-            }
-        }
-    }
+    return lastSlash != std::string::npos ? filepath.substr(lastSlash + 1) : filepath;
 }
 
 BlockUI::~BlockUI() {

@@ -50,4 +50,19 @@ namespace BlockUtilities {
         // Directional constraints for adjacency rules
         std::vector<DirectionalConstraint> directionalConstraints;
     };
+
+    struct BlockFaceConstraints {
+    std::vector<int> validConnections; // Block IDs that can connect to this face
+    bool canBeExposed; // Can this face be exposed to air/empty space
+};
+
+struct BlockConstraints {
+    int blockId;
+    BlockFaceConstraints posZ;    // +Z direction
+    BlockFaceConstraints negZ;    // -Z direction
+    BlockFaceConstraints posY;    // +Y direction
+    BlockFaceConstraints negY;    // -Y direction
+    BlockFaceConstraints posX;    // +X direction
+    BlockFaceConstraints negX;    // -X direction
+};
 }

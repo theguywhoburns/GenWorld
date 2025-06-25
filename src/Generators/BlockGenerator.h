@@ -5,12 +5,19 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <algorithm>
+#include <map>
+#include <set>
+#include <functional>
+
+using namespace BlockUtilities;
 
 // Forward declarations
 class BlockController;
 struct Vertex;
 class Model;
-class BlockMesh; // Add this forward declaration
+class BlockMesh;
+class Texture;
+struct Transform;
 
 struct GridPosition {
     int x, z;
@@ -30,46 +37,77 @@ private:
     BlockUtilities::BlockData parameters;
     std::vector<std::vector<GridCell>> grid;
     Mesh* generatorMesh;
+    std::map<int, BlockUtilities::BlockConstraints> blockConstraints;
+
+    // Animation support
+    bool animationEnabled = false;
+    float animationDelay = 50.0f;
+    std::vector<std::pair<int, int>> animationQueue;
 
 public:
     BlockGenerator();
     BlockGenerator(BlockController* controller);
     ~BlockGenerator();
+    
+    // IGeneratorStrategy interface
     void Generate() override;
     Mesh* GetMesh() const { return generatorMesh; }
+    
+    // Parameter management
     BlockUtilities::BlockData& GetParameters() { return parameters; }
     void SetParameters(const BlockUtilities::BlockData& params) { parameters = params; }
     
-    // Method to detect and set cell size from first block
+    // Asset detection
     void DetectCellSizeFromAssets();
+    
+    // Animation control
+    void SetAnimationEnabled(bool enabled) { animationEnabled = enabled; }
+    void SetAnimationDelay(float delay) { animationDelay = delay; }
+    bool IsAnimationInProgress() const { return !animationQueue.empty(); }
+    void UpdateAnimation();
 
 private:
-    // Core WFC methods
+    // Initialization
+    void initializeDefaults();
     void initializeGrid();
+    void initializeBlockConstraints();
+    
+    // Core WFC methods
     std::vector<int> getAllBlockTypes();
     bool placeRandomBlockAt(int x, int z);
-    bool hasUnresolvedCells();
     GridPosition findLowestEntropyCell();
     bool collapseCell(int x, int z);
+    void updateCellPossibilities(int x, int z);
     
-    BlockUtilities::BlockSide getRelativeDirection(int fromX, int fromZ, int toX, int toZ);
-    BlockUtilities::BlockSide getOppositeDirection(BlockUtilities::BlockSide side);
-
+    // Generation methods
+    void generateGridMultithreaded();
+    void generateGridWithAnimation();
+    void processRemainingCells();
+    
+    // Constraint validation
+    bool isBlockValidAtPosition(int x, int z, int blockId);
+    bool validateNeighborCompatibility(int blockId, const std::string& direction, const GridCell& neighborCell);
+    bool canBlocksConnect(int blockId1, const std::string& face1, int blockId2, const std::string& face2);
+    bool canBlocksConnectMutually(int blockId1, const std::string& face1, int blockId2, const std::string& face2);
+    bool canFaceBeExposed(int blockId, const std::string& face);
+    void propagateConstraints(int x, int z);
+    
+    // Utility methods
+    const BlockFaceConstraints* getFaceConstraints(const BlockConstraints& constraints, const std::string& face);
+    std::string getOppositeFace(const std::string& face);
+    bool isValidGridPosition(int x, int z) const;
+    glm::vec3 calculateBlockPosition(int x, int z) const;
+    
+    // World management
     void updateWorldDimensions();
-    
-    // Mesh generation - updated methods
-    BlockMesh* generateMeshFromGrid(); // Changed return type
-    BlockMesh* createEmptyMesh(); // Changed return type
-    void addBlockToMeshAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
-    void addSimpleCubeAtPosition(const glm::vec3& worldPos, int blockId, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
-    
-    // Block placement helpers
-    int calculateBlocksForCell(int x, int z);
-    bool placeBlockInCell(int x, int z, int blockIndex);
-    glm::vec3 calculateBlockPositionInCell(int x, int z, int blockIndex, const std::vector<glm::vec3>& existingPositions);
-    bool isValidBlockPosition(int x, int z, const glm::vec3& position, int blockType);
-    
-    // Model dimension detection
     glm::vec3 calculateModelBounds(const std::shared_ptr<Model>& model);
+    
+    // Mesh generation
+    BlockMesh* generateMeshFromGrid();
+    BlockMesh* createEmptyMesh();
+    void addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, 
+                       std::set<std::shared_ptr<Texture>>& uniqueTextures);
+    void collectTexturesFromModel(const std::shared_ptr<Model>& model, 
+                                 std::set<std::shared_ptr<Texture>>& uniqueTextures);
 };
 

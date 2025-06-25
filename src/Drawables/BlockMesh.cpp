@@ -10,7 +10,7 @@ BlockMesh::BlockMesh(vector<Vertex> vertices, vector<unsigned int> indices,
     this->data = blockData;
     this->blockTextures = textures;
     
-    blockShader = ShaderManager::GetInstance()->getShader("block");
+    blockShader = ShaderManager::GetInstance()->getShader("unshaded");
 }
 
 BlockMesh::~BlockMesh() {
