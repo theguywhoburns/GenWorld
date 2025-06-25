@@ -1,4 +1,4 @@
-#include "Window.h"
+#include "AppWindow.h"
 #include "../stb_image.h"
 
 AppWindow::~AppWindow() {

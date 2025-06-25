@@ -5,7 +5,7 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 
-#include "../Core/Engine/Window.h"
+#include "../Core/Engine/AppWindow.h"
 
 class IRenderContext {
 public:

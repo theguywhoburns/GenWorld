@@ -11,7 +11,7 @@
 #include "../Shader.h"
 #include "../Camera.h"
 #include "../ShaderManager.h"
-#include "Window.h"
+#include "AppWindow.h"
 
 class TerrainController;
 
