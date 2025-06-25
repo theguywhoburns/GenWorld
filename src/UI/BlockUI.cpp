@@ -23,9 +23,10 @@
 #include "../Drawables/Model.h"
 
 BlockUI::BlockUI(IBlockUIController* controller) : controller(controller) {
-    // Initialize parameters and settings
-    parameters = {20, 20, 1.0f};
-    genSettings = {4, true, 20, 20, 1.0f, false, 50.0f};
+    // Initialize parameters with 3D support (gridWidth, gridHeight, gridLength, cellWidth, cellHeight, cellLength, blockScale)
+    parameters = {20, 10, 20, 5.0f, 5.0f, 5.0f, 1.0f};
+    // Initialize generation settings with 3D support
+    genSettings = {4, true, 20, 10, 20, 1.0f, false, 50.0f};
     resetConstraintsToDefault();
 }
 
@@ -55,20 +56,24 @@ void BlockUI::DisplayBasicSettings() {
     // Grid Settings
     if (ImGui::CollapsingHeader("Grid Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::DragInt("Grid Width (blocks)", reinterpret_cast<int*>(&parameters.gridWidth), 1, 5, 100);
+        ImGui::DragInt("Grid Height (blocks)", reinterpret_cast<int*>(&parameters.gridHeight), 1, 5, 50);
         ImGui::DragInt("Grid Length (blocks)", reinterpret_cast<int*>(&parameters.gridLength), 1, 5, 100);
         
         // Sync settings
         genSettings.gridWidth = parameters.gridWidth;
-        genSettings.gridHeight = parameters.gridLength;
+        genSettings.gridHeight = parameters.gridHeight;
+        genSettings.gridLength = parameters.gridLength;
         
-        ImGui::Text("Grid size: %u x %u = %u total blocks", 
-                    parameters.gridWidth, parameters.gridLength, 
-                    parameters.gridWidth * parameters.gridLength);
+        ImGui::Text("Grid size: %u x %u x %u = %u total blocks", 
+                    parameters.gridWidth, parameters.gridHeight, parameters.gridLength,
+                    parameters.gridWidth * parameters.gridHeight * parameters.gridLength);
         
         // Show detected cell dimensions if available
         if (parameters.dimensionsDetected) {
-            ImGui::Text("Cell size: %.2f x %.2f units", parameters.cellWidth, parameters.cellLength);
-            ImGui::Text("World size: %.1f x %.1f units", parameters.worldWidth, parameters.worldLength);
+            ImGui::Text("Cell size: %.2f x %.2f x %.2f units", 
+                       parameters.cellWidth, parameters.cellHeight, parameters.cellLength);
+            ImGui::Text("World size: %.1f x %.1f x %.1f units", 
+                       parameters.worldWidth, parameters.worldHeight, parameters.worldLength);
         }
     }
     
@@ -80,6 +85,21 @@ void BlockUI::DisplayBasicSettings() {
         if (ImGui::Button("Reset Scale")) {
             parameters.blockScale = genSettings.blockScale = 1.0f;
         }
+        
+        ImGui::Separator();
+        
+        // Random Rotation Settings
+        ImGui::Checkbox("Enable Random Y-Axis Rotations", &genSettings.enableRandomRotations);
+        if (genSettings.enableRandomRotations) {
+            ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1.0f), "Blocks will be randomly rotated around Y-axis (0°, 90°, 180°, 270°)");
+        }
+        
+        // Apply Random Rotations button (only if world is already generated)
+        if (ImGui::Button("Apply Random Rotations to Existing World", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+            // Call the rotation method directly through a callback or event
+            OnApplyRandomRotationsRequested();
+        }
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "This will apply random Y-axis rotations to all blocks in the current world");
     }
     
     // Asset Management
@@ -119,7 +139,6 @@ void BlockUI::DisplayBasicSettings() {
         
         ImGui::Checkbox("Enable Constraints", &genSettings.useConstraints);
         
-        // Add animation settings
         ImGui::Separator();
         ImGui::Checkbox("Enable Popping Animation", &genSettings.enablePoppingAnimation);
         
@@ -127,7 +146,6 @@ void BlockUI::DisplayBasicSettings() {
             ImGui::SliderFloat("Animation Delay (ms)", &genSettings.animationDelay, 10.0f, 500.0f, "%.1f ms");
             ImGui::Text("Blocks will appear with %.1f ms delay between each", genSettings.animationDelay);
             
-            // Disable multithreading when animation is enabled
             if (genSettings.threadCount > 1) {
                 ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Note: Animation forces single-threaded generation");
             }
@@ -172,7 +190,7 @@ void BlockUI::DisplayConstraints() {
         ImGui::Text("Face Constraints:");
         ImGui::Text("Select which models can connect to each face of this block:");
         
-        const char* faceNames[] = {"+Z", "-Z", "+X", "-X", "+Y", "-Y"};
+        const char* faceNames[] = {"+Z (Front)", "-Z (Back)", "+X (Right)", "-X (Left)", "+Y (Top)", "-Y (Bottom)"};
         BlockFaceConstraints* faces[] = {&constraints.posZ, &constraints.negZ, &constraints.posX, 
                                        &constraints.negX, &constraints.posY, &constraints.negY};
         
@@ -309,4 +327,11 @@ std::string BlockUI::GetFileName(const std::string& filepath) {
 BlockUI::~BlockUI() {
     loadedAssets.clear();
     controller = nullptr;
+}
+
+// Add this new method to BlockUI
+void BlockUI::OnApplyRandomRotationsRequested() {
+    // This will be handled by whoever owns the BlockGenerator
+    // For now, we can store a flag or use a callback system
+    rotationRequested = true;
 }

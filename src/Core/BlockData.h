@@ -1,68 +1,47 @@
 #pragma once
 #include <vector>
 #include <string>
-#include <map>
 
 namespace BlockUtilities {
-    // Enum for block sides/directions
-    enum class BlockSide {
-        FRONT = 0,   // +Z
-        BACK = 1,    // -Z
-        LEFT = 2,    // -X
-        RIGHT = 3,   // +X
-        TOP = 4,     // +Y
-        BOTTOM = 5   // -Y
-    };
-
-    // Structure to define directional constraints
-    struct DirectionalConstraint {
-        int blockTypeId;                                        
-        std::map<BlockSide, std::vector<int>> allowedNeighbors; 
-        std::string blockTypeName;                              
-        
-        DirectionalConstraint() : blockTypeId(-1) {}
-        DirectionalConstraint(int id, const std::string& name) : blockTypeId(id), blockTypeName(name) {}
-    };
-
+    
     struct BlockData {
-        unsigned int gridWidth = 20;      // Number of blocks in X direction
-        unsigned int gridLength = 20;     // Number of blocks in Z direction
+        unsigned int gridWidth = 20;
+        unsigned int gridHeight = 10;    // Added height for 3D generation
+        unsigned int gridLength = 20;
         
-        // Calculated world dimensions (auto-calculated from block dimensions)
-        float worldWidth;
-        float worldLength;
-        float halfWorldWidth;
-        float halfWorldLength;
+        float cellWidth = 5.0f;
+        float cellHeight = 5.0f;         // Added height dimension
+        float cellLength = 5.0f;
         
-        // Cell/Block dimensions (auto-detected)
-        float cellWidth = 5.0f;           // Width of each cell/block
-        float cellLength = 5.0f;          // Length of each cell/block
-        
-        // Block appearance
         float blockScale = 1.0f;
         
-        // Auto-detected block dimensions
-        float detectedBlockWidth = 0.0f;
-        float detectedBlockLength = 0.0f;
-        float detectedBlockHeight = 0.0f;
-        bool dimensionsDetected = false;
+        // World dimensions (calculated)
+        float worldWidth = 0.0f;
+        float worldHeight = 0.0f;        // Added world height
+        float worldLength = 0.0f;
+        float halfWorldWidth = 0.0f;
+        float halfWorldLength = 0.0f;
         
-        // Directional constraints for adjacency rules
-        std::vector<DirectionalConstraint> directionalConstraints;
+        // Auto-detected dimensions from assets
+        bool dimensionsDetected = false;
+        float detectedBlockWidth = 0.0f;
+        float detectedBlockHeight = 0.0f;    // Added detected height
+        float detectedBlockLength = 0.0f;
     };
-
+    
     struct BlockFaceConstraints {
-    std::vector<int> validConnections; // Block IDs that can connect to this face
-    bool canBeExposed; // Can this face be exposed to air/empty space
-};
-
-struct BlockConstraints {
-    int blockId;
-    BlockFaceConstraints posZ;    // +Z direction
-    BlockFaceConstraints negZ;    // -Z direction
-    BlockFaceConstraints posY;    // +Y direction
-    BlockFaceConstraints negY;    // -Y direction
-    BlockFaceConstraints posX;    // +X direction
-    BlockFaceConstraints negX;    // -X direction
-};
-}
+        std::vector<int> validConnections;
+        bool canBeExposed = true;
+    };
+    
+    struct BlockConstraints {
+        int blockId;
+        BlockFaceConstraints posZ;    // +Z face
+        BlockFaceConstraints negZ;    // -Z face
+        BlockFaceConstraints posX;    // +X face
+        BlockFaceConstraints negX;    // -X face
+        BlockFaceConstraints posY;    // +Y face (top)
+        BlockFaceConstraints negY;    // -Y face (bottom)
+    };
+    
+} // namespace BlockUtilities

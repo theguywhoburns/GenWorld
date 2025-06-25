@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <functional>
+#include <tuple>
 
 using namespace BlockUtilities;
 
@@ -20,7 +21,7 @@ class Texture;
 struct Transform;
 
 struct GridPosition {
-    int x, z;
+    int x, y, z;
 };
 
 struct GridCell {
@@ -35,14 +36,17 @@ class BlockGenerator : public IGeneratorStrategy {
 private:
     BlockController* controller;
     BlockUtilities::BlockData parameters;
-    std::vector<std::vector<GridCell>> grid;
+    std::vector<std::vector<std::vector<GridCell>>> grid; // 3D grid: [x][y][z]
     Mesh* generatorMesh;
     std::map<int, BlockUtilities::BlockConstraints> blockConstraints;
 
     // Animation support
     bool animationEnabled = false;
     float animationDelay = 50.0f;
-    std::vector<std::pair<int, int>> animationQueue;
+    std::vector<std::tuple<int, int, int>> animationQueue; // 3D coordinates
+    
+    // Rotation support
+    bool randomRotationsEnabled = false;
 
 public:
     BlockGenerator();
@@ -66,6 +70,11 @@ public:
     bool IsAnimationInProgress() const { return !animationQueue.empty(); }
     void UpdateAnimation();
 
+    // Rotation methods
+    void ApplyRandomRotationsToGrid();
+    void SetRandomRotationsEnabled(bool enabled) { randomRotationsEnabled = enabled; }
+    bool IsRandomRotationsEnabled() const { return randomRotationsEnabled; }
+
 private:
     // Initialization
     void initializeDefaults();
@@ -74,10 +83,10 @@ private:
     
     // Core WFC methods
     std::vector<int> getAllBlockTypes();
-    bool placeRandomBlockAt(int x, int z);
+    bool placeRandomBlockAt(int x, int y, int z);
     GridPosition findLowestEntropyCell();
-    bool collapseCell(int x, int z);
-    void updateCellPossibilities(int x, int z);
+    bool collapseCell(int x, int y, int z);
+    void updateCellPossibilities(int x, int y, int z);
     
     // Generation methods
     void generateGridMultithreaded();
@@ -85,18 +94,18 @@ private:
     void processRemainingCells();
     
     // Constraint validation
-    bool isBlockValidAtPosition(int x, int z, int blockId);
+    bool isBlockValidAtPosition(int x, int y, int z, int blockId);
     bool validateNeighborCompatibility(int blockId, const std::string& direction, const GridCell& neighborCell);
     bool canBlocksConnect(int blockId1, const std::string& face1, int blockId2, const std::string& face2);
     bool canBlocksConnectMutually(int blockId1, const std::string& face1, int blockId2, const std::string& face2);
     bool canFaceBeExposed(int blockId, const std::string& face);
-    void propagateConstraints(int x, int z);
+    void propagateConstraints(int x, int y, int z);
     
     // Utility methods
     const BlockFaceConstraints* getFaceConstraints(const BlockConstraints& constraints, const std::string& face);
     std::string getOppositeFace(const std::string& face);
-    bool isValidGridPosition(int x, int z) const;
-    glm::vec3 calculateBlockPosition(int x, int z) const;
+    bool isValidGridPosition(int x, int y, int z) const;
+    glm::vec3 calculateBlockPosition(int x, int y, int z) const;
     
     // World management
     void updateWorldDimensions();
@@ -109,5 +118,8 @@ private:
                        std::set<std::shared_ptr<Texture>>& uniqueTextures);
     void collectTexturesFromModel(const std::shared_ptr<Model>& model, 
                                  std::set<std::shared_ptr<Texture>>& uniqueTextures);
+
+    // Helper method for random rotations
+    float getRandomYRotation() const;
 };
 

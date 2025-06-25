@@ -34,15 +34,20 @@ private:
     std::map<int, BlockConstraints> uiConstraints;
     int selectedBlockId = -1;
     
+    // Rotation request handling
+    bool rotationRequested = false;
+    
     // Generation settings
     struct GenerationSettings {
         int threadCount = 4;
         bool useConstraints = true;
         int gridWidth = 20;
-        int gridHeight = 20;
+        int gridHeight = 10;
+        int gridLength = 20;
         float blockScale = 1.0f;
         bool enablePoppingAnimation = false;
         float animationDelay = 50.0f;
+        bool enableRandomRotations = false;
     } genSettings;
     
     // Helper methods
@@ -50,6 +55,7 @@ private:
     BlockConstraints createDefaultConstraints(int blockId);
     void updateConstraintConnection(BlockFaceConstraints* face, int assetId, bool isAllowed);
     std::string GetFileName(const std::string& filepath);
+    void OnApplyRandomRotationsRequested();
     
 public:
     BlockUI(IBlockUIController* controller);
@@ -85,4 +91,14 @@ public:
     // Animation settings access
     bool IsAnimationEnabled() const { return genSettings.enablePoppingAnimation; }
     float GetAnimationDelay() const { return genSettings.animationDelay; }
+    
+    // Rotation settings access
+    bool IsRandomRotationEnabled() const { return genSettings.enableRandomRotations; }
+    
+    // Rotation request check
+    bool IsRotationRequested() { 
+        bool requested = rotationRequested; 
+        rotationRequested = false; // Reset flag after reading
+        return requested; 
+    }
 };

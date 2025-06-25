@@ -1,10 +1,13 @@
 #pragma once
 #include <string>
+#include <memory>
 
-// Interface to break circular dependency
+class Model;
+
 class IBlockUIController {
 public:
     virtual ~IBlockUIController() = default;
+    
     virtual void Generate() = 0;
     virtual void LoadModel(const std::string& filepath) = 0;
 };
