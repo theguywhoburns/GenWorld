@@ -1,5 +1,5 @@
 #pragma once
-
+#include "SpectrumUI.h"
 #include "GeneratorUI.h"
 #include "../Core/Engine/Application.h"
 #include "../Controllers/TerrainController.h"
