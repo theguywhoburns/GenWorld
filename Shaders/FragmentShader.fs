@@ -32,9 +32,10 @@ void main()
 {
     vec3 vertexNormal = normalize(Normals);
     vec4 finalColor = texture(diffuse1, TexCoords);
+
     if (useLights) {
-        // test values
-        light.direction = vec3(-1.0, -1.0, -0.5);
+		//TODO test values: set the uniform from the application UI
+		light.direction = vec3(-1.0, -1.0, -0.5);
         light.ambient = vec3(0.5);
         light.diffuse = vec3(1.0);
         
@@ -43,5 +44,6 @@ void main()
         vec3 lightColor = CalcDirLight(normal, finalColor.rgb);
         finalColor.rgb = lightColor;
     }
+
     FragColor = finalColor;
 }

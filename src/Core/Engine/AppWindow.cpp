@@ -49,7 +49,7 @@ bool AppWindow::init() {
     else {
         std::cout << "Failed to load icon" << std::endl;
     }
-    stbi_image_free(data);  
+    stbi_image_free(data);
 
 
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
@@ -60,9 +60,12 @@ bool AppWindow::init() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
     glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
+    glEnable(GL_CULL_FACE);            // Enable face culling
+    glCullFace(GL_BACK);               // Cull back faces (default)
+    glFrontFace(GL_CCW);               // Set front face to counter-clockwise winding order
 
     // uncomment this call to draw in wireframe polygons.
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     glfwSetWindowUserPointer(window, this);
     glfwSetWindowSizeCallback(window, resize_callback);
