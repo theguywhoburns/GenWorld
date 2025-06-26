@@ -22,12 +22,22 @@ struct ColorData {
 	float height;
 };
 
+struct Light {
+	vec3 direction;
+	vec3 ambient;
+	vec3 diffuse;
+};
+
 uniform int textureCount;
 uniform LoadedTexture loadedTextures[MAX_TEXTURE_UNITS];
 uniform int colorCount;
 uniform ColorData colors[MAX_COLOR_UNITS];
 uniform bool coloringMode;
 uniform sampler2D heightmap;
+
+// uniform Light light;
+Light light;
+uniform bool useLights = true;
 
 vec4 CalcTexColor() {
 	vec4 TexColor = vec4(1.0);
@@ -86,12 +96,36 @@ vec4 CalcColor() {
 	return colors[colorCount - 1].color;
 }
 
+vec3 CalcDirLight(vec3 normal, vec3 diffTex) {
+	vec3 lightDir = normalize(-light.direction);
+    // diffuse shading
+	float diff = max(dot(normal, lightDir), 0.0);
+
+    // combine results
+	vec3 ambient = light.ambient * diffTex;
+	vec3 diffuse = light.diffuse * diff * diffTex;
+
+	return (ambient + diffuse);
+}
+
 void main() {
 	vec4 finalColor = vec4(1.0);
 	if(coloringMode) {
 		finalColor = CalcTexColor();
 	} else {
 		finalColor = CalcColor();
+	}
+
+	if(useLights) {
+		//TODO test values: set the uniform from the application UI
+		light.direction = vec3(-1.0, -1.0, -0.5);
+		light.ambient = vec3(0.5);
+		light.diffuse = vec3(1.0);
+
+  		// calculate lighting
+		vec3 normal = normalize(vertexNormal);
+		vec3 lightColor = CalcDirLight(normal, finalColor.rgb);
+		finalColor.rgb = lightColor;
 	}
 
 	FragColor = finalColor;
