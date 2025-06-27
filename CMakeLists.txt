@@ -25,22 +25,6 @@ set(FONT_DIR "${CMAKE_SOURCE_DIR}/Resources/assets/fonts/Source_Sans_3/static")
 set(REGULAR_FONT "${FONT_DIR}/SourceSans3-Regular.ttf")
 set(BOLD_FONT "${FONT_DIR}/SourceSans3-Bold.ttf")
 
-if(NOT EXISTS "${REGULAR_FONT}")
-    message(WARNING "Regular font not found at: ${REGULAR_FONT}")
-endif()
-
-if(NOT EXISTS "${BOLD_FONT}")
-    message(WARNING "Bold font not found at: ${BOLD_FONT}")
-endif()
-
-# Create directory in build directory
-set(BUILD_FONT_DIR "${CMAKE_BINARY_DIR}/Resources/assets/fonts/Source_Sans_3/static")
-file(MAKE_DIRECTORY ${BUILD_FONT_DIR})
-
-# Copy font files to build directory
-file(COPY ${REGULAR_FONT} ${BOLD_FONT} DESTINATION ${BUILD_FONT_DIR})
-
-message(STATUS "Fonts copied to: ${BUILD_FONT_DIR}")
 
 include(CTest)
 enable_testing()
