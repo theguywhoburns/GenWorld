@@ -62,6 +62,7 @@ void Mesh::setupMesh() {
 	glGenVertexArrays(1, &arrayObj);
 	glGenBuffers(1, &vertexBuffer);
 	glGenBuffers(1, &indexBuffer);
+	glGenBuffers(1, &instanceVBO);
 
 	glBindVertexArray(arrayObj);
 	// load data into vertex buffers
@@ -100,6 +101,26 @@ void Mesh::setupMesh() {
 	// weights
 	glEnableVertexAttribArray(7);
 	glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
+
+	// Setup identity matrix for instance attributes (locations 8-11)
+	float identityMatrix[16] = {
+		1.0f, 0.0f, 0.0f, 0.0f,  // instanceModel0
+		0.0f, 1.0f, 0.0f, 0.0f,  // instanceModel1  
+		0.0f, 0.0f, 1.0f, 0.0f,  // instanceModel2
+		0.0f, 0.0f, 0.0f, 1.0f   // instanceModel3
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(identityMatrix), identityMatrix, GL_STATIC_DRAW);
+
+	// Instance matrix attributes (locations 8-11)
+	// default to identity matrix in case of regular rendering
+	std::size_t vec4Size = sizeof(glm::vec4);
+	for (int i = 0; i < 4; ++i) {
+		glEnableVertexAttribArray(8 + i);
+		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * vec4Size));
+		glVertexAttribDivisor(8 + i, 1);
+	}
 
 	glBindVertexArray(0);
 }
@@ -153,6 +174,8 @@ void Mesh::unbindTextures() {
 void Mesh::InitializeInstanceBuffer() {
 	if (instancingInitialized) return;
 
+	glDeleteBuffers(1, &instanceVBO);	// clean up any existing instance VBO
+
 	glGenBuffers(1, &instanceVBO);
 	glBindVertexArray(arrayObj);
 	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
@@ -161,7 +184,7 @@ void Mesh::InitializeInstanceBuffer() {
 	std::size_t vec4Size = sizeof(glm::vec4);
 	for (int i = 0; i < 4; ++i) {
 		glEnableVertexAttribArray(8 + i);
-		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * sizeof(glm::vec4)));
+		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * vec4Size));
 		glVertexAttribDivisor(8 + i, 1);
 	}
 

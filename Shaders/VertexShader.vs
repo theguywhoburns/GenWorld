@@ -17,10 +17,8 @@ uniform mat4 uView;
 uniform mat4 uProjection;
 
 void main() {
-    mat4 model = uModel;
-    if(gl_InstanceID > 0) {
-        model = mat4(instanceModel0, instanceModel1, instanceModel2, instanceModel3);
-    }
+    mat4 instanceMatrix = mat4(instanceModel0, instanceModel1, instanceModel2, instanceModel3);
+    mat4 model = uModel * instanceMatrix;
 
     gl_Position = uProjection * uView * model * vec4(aPos, 1.0);
     TexCoords = aTexCoords; // set the output texture coordinate to the input texture coordinate
