@@ -1,0 +1,108 @@
+#pragma once
+#include <vector>
+#include <map>
+#include <array>
+#include <string>
+
+enum class SocketType {
+    EMPTY = 0,      // Can connect to anything (like air)
+    GRASS = 1,      // Grass blocks
+    STONE = 2,      // Stone blocks  
+    WOOD = 3,       // Wooden blocks
+    METAL = 4,      // Metal blocks
+    CUSTOM_1 = 5,   // User-defined types
+    CUSTOM_2 = 6,
+    CUSTOM_3 = 7,
+    CUSTOM_4 = 8,
+    CUSTOM_5 = 9
+};
+
+struct Socket {
+    SocketType type;
+    bool symmetric;     // If true, can connect in any orientation
+    
+    Socket(SocketType t = SocketType::EMPTY, bool sym = true) 
+        : type(t), symmetric(sym) {}
+};
+
+struct BlockTemplate {
+    int blockId;
+    std::string name;
+    std::array<Socket, 6> sockets; // [+X, -X, +Y, -Y, +Z, -Z]
+    std::vector<int> allowedRotations; // [0, 90, 180, 270] degrees
+    int forwardFace = 4; // Default: +Z is "front"
+    BlockTemplate(int id = 0) : blockId(id) {
+        // Default: all sockets are EMPTY and symmetric
+        sockets.fill(Socket(SocketType::EMPTY, true));
+        allowedRotations = {0, 90, 180, 270}; // Allow all rotations by default
+    }
+};
+
+struct RotatedBlockVariant {
+    int baseBlockId;
+    int rotationY;      // 0, 90, 180, 270 degrees
+    std::array<Socket, 6> rotatedSockets;
+    
+    RotatedBlockVariant(int id = 0, int rot = 0) : baseBlockId(id), rotationY(rot) {
+        rotatedSockets.fill(Socket());
+    }
+};
+
+class SocketCompatibility {
+private:
+    std::map<std::pair<SocketType, SocketType>, bool> connectionRules;
+    
+public:
+    void AddRule(SocketType socketA, SocketType socketB, bool canConnect) {
+        connectionRules[{socketA, socketB}] = canConnect;
+        connectionRules[{socketB, socketA}] = canConnect; // Symmetric
+    }
+    
+    bool CanConnect(SocketType socketA, SocketType socketB) const {
+        // EMPTY sockets can connect to anything
+        if (socketA == SocketType::EMPTY || socketB == SocketType::EMPTY) {
+            return true;
+        }
+        
+        auto it = connectionRules.find({socketA, socketB});
+        return it != connectionRules.end() ? it->second : false;
+    }
+    
+    void SetupDefaultRules() {
+        // Same types can connect to each other
+        AddRule(SocketType::GRASS, SocketType::GRASS, true);
+        AddRule(SocketType::STONE, SocketType::STONE, true);
+        AddRule(SocketType::WOOD, SocketType::WOOD, true);
+        AddRule(SocketType::METAL, SocketType::METAL, true);
+        
+        // Custom cross-connections (you can modify these)
+        AddRule(SocketType::GRASS, SocketType::STONE, false);
+        AddRule(SocketType::WOOD, SocketType::METAL, true);
+        // Add more rules as needed...
+    }
+
+    void ClearAllRules() {
+        connectionRules.clear();
+    }
+};
+
+class SocketSystem {
+private:
+    std::map<int, BlockTemplate> blockTemplates;
+    std::map<int, std::vector<RotatedBlockVariant>> rotatedVariants;
+    SocketCompatibility compatibility;
+    
+public:
+    void Initialize();
+    void AddBlockTemplate(const BlockTemplate& blockTemplate);
+    void GenerateRotatedVariants();
+    
+    bool CanBlocksConnect(int blockId1, int rotation1, int face1, 
+                         int blockId2, int rotation2, int face2) const;
+    
+    std::array<Socket, 6> GetRotatedSockets(int blockId, int rotation) const;
+    std::array<Socket, 6> RotateSockets(const std::array<Socket, 6>& original, int yRotation) const;
+    
+    const std::map<int, BlockTemplate>& GetBlockTemplates() const { return blockTemplates; }
+    SocketCompatibility& GetCompatibility() { return compatibility; }
+};

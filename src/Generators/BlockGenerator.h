@@ -30,7 +30,9 @@ struct GridCell {
     bool collapsed;
     std::vector<int> blockTypeIds;
     std::vector<glm::vec3> blockPositions;
+    std::vector<int> blockRotations;
     float cellFillAmount;
+    std::vector<std::pair<int, int>> possibleBlockRotationPairs;
 };
 
 class BlockGenerator : public IGeneratorStrategy {
@@ -39,7 +41,6 @@ private:
     BlockUtilities::BlockData parameters;
     std::vector<std::vector<std::vector<GridCell>>> grid; // 3D grid: [x][y][z]
     Mesh* generatorMesh;
-    std::map<int, BlockUtilities::BlockConstraints> blockConstraints;
 
     // Animation support
     bool animationEnabled = false;
@@ -48,8 +49,6 @@ private:
     
     // Rotation support
     bool randomRotationsEnabled = false;
-
-
     std::vector<AssetInfo> loadedAssets;
 
 public:
@@ -86,7 +85,7 @@ private:
     // Initialization
     void initializeDefaults();
     void initializeGrid();
-    void initializeBlockConstraints();
+    void initializeSocketSystem();  // NEW: Socket system initialization
     
     // Core WFC methods
     std::vector<int> getAllBlockTypes();
@@ -100,28 +99,30 @@ private:
     void generateGridWithAnimation();
     void processRemainingCells();
     
-    // Constraint validation
-    bool isBlockValidAtPosition(int x, int y, int z, int blockId);
-    bool validateNeighborCompatibility(int blockId, const std::string& direction, const GridCell& neighborCell);
-    bool canBlocksConnect(int blockId1, const std::string& face1, int blockId2, const std::string& face2);
-    bool canBlocksConnectMutually(int blockId1, const std::string& face1, int blockId2, const std::string& face2);
-    bool canFaceBeExposed(int blockId, const std::string& face);
+    // NEW: Socket-based constraint validation
+    bool isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation);
+    bool validateNeighborCompatibility(int blockId, int rotation, int faceIndex, const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ);
+    bool canBlocksConnectWithSockets(int blockId1, int rotation1, int face1, int blockId2, int rotation2, int face2);
     void propagateConstraints(int x, int y, int z);
     
+    // NEW: Face/rotation utilities
+    int getFaceIndex(const std::string& faceDirection);
+    std::string getFaceDirection(int faceIndex);
+    int getOppositeFaceIndex(int faceIndex);
+    int getRandomRotationIndex() const;
+    
     // Utility methods
-    const BlockFaceConstraints* getFaceConstraints(const BlockConstraints& constraints, const std::string& face);
-    std::string getOppositeFace(const std::string& face);
     bool isValidGridPosition(int x, int y, int z) const;
     glm::vec3 calculateBlockPosition(int x, int y, int z) const;
-    
+
     // World management
     void updateWorldDimensions();
     glm::vec3 calculateModelBounds(const std::shared_ptr<Model>& model);
     
-    // Mesh generation
+    // Mesh generation (handles rotations)
     BlockMesh* generateMeshFromGrid();
     BlockMesh* createEmptyMesh();
-    void addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, 
+    void addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, int rotation,
                        std::set<std::shared_ptr<Texture>>& uniqueTextures);
     void collectTexturesFromModel(const std::shared_ptr<Model>& model, 
                                  std::set<std::shared_ptr<Texture>>& uniqueTextures);
@@ -135,10 +136,8 @@ private:
     bool canPlaceBlock(int blockId) const;
     int selectWeightedBlock(const std::vector<int>& validBlocks);
     void incrementBlockCount(int blockId);
-    std::vector<int> filterBlocksByConstraints(const std::vector<int>& blocks);
 
     // Block selection and management methods
-    int selectBlockType();            // Already implemented in cpp
     int selectByWeight(const std::vector<int>& blocks);
     bool isUnlimitedBlock(int blockId) const;
     std::vector<int> getAvailableBlocks() const;

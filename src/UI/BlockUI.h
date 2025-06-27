@@ -3,14 +3,10 @@
 #include "../Core/BlockData.h"
 #include <vector>
 #include <string>
-#include <memory>
 #include <map>
+#include <memory>
 #include <functional>
 
-
-using namespace BlockUtilities;
-
-// Forward declarations
 class BlockController;
 class Model;
 
@@ -21,92 +17,78 @@ struct AssetInfo {
     std::shared_ptr<Model> model;
 };
 
+struct GenerationSettings {
+    int threadCount = 4;
+    bool useConstraints = true;
+    unsigned int gridWidth = 20;
+    unsigned int gridHeight = 10;
+    unsigned int gridLength = 20;
+    float blockScale = 1.0f;
+    bool enablePoppingAnimation = false;
+    float animationDelay = 50.0f;
+    bool enableRandomRotations = false; // NEW: Random Y-axis rotations
+};
+
 class BlockUI {
 private:
     BlockController* controller;
-    BlockUtilities::BlockData parameters;
     std::vector<AssetInfo> loadedAssets;
     
-    // Error handling
-    std::string lastError;
-    bool showModelError = false;
+    // Parameters and settings
+    BlockUtilities::BlockData parameters;
+    GenerationSettings genSettings;
     
-    // Constraint management
-    std::map<int, BlockConstraints> uiConstraints;
+    // Socket system selection
     int selectedBlockId = -1;
-    
-    // Rotation request handling
     bool rotationRequested = false;
     
-    // Generation settings
-    struct GenerationSettings {
-        int threadCount = 4;
-        bool useConstraints = true;
-        int gridWidth = 20;
-        int gridHeight = 10;
-        int gridLength = 20;
-        float blockScale = 1.0f;
-        bool enablePoppingAnimation = false;
-        float animationDelay = 50.0f;
-        bool enableRandomRotations = false;
-    } genSettings;
-    
-    bool showComponentEditor = false;
-    
-    // Helper methods
-    void resetConstraintsToDefault();
-    BlockConstraints createDefaultConstraints(int blockId);
-    void updateConstraintConnection(BlockFaceConstraints* face, int assetId, bool isAllowed);
-    std::string GetFileName(const std::string& filepath);
-    void OnApplyRandomRotationsRequested();
-    
+    // Error handling
+    bool showModelError = false;
+    std::string lastError;
+
 public:
     BlockUI(BlockController* controller);
     ~BlockUI();
     
-    // Main UI display methods
+    // Main UI display
     void DisplayUI();
+    
+    // Tab displays
     void DisplayBasicSettings();
-    void DisplayConstraints();
+    void DisplayBlockConstraints();
     
-    // File dialog methods
-    void OpenModelFileDialog();
-    
-    // Model loading callbacks
-    void OnModelLoaded(std::shared_ptr<Model> model, const std::string& filepath);
-    void OnModelLoadError(const std::string& error);
-    
-    // Data access methods
-    BlockUtilities::BlockData& GetParameters() { return parameters; }
-    const std::vector<AssetInfo>& GetLoadedAssets() const { return loadedAssets; }
+    // NEW: Socket system editor
+    void DisplaySocketEditor();
     
     // Asset management
+    void OnModelLoaded(std::shared_ptr<Model> model, const std::string& filepath);
+    void OnModelLoadError(const std::string& error);
     void AddAsset(const AssetInfo& asset);
     void RemoveAsset(int id);
     
-    // Constraint management
-    void SetConstraints(const std::map<int, BlockConstraints>& constraints);
-    const std::map<int, BlockConstraints>& GetConstraints() const;
+    // Parameters access
+    const BlockUtilities::BlockData& GetParameters() const { return parameters; }
+    BlockUtilities::BlockData& GetParameters() { return parameters; }
+    void SetParameters(const BlockUtilities::BlockData& params) { parameters = params; }
     
-    // Settings access
     const GenerationSettings& GetGenerationSettings() const { return genSettings; }
     
-    // Animation settings access
+    // Asset access
+    const std::vector<AssetInfo>& GetLoadedAssets() const { return loadedAssets; }
+    std::vector<AssetInfo>& GetLoadedAssets() { return loadedAssets; }
+    
+    // Animation settings
     bool IsAnimationEnabled() const { return genSettings.enablePoppingAnimation; }
     float GetAnimationDelay() const { return genSettings.animationDelay; }
     
-    // Rotation settings access
+    // NEW: Rotation settings
     bool IsRandomRotationEnabled() const { return genSettings.enableRandomRotations; }
-    
-    // Rotation request check
-    bool IsRotationRequested() { 
-        bool requested = rotationRequested; 
-        rotationRequested = false; // Reset flag after reading
-        return requested; 
-    }
-    BlockUtilities::BlockData GetParameters() const {
-        return parameters;
-    }
-    void DisplayBlockConstraints();
+    bool IsRotationRequested() const { return rotationRequested; }
+    void ClearRotationRequest() { rotationRequested = false; }
+    void OnApplyRandomRotationsRequested();
 
+private:
+    // File operations
+    void OpenModelFileDialog();
+    std::string GetFileName(const std::string& filepath);
 };

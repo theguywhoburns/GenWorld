@@ -28,8 +28,7 @@ BlockUI::BlockUI(BlockController* controller) : controller(controller) {
     // Initialize parameters with 3D support (gridWidth, gridHeight, gridLength, cellWidth, cellHeight, cellLength, blockScale)
     parameters = {20, 10, 20, 5.0f, 5.0f, 5.0f, 1.0f};
     // Initialize generation settings with 3D support
-    genSettings = {4, true, 20, 10, 20, 1.0f, false, 50.0f};
-    resetConstraintsToDefault();
+    genSettings = {4, true, 20, 10, 20, 1.0f, false, 50.0f, false}; // Added enableRandomRotations = false
 }
 
 void BlockUI::DisplayUI() {
@@ -39,8 +38,8 @@ void BlockUI::DisplayUI() {
                 DisplayBasicSettings();
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Constraints")) {
-                DisplayConstraints();
+            if (ImGui::BeginTabItem("Socket System")) {
+                DisplaySocketEditor();
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
@@ -100,7 +99,6 @@ void BlockUI::DisplayBasicSettings() {
         
         // Apply Random Rotations button (only if world is already generated)
         if (ImGui::Button("Apply Random Rotations to Existing World", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-            // Call the rotation method directly through a callback or event
             OnApplyRandomRotationsRequested();
         }
         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "This will apply random Y-axis rotations to all blocks in the current world");
@@ -141,7 +139,11 @@ void BlockUI::DisplayBasicSettings() {
         ImGui::SliderInt("Thread Count", &genSettings.threadCount, 1, 16);
         ImGui::Text("Recommended: %d threads", std::thread::hardware_concurrency());
         
-        ImGui::Checkbox("Enable Constraints", &genSettings.useConstraints);
+        ImGui::Checkbox("Use Socket System", &parameters.useSocketSystem);
+        ImGui::SameLine();
+        if (ImGui::Button("?")) {
+            ImGui::SetTooltip("When enabled, uses socket-based constraints instead of face constraints");
+        }
         
         ImGui::Separator();
         ImGui::Checkbox("Enable Popping Animation", &genSettings.enablePoppingAnimation);
@@ -157,131 +159,219 @@ void BlockUI::DisplayBasicSettings() {
     }
 }
 
-void BlockUI::DisplayConstraints() {
+void BlockUI::DisplaySocketEditor() {
+    if (!ImGui::CollapsingHeader("Socket Editor", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    
     if (loadedAssets.empty()) {
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Load assets first to set up constraints.");
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Load assets first to set up sockets.");
         return;
     }
     
-    if (!ImGui::CollapsingHeader("Block Constraint Editor", ImGuiTreeNodeFlags_DefaultOpen)) return;
+    // Socket type names for UI
+    const char* socketTypeNames[] = {
+        "Empty (connects to all)", "Grass", "Stone", "Wood", "Metal",
+        "Custom 1", "Custom 2", "Custom 3", "Custom 4", "Custom 5"
+    };
     
     // Block selection
-    if (ImGui::BeginCombo("Select Block", selectedBlockId >= 0 ? std::to_string(selectedBlockId).c_str() : "Choose block...")) {
+    std::string selectedBlockName = selectedBlockId >= 0 ? ("Block " + std::to_string(selectedBlockId)) : "Choose block...";
+    if (ImGui::BeginCombo("Select Block", selectedBlockName.c_str())) {
         for (const auto& asset : loadedAssets) {
             bool isSelected = (selectedBlockId == asset.id);
             std::string label = "Block " + std::to_string(asset.id) + " (" + asset.name + ")";
             
             if (ImGui::Selectable(label.c_str(), isSelected)) {
                 selectedBlockId = asset.id;
-                
-                // Create default constraints if they don't exist
-                if (uiConstraints.find(asset.id) == uiConstraints.end()) {
-                    uiConstraints[asset.id] = createDefaultConstraints(asset.id);
-                }
             }
         }
         ImGui::EndCombo();
     }
     
-    // Edit selected block constraints
-    if (selectedBlockId >= 0 && uiConstraints.find(selectedBlockId) != uiConstraints.end()) {
+    if (selectedBlockId >= 0) {
+        auto& socketSystem = parameters.socketSystem;
+        auto& templates = socketSystem.GetBlockTemplates();
+        
+        // Get or create block template
+        auto it = templates.find(selectedBlockId);
+        if (it == templates.end()) {
+            // Create default template
+            BlockTemplate newTemplate(selectedBlockId);
+            newTemplate.name = "Block " + std::to_string(selectedBlockId);
+            socketSystem.AddBlockTemplate(newTemplate);
+        }
+        
+        // Get the template (now it definitely exists)
+        auto& currentTemplate = const_cast<BlockTemplate&>(socketSystem.GetBlockTemplates().at(selectedBlockId));
+        
         ImGui::Separator();
-        ImGui::Text("Editing Block %d", selectedBlockId);
+        ImGui::Text("Editing Sockets for Block %d", selectedBlockId);
         
-        auto& constraints = uiConstraints[selectedBlockId];
+        const char* faceNames[] = {"+X (Right)", "-X (Left)", "+Y (Top)", "-Y (Bottom)", "+Z (Front)", "-Z (Back)"};
         
         ImGui::Separator();
-        ImGui::Text("Face Constraints:");
-        ImGui::Text("Select which models can connect to each face of this block:");
-        
-        const char* faceNames[] = {"+Z (Front)", "-Z (Back)", "+X (Right)", "-X (Left)", "+Y (Top)", "-Y (Bottom)"};
-        BlockFaceConstraints* faces[] = {&constraints.posZ, &constraints.negZ, &constraints.posX, 
-                                       &constraints.negX, &constraints.posY, &constraints.negY};
-        
-        for (int f = 0; f < 6; f++) {
-            if (ImGui::TreeNode(faceNames[f])) {
-                ImGui::Checkbox("Can be exposed to air", &faces[f]->canBeExposed);
-                ImGui::Text("Allowed connecting models:");
-                
-                // Show checkboxes for each loaded asset
-                for (const auto& asset : loadedAssets) {
-                    bool isAllowed = std::find(faces[f]->validConnections.begin(), 
-                                             faces[f]->validConnections.end(), 
-                                             asset.id) != faces[f]->validConnections.end();
-                    
-                    std::string checkboxLabel = "Model " + std::to_string(asset.id) + " (" + asset.name + ")";
-                    
-                    if (ImGui::Checkbox(checkboxLabel.c_str(), &isAllowed)) {
-                        updateConstraintConnection(faces[f], asset.id, isAllowed);
-                    }
+        ImGui::Text("Block Orientation:");
+        ImGui::Text("Current Front Face: %s", faceNames[currentTemplate.forwardFace]);
+        ImGui::SameLine();
+        if (ImGui::BeginCombo("Set Front Face", faceNames[currentTemplate.forwardFace])) {
+            for (int i = 0; i < 6; ++i) {
+                if (ImGui::Selectable(faceNames[i], currentTemplate.forwardFace == i)) {
+                    currentTemplate.forwardFace = i;
                 }
-                
-                // Quick action buttons
-                if (ImGui::Button("Allow All Models")) {
-                    faces[f]->validConnections.clear();
-                    for (const auto& asset : loadedAssets) {
-                        faces[f]->validConnections.push_back(asset.id);
-                    }
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Clear All")) {
-                    faces[f]->validConnections.clear();
-                }
-                
-                // Show current state
-                if (faces[f]->validConnections.empty()) {
-                    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No restrictions - can connect to any model");
-                } else {
-                    ImGui::Text("Restricted to %zu model(s)", faces[f]->validConnections.size());
-                }
-                
-                ImGui::TreePop();
             }
+            ImGui::EndCombo();
+        }
+
+        for (int face = 0; face < 6; face++) {
+            ImGui::PushID(face);
+            
+            ImGui::Text("%s:", faceNames[face]);
+            ImGui::SameLine();
+            
+            int currentType = static_cast<int>(currentTemplate.sockets[face].type);
+            if (ImGui::Combo("##sockettype", &currentType, socketTypeNames, 10)) {
+                currentTemplate.sockets[face].type = static_cast<SocketType>(currentType);
+                socketSystem.GenerateRotatedVariants(); // Regenerate when changed
+            }
+            
+            ImGui::PopID();
+        }
+        
+        ImGui::Separator();
+        if (ImGui::Button("Apply Socket Changes")) {
+            socketSystem.GenerateRotatedVariants();
+            std::cout << "Socket changes applied for block " << selectedBlockId << std::endl;
         }
     }
     
-    if (ImGui::Button("Reset All Constraints")) {
-        resetConstraintsToDefault();
-    }
-}
-
-BlockConstraints BlockUI::createDefaultConstraints(int blockId) {
-    BlockConstraints constraints;
-    constraints.blockId = blockId;
-    constraints.posZ = constraints.negZ = constraints.posX = 
-    constraints.negX = constraints.posY = constraints.negY = {{}, true};
-    return constraints;
-}
-
-void BlockUI::updateConstraintConnection(BlockFaceConstraints* face, int assetId, bool isAllowed) {
-    auto& connections = face->validConnections;
-    auto it = std::find(connections.begin(), connections.end(), assetId);
+    ImGui::Separator();
     
-    if (isAllowed && it == connections.end()) {
-        connections.push_back(assetId);
-    } else if (!isAllowed && it != connections.end()) {
-        connections.erase(it);
+    // EXPANDED COMPATIBILITY RULES SECTION
+    if (ImGui::CollapsingHeader("Socket Compatibility Rules", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& compatibility = parameters.socketSystem.GetCompatibility();
+
+        if (ImGui::Button("Setup Default Rules")) {
+            compatibility.SetupDefaultRules();
+            std::cout << "Applied default socket compatibility rules" << std::endl;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Clear All Rules")) {
+            compatibility.ClearAllRules();
+            std::cout << "Cleared all socket compatibility rules" << std::endl;
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Create Custom Rules:");
+
+        // Rule creation interface
+        static int fromSocketType = 0;
+        static int toSocketType = 0;
+        static bool canConnect = true;
+
+        ImGui::Text("From Socket:");
+        ImGui::SameLine();
+        ImGui::Combo("##fromSocket", &fromSocketType, socketTypeNames, 10);
+
+        ImGui::Text("To Socket:");
+        ImGui::SameLine();
+        ImGui::Combo("##toSocket", &toSocketType, socketTypeNames, 10);
+
+        ImGui::Checkbox("Can Connect", &canConnect);
+
+        if (ImGui::Button("Add Rule")) {
+            SocketType from = static_cast<SocketType>(fromSocketType);
+            SocketType to = static_cast<SocketType>(toSocketType);
+            compatibility.AddRule(from, to, canConnect);
+            std::cout << "Added rule: " << socketTypeNames[fromSocketType]
+                      << (canConnect ? " CAN " : " CANNOT ")
+                      << "connect to " << socketTypeNames[toSocketType] << std::endl;
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Current Rules:");
+
+        // Display current compatibility matrix
+        if (ImGui::BeginTable("CompatibilityMatrix", 11, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+            // Header row
+            ImGui::TableSetupColumn("From \\ To");
+            for (int i = 0; i < 10; i++) {
+                ImGui::TableSetupColumn(socketTypeNames[i]);
+            }
+            ImGui::TableHeadersRow();
+
+            // Data rows
+            for (int fromType = 0; fromType < 10; fromType++) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", socketTypeNames[fromType]);
+
+                for (int toType = 0; toType < 10; toType++) {
+                    ImGui::TableNextColumn();
+
+                    SocketType from = static_cast<SocketType>(fromType);
+                    SocketType to = static_cast<SocketType>(toType);
+                    bool compatible = compatibility.CanConnect(from, to);
+
+                    // Color-coded display
+                    if (compatible) {
+                        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "✓");
+                    } else {
+                        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "✗");
+                    }
+
+                    // Click to toggle
+                    if (ImGui::IsItemClicked()) {
+                        compatibility.AddRule(from, to, !compatible);
+                        std::cout << "Toggled rule: " << socketTypeNames[fromType]
+                                  << (!compatible ? " CAN " : " CANNOT ")
+                                  << "connect to " << socketTypeNames[toType] << std::endl;
+                    }
+                }
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::Text("Click on ✓/✗ to toggle connections");
+
+        // Quick rule presets
+        ImGui::Separator();
+        ImGui::Text("Quick Presets:");
+
+        if (ImGui::Button("All Connect")) {
+            for (int i = 0; i < 10; i++) {
+                for (int j = 0; j < 10; j++) {
+                    compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), true);
+                }
+            }
+            std::cout << "Set all socket types to connect to each other" << std::endl;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("None Connect")) {
+            for (int i = 0; i < 10; i++) {
+                for (int j = 0; j < 10; j++) {
+                    compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), false);
+                }
+            }
+            std::cout << "Set no socket types to connect" << std::endl;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Same Only")) {
+            for (int i = 0; i < 10; i++) {
+                for (int j = 0; j < 10; j++) {
+                    bool canConnect = (i == j || i == 0 || j == 0); // Same type OR Empty socket
+                    compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), canConnect);
+                }
+            }
+            std::cout << "Set socket types to only connect to same type (+ Empty connects to all)" << std::endl;
+        }
     }
-}
-
-void BlockUI::resetConstraintsToDefault() {
-    uiConstraints.clear();
-    for (const auto& asset : loadedAssets) {
-        uiConstraints[asset.id] = createDefaultConstraints(asset.id);
-    }
-}
-
-const std::map<int, BlockConstraints>& BlockUI::GetConstraints() const {
-    return uiConstraints;
-}
-
-void BlockUI::SetConstraints(const std::map<int, BlockConstraints>& constraints) {
-    uiConstraints = constraints;
 }
 
 void BlockUI::AddAsset(const AssetInfo& asset) {
     loadedAssets.push_back(asset);
-    resetConstraintsToDefault();
 }
 
 void BlockUI::RemoveAsset(int id) {
@@ -290,7 +380,6 @@ void BlockUI::RemoveAsset(int id) {
             [id](const AssetInfo& asset) { return asset.id == id; }),
         loadedAssets.end()
     );
-    uiConstraints.erase(id);
 }
 
 void BlockUI::OpenModelFileDialog() {
@@ -319,11 +408,9 @@ void BlockUI::OnModelLoaded(std::shared_ptr<Model> model, const std::string& fil
     // Initialize count, weight, and limit for this new asset
     parameters.generationSettings.currentBlockCounts[newAsset.id] = 0;
     parameters.generationSettings.blockWeights[newAsset.id] = parameters.generationSettings.defaultWeight;
-    parameters.generationSettings.maxBlockCounts[newAsset.id] = -1; // Set to UNLIMITED by default, not 0!
+    parameters.generationSettings.maxBlockCounts[newAsset.id] = -1; // Set to UNLIMITED by default
     
     std::cout << "Loaded block " << newAsset.id << " - initialized with unlimited count" << std::endl;
-    
-    resetConstraintsToDefault();
 }
 
 void BlockUI::OnModelLoadError(const std::string& error) {
@@ -341,10 +428,7 @@ BlockUI::~BlockUI() {
     controller = nullptr;
 }
 
-// Add this new method to BlockUI
 void BlockUI::OnApplyRandomRotationsRequested() {
-    // This will be handled by whoever owns the BlockGenerator
-    // For now, we can store a flag or use a callback system
     rotationRequested = true;
 }
 
@@ -432,44 +516,46 @@ void BlockUI::DisplayBlockConstraints() {
                 }
             }
             
+            // Void cells row
+            if (parameters.enableVoidCells) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::Text("Void Cells");
                 
                 ImGui::TableNextColumn();
-                float voidWeight = settings.blockWeights[VOID_BLOCK_ID];
+                float voidWeight = settings.blockWeights[BlockUtilities::VOID_BLOCK_ID];
                 if (ImGui::SliderFloat("##voidweight", &voidWeight, 0.0f, 1.0f, "%.2f")) {
-                    settings.blockWeights[VOID_BLOCK_ID] = voidWeight;
+                    settings.blockWeights[BlockUtilities::VOID_BLOCK_ID] = voidWeight;
                 }
                 
                 ImGui::TableNextColumn();
-                bool voidUnlimited = (settings.maxBlockCounts[VOID_BLOCK_ID] == -1);
+                bool voidUnlimited = (settings.maxBlockCounts[BlockUtilities::VOID_BLOCK_ID] == -1);
                 if (voidUnlimited) {
                     ImGui::Text("Unlimited");
                 } else {
-                    int voidCount = settings.currentBlockCounts[VOID_BLOCK_ID];
-                    
-                    // Show void count with + and - buttons
+                    int voidCount = settings.currentBlockCounts[BlockUtilities::VOID_BLOCK_ID];
+
                     if (ImGui::SmallButton("-##void")) {
-                        if (settings.currentBlockCounts[VOID_BLOCK_ID] > 0) {
-                            settings.currentBlockCounts[VOID_BLOCK_ID]--;
+                        if (settings.currentBlockCounts[BlockUtilities::VOID_BLOCK_ID] > 0) {
+                            settings.currentBlockCounts[BlockUtilities::VOID_BLOCK_ID]--;
                         }
                     }
                     ImGui::SameLine();
                     ImGui::Text("%d", voidCount);
                     ImGui::SameLine();
                     if (ImGui::SmallButton("+##void")) {
-                        settings.currentBlockCounts[VOID_BLOCK_ID]++;
+                        settings.currentBlockCounts[BlockUtilities::VOID_BLOCK_ID]++;
                     }
                 }
 
                 ImGui::TableNextColumn();
                 if (ImGui::Checkbox("##voidunlimited", &voidUnlimited)) {
-                    settings.maxBlockCounts[VOID_BLOCK_ID] = voidUnlimited ? -1 : totalCells;
+                    settings.maxBlockCounts[BlockUtilities::VOID_BLOCK_ID] = voidUnlimited ? -1 : totalCells;
                 }
             }
             
             ImGui::EndTable();
+        }
         
         ImGui::Separator();
         

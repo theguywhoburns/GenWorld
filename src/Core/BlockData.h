@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include "../SocketSystem/SocketSystem.h"
 
 namespace BlockUtilities {
     
@@ -63,6 +64,11 @@ namespace BlockUtilities {
         float detectedBlockLength = 0.0f;
         
         BlockGenerationSettings generationSettings;
+        
+        // Add socket system
+        SocketSystem socketSystem;
+        std::map<int, int> blockRotations; // blockId -> current rotation
+        bool useSocketSystem = true;
     };
     
 } // namespace BlockUtilities

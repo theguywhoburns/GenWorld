@@ -36,7 +36,8 @@ void BlockGenerator::initializeDefaults() {
 }
 
 void BlockGenerator::Generate() {
-    initializeBlockConstraints();
+    // NEW: Initialize socket system instead of old constraints
+    initializeSocketSystem();
     
     // Initialize block weights and limits
     initializeBlockWeights();
@@ -66,8 +67,6 @@ void BlockGenerator::Generate() {
         return;
     }
     
-    // Remove building generator initialization - no longer needed
-    
     if (animationEnabled) {
         generateGridWithAnimation();
     } else {
@@ -77,6 +76,44 @@ void BlockGenerator::Generate() {
     std::cout << "Starting mesh generation..." << std::endl;
     generatorMesh = generateMeshFromGrid();
     std::cout << "Mesh generation complete!" << std::endl;
+}
+
+void BlockGenerator::initializeSocketSystem() {
+    parameters.socketSystem.Initialize();
+    
+    // Create default templates for all loaded assets
+    if (controller && controller->GetBlockUI()) {
+        auto assets = controller->GetBlockUI()->GetLoadedAssets();
+        for (const auto& asset : assets) {
+            BlockTemplate blockTemplate(asset.id);
+            blockTemplate.name = asset.name;
+            
+            // Set all sockets to EMPTY by default (connects to everything)
+            for (int i = 0; i < 6; i++) {
+                blockTemplate.sockets[i] = Socket(SocketType::EMPTY, true);
+            }
+            
+            parameters.socketSystem.AddBlockTemplate(blockTemplate);
+            
+            // Initialize rotation to 0
+            parameters.blockRotations[asset.id] = 0;
+        }
+    }
+    
+    // Create void block template
+    if (parameters.enableVoidCells) {
+        BlockTemplate voidTemplate(VOID_BLOCK_ID);
+        voidTemplate.name = "Void";
+        // Void has EMPTY sockets (can connect to anything)
+        for (int i = 0; i < 6; i++) {
+            voidTemplate.sockets[i] = Socket(SocketType::EMPTY, true);
+        }
+        parameters.socketSystem.AddBlockTemplate(voidTemplate);
+        parameters.blockRotations[VOID_BLOCK_ID] = 0;
+    }
+    
+    parameters.socketSystem.GenerateRotatedVariants();
+    std::cout << "Socket system initialized for all block types" << std::endl;
 }
 
 void BlockGenerator::generateGridMultithreaded() {
@@ -290,7 +327,7 @@ void BlockGenerator::initializeGrid() {
     for (auto& layer : grid) {
         for (auto& row : layer) {
             for (auto& cell : row) {
-                cell = {allBlockTypes, false, {}, {}, 0.0f};
+                cell = {allBlockTypes, false, {}, {}, {}, 0.0f}; // Added {} for blockRotations
             }
         }
     }
@@ -368,49 +405,40 @@ GridPosition BlockGenerator::findLowestEntropyCell() {
 
 bool BlockGenerator::collapseCell(int x, int y, int z) {
     if (!isValidGridPosition(x, y, z)) return false;
-    
+
     auto& cell = grid[x][y][z];
-    if (cell.collapsed || cell.possibleBlockTypes.empty()) return false;
-    
-    // Use pure WFC logic with weighted selection
+    if (cell.collapsed) return false;
+
     updateCellPossibilities(x, y, z);
-    if (cell.possibleBlockTypes.empty()) {
-        std::cerr << "Warning: No valid blocks remaining for position (" << x << ", " << y << ", " << z << ")" << std::endl;
-        return false;
+
+    // If no valid (block, rotation) pairs, set to void/empty
+    if (cell.possibleBlockRotationPairs.empty()) {
+        cell.collapsed = true;
+        cell.possibleBlockTypes = {VOID_BLOCK_ID};
+        cell.blockTypeIds = {VOID_BLOCK_ID};
+        cell.blockRotations = {0};
+        cell.blockPositions.clear();
+        return true;
     }
-    
-    // Use weighted selection that respects count limits
-    int chosenBlockType = selectWeightedBlock(cell.possibleBlockTypes);
-    
-    // If no block can be placed due to count limits, place void or skip
-    if (chosenBlockType == -1) {
-        std::cout << "No blocks available due to count limits at (" << x << ", " << y << ", " << z << ")" << std::endl;
-        // You can either place a void block or leave the cell uncollapsed
-        if (parameters.enableVoidCells) {
-            chosenBlockType = VOID_BLOCK_ID;
-        } else {
-            return false; // Skip this cell
-        }
-    }
-    
-    // Collapse cell
+
+    // Pick a random (block, rotation) pair
+    auto chosenPair = cell.possibleBlockRotationPairs[rand() % cell.possibleBlockRotationPairs.size()];
+    int chosenBlockType = chosenPair.first;
+    int chosenRotation = chosenPair.second;
+
     cell.collapsed = true;
     cell.possibleBlockTypes = {chosenBlockType};
     cell.blockTypeIds = {chosenBlockType};
-    
-    // Increment block count (only for non-void blocks)
+    cell.blockRotations = {chosenRotation};
+
     if (chosenBlockType != VOID_BLOCK_ID) {
         incrementBlockCount(chosenBlockType);
-    }
-    
-    // Only add position if it's not a void cell
-    if (chosenBlockType != VOID_BLOCK_ID) {
         glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
         cell.blockPositions = {blockPosition};
     } else {
         cell.blockPositions.clear();
     }
-    
+
     propagateConstraints(x, y, z);
     return true;
 }
@@ -418,96 +446,132 @@ bool BlockGenerator::collapseCell(int x, int y, int z) {
 void BlockGenerator::updateCellPossibilities(int x, int y, int z) {
     auto& cell = grid[x][y][z];
     if (cell.collapsed) return;
-    
+
     std::vector<int> validBlocks;
+    std::vector<std::pair<int, int>> validPairs;
+
     for (int blockId : cell.possibleBlockTypes) {
-        if (isBlockValidAtPosition(x, y, z, blockId) && canPlaceBlock(blockId)) {
+        if (!canPlaceBlock(blockId)) continue;
+
+        auto& templates = parameters.socketSystem.GetBlockTemplates();
+        auto it = templates.find(blockId);
+
+        bool foundValidRotation = false;
+        if (it != templates.end()) {
+            for (int rotation : it->second.allowedRotations) {
+                if (isBlockValidAtPosition(x, y, z, blockId, rotation)) {
+                    validPairs.emplace_back(blockId, rotation);
+                    foundValidRotation = true;
+                }
+            }
+        } else {
+            if (isBlockValidAtPosition(x, y, z, blockId, 0)) {
+                validPairs.emplace_back(blockId, 0);
+                foundValidRotation = true;
+            }
+        }
+        if (foundValidRotation) {
             validBlocks.push_back(blockId);
         }
     }
+
     cell.possibleBlockTypes = validBlocks;
+    cell.possibleBlockRotationPairs = validPairs;
 }
 
-bool BlockGenerator::isBlockValidAtPosition(int x, int y, int z, int blockId) {
-    const std::vector<std::tuple<int, int, int, std::string>> neighbors = {
-        {x, y, z+1, "+Z"}, {x, y, z-1, "-Z"}, 
-        {x+1, y, z, "+X"}, {x-1, y, z, "-X"}, 
-        {x, y+1, z, "+Y"}, {x, y-1, z, "-Y"}
+// NEW: Socket-based validation
+bool BlockGenerator::isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation) {
+    const std::vector<std::tuple<int, int, int, int>> neighbors = {
+        {x+1, y, z, 0}, // +X
+        {x-1, y, z, 1}, // -X  
+        {x, y+1, z, 2}, // +Y
+        {x, y-1, z, 3}, // -Y
+        {x, y, z+1, 4}, // +Z
+        {x, y, z-1, 5}  // -Z
     };
     
-    for (const auto& [nx, ny, nz, direction] : neighbors) {
+    for (const auto& [nx, ny, nz, faceIndex] : neighbors) {
         if (!isValidGridPosition(nx, ny, nz)) {
-            // Check if this block can be exposed to air on this face
-            if (!canFaceBeExposed(blockId, direction)) return false;
+            // At world boundary - always allow for now
             continue;
         }
         
         const auto& neighborCell = grid[nx][ny][nz];
-        if (!validateNeighborCompatibility(blockId, direction, neighborCell)) {
+        if (!validateNeighborCompatibility(blockId, rotation, faceIndex, neighborCell, nx, ny, nz)) {
             return false;
         }
     }
     return true;
 }
 
-bool BlockGenerator::validateNeighborCompatibility(int blockId, const std::string& direction, 
-                                                  const GridCell& neighborCell) {
-    std::string oppositeFace = getOppositeFace(direction);
+bool BlockGenerator::validateNeighborCompatibility(int blockId, int rotation, int faceIndex, 
+                                                  const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ) {
+    int oppositeFace = getOppositeFaceIndex(faceIndex);
     
     if (neighborCell.collapsed && !neighborCell.blockTypeIds.empty()) {
+        // Neighbor is already placed
         int neighborBlockId = neighborCell.blockTypeIds[0];
+        int neighborRotation = neighborCell.blockRotations.empty() ? 0 : neighborCell.blockRotations[0];
         
-        // Special handling for void cells
-        if (blockId == VOID_BLOCK_ID || neighborBlockId == VOID_BLOCK_ID) {
-            return canBlocksConnectMutually(blockId, direction, neighborBlockId, oppositeFace);
-        }
-        
-        return canBlocksConnectMutually(blockId, direction, neighborBlockId, oppositeFace);
+        return canBlocksConnectWithSockets(blockId, rotation, faceIndex, 
+                                          neighborBlockId, neighborRotation, oppositeFace);
     }
     
     if (!neighborCell.collapsed) {
-        // Check if any of the possible neighbor blocks can connect
-        bool canConnect = false;
+        // Check if any possible neighbor configuration can connect
         for (int possibleNeighborId : neighborCell.possibleBlockTypes) {
-            if (canBlocksConnectMutually(blockId, direction, possibleNeighborId, oppositeFace)) {
-                canConnect = true;
-                break;
+            // Try all possible rotations for the neighbor
+            auto& socketSystem = parameters.socketSystem;
+            auto& templates = socketSystem.GetBlockTemplates();
+            auto it = templates.find(possibleNeighborId);
+            
+            if (it != templates.end()) {
+                for (int neighborRotation : it->second.allowedRotations) {
+                    if (canBlocksConnectWithSockets(blockId, rotation, faceIndex, 
+                                                   possibleNeighborId, neighborRotation, oppositeFace)) {
+                        return true; // Found at least one valid connection
+                    }
+                }
             }
         }
-        
-        if (canConnect) return true;
-        
-        // If no blocks can connect, check if this face can be exposed
-        return canFaceBeExposed(blockId, direction);
+        return false; // No valid connections found
     }
     
-    return canFaceBeExposed(blockId, direction);
+    return true; // Default allow
 }
 
-bool BlockGenerator::canBlocksConnect(int blockId1, const std::string& face1, int blockId2, const std::string& face2) {
-    // Special case: void cells have their own constraint logic
-    if (blockId1 == VOID_BLOCK_ID || blockId2 == VOID_BLOCK_ID) {
-        auto it1 = blockConstraints.find(blockId1);
-        if (it1 == blockConstraints.end()) return true; // No constraints = allow everything
-        
-        const BlockFaceConstraints* faceConstraints = getFaceConstraints(it1->second, face1);
-        if (!faceConstraints || faceConstraints->validConnections.empty()) return true;
-        
-        return std::find(faceConstraints->validConnections.begin(), 
-                        faceConstraints->validConnections.end(), 
-                        blockId2) != faceConstraints->validConnections.end();
-    }
+bool BlockGenerator::canBlocksConnectWithSockets(int blockId1, int rotation1, int face1, 
+                                                 int blockId2, int rotation2, int face2) {
+    return parameters.socketSystem.CanBlocksConnect(blockId1, rotation1, face1, 
+                                                   blockId2, rotation2, face2);
+}
+
+int BlockGenerator::getFaceIndex(const std::string& faceDirection) {
+    static const std::map<std::string, int> faceMap = {
+        {"+X", 0}, {"-X", 1}, {"+Y", 2}, {"-Y", 3}, {"+Z", 4}, {"-Z", 5}
+    };
     
-    // Regular block-to-block connection logic
-    auto it = blockConstraints.find(blockId1);
-    if (it == blockConstraints.end()) return true;
+    auto it = faceMap.find(faceDirection);
+    return it != faceMap.end() ? it->second : 0;
+}
+
+std::string BlockGenerator::getFaceDirection(int faceIndex) {
+    static const std::vector<std::string> directions = {
+        "+X", "-X", "+Y", "-Y", "+Z", "-Z"
+    };
     
-    const BlockFaceConstraints* faceConstraints = getFaceConstraints(it->second, face1);
-    if (!faceConstraints || faceConstraints->validConnections.empty()) return true;
-    
-    return std::find(faceConstraints->validConnections.begin(), 
-                    faceConstraints->validConnections.end(), 
-                    blockId2) != faceConstraints->validConnections.end();
+    return (faceIndex >= 0 && faceIndex < 6) ? directions[faceIndex] : "+X";
+}
+
+int BlockGenerator::getOppositeFaceIndex(int faceIndex) {
+    // Opposite face mappings: +X↔-X, +Y↔-Y, +Z↔-Z
+    static const std::vector<int> opposites = {1, 0, 3, 2, 5, 4};
+    return (faceIndex >= 0 && faceIndex < 6) ? opposites[faceIndex] : 0;
+}
+
+int BlockGenerator::getRandomRotationIndex() const {
+    // Return 0, 1, 2, or 3 representing 0°, 90°, 180°, 270°
+    return rand() % 4;
 }
 
 void BlockGenerator::propagateConstraints(int x, int y, int z) {
@@ -543,7 +607,8 @@ BlockMesh* BlockGenerator::generateMeshFromGrid() {
                     if (cell.blockTypeIds[i] == VOID_BLOCK_ID) continue;
                     
                     if (i < cell.blockPositions.size()) {
-                        addBlockToMesh(blockMesh, cell.blockTypeIds[i], cell.blockPositions[i], uniqueTextures);
+                        int rotation = (i < cell.blockRotations.size()) ? cell.blockRotations[i] : 0;
+                        addBlockToMesh(blockMesh, cell.blockTypeIds[i], cell.blockPositions[i], rotation, uniqueTextures);
                     }
                 }
             }
@@ -554,7 +619,7 @@ BlockMesh* BlockGenerator::generateMeshFromGrid() {
     return blockMesh;
 }
 
-void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position,
+void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, int rotation,
                                    std::set<std::shared_ptr<Texture>>& uniqueTextures) {
     // Skip void cells - they don't get added to the mesh
     if (blockId == VOID_BLOCK_ID) {
@@ -565,11 +630,9 @@ void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm
     blockTransform.setPosition(position);
     blockTransform.setScale(parameters.blockScale);
     
-    // Apply random Y-axis rotation if enabled
-    if (randomRotationsEnabled) {
-        float randomYRotation = getRandomYRotation();
-        blockTransform.setRotation(glm::vec3(0.0f, randomYRotation, 0.0f));
-    }
+    // Apply rotation (convert rotation to degrees)
+    float rotationDegrees = static_cast<float>(rotation);
+    blockTransform.setRotation(glm::vec3(0.0f, rotationDegrees, 0.0f));
 
     if (controller && controller->GetBlockUI()) {
         auto assets = controller->GetBlockUI()->GetLoadedAssets();
@@ -606,19 +669,26 @@ void BlockGenerator::ApplyRandomRotationsToGrid() {
     
     std::cout << "Applying random Y-axis rotations to all blocks..." << std::endl;
     
-    // Regenerate mesh with rotations
+    // Update rotations in grid
+    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
+        for (unsigned int y = 0; y < parameters.gridHeight; y++) {
+            for (unsigned int z = 0; z < parameters.gridLength; z++) {
+                auto& cell = grid[x][y][z];
+                if (cell.collapsed && !cell.blockTypeIds.empty() && cell.blockTypeIds[0] != VOID_BLOCK_ID) {
+                    // Apply random rotation
+                    int randomRotation = getRandomRotationIndex() * 90; // 0, 90, 180, or 270 degrees
+                    cell.blockRotations = {randomRotation};
+                }
+            }
+        }
+    }
+    
+    // Regenerate mesh with new rotations
     if (generatorMesh) {
         delete generatorMesh;
     }
     
-    // Temporarily enable random rotations for mesh generation
-    bool wasEnabled = randomRotationsEnabled;
-    randomRotationsEnabled = true;
-    
     generatorMesh = generateMeshFromGrid();
-    
-    // Restore original setting
-    randomRotationsEnabled = wasEnabled;
     
     std::cout << "Random rotations applied successfully!" << std::endl;
 }
@@ -628,91 +698,6 @@ float BlockGenerator::getRandomYRotation() const {
     static const float rotations[] = {0.0f, 90.0f, 180.0f, 270.0f};
     int randomIndex = rand() % 4;
     return rotations[randomIndex];
-}
-
-bool BlockGenerator::canBlocksConnectMutually(int blockId1, const std::string& face1, 
-                                              int blockId2, const std::string& face2) {
-    return canBlocksConnect(blockId1, face1, blockId2, face2) && 
-           canBlocksConnect(blockId2, face2, blockId1, face1);
-}
-
-bool BlockGenerator::canFaceBeExposed(int blockId, const std::string& face) {
-    auto it = blockConstraints.find(blockId);
-    if (it == blockConstraints.end()) return true;
-
-    const BlockFaceConstraints* faceConstraints = getFaceConstraints(it->second, face);
-    return faceConstraints ? faceConstraints->canBeExposed : true;
-}
-
-void BlockGenerator::initializeBlockConstraints() {
-    blockConstraints.clear();
-    
-    auto createDefaultConstraints = [](int blockId) {
-        return BlockConstraints{blockId, {{}, true}, {{}, true}, {{}, true}, 
-                               {{}, true}, {{}, true}, {{}, true}};
-    };
-    
-    // Create constraints for void cells
-    if (parameters.enableVoidCells) {
-        BlockConstraints voidConstraints = createDefaultConstraints(VOID_BLOCK_ID);
-        // Void cells can connect to anything and can always be exposed
-        voidConstraints.posZ.canBeExposed = true;
-        voidConstraints.negZ.canBeExposed = true;
-        voidConstraints.posX.canBeExposed = true;
-        voidConstraints.negX.canBeExposed = true;
-        voidConstraints.posY.canBeExposed = true;
-        voidConstraints.negY.canBeExposed = true;
-        blockConstraints[VOID_BLOCK_ID] = voidConstraints;
-    }
-    
-    if (controller && controller->GetBlockUI()) {
-        auto uiConstraints = controller->GetBlockUI()->GetConstraints();
-        if (!uiConstraints.empty()) {
-            // Merge UI constraints with void constraints
-            for (const auto& [blockId, constraints] : uiConstraints) {
-                blockConstraints[blockId] = constraints;
-            }
-        } else {
-            auto assets = controller->GetBlockUI()->GetLoadedAssets();
-            for (const auto& asset : assets) {
-                blockConstraints[asset.id] = createDefaultConstraints(asset.id);
-            }
-        }
-    } else {
-        auto allBlockTypes = getAllBlockTypes();
-        for (int blockId : allBlockTypes) {
-            if (blockId != VOID_BLOCK_ID) { // Already handled above
-                blockConstraints[blockId] = createDefaultConstraints(blockId);
-            }
-        }
-    }
-    
-    std::cout << "Initialized constraints for " << blockConstraints.size() << " block types (including void cells)." << std::endl;
-}
-
-const BlockFaceConstraints* BlockGenerator::getFaceConstraints(const BlockConstraints& constraints, 
-                                                              const std::string& face) {
-    static const std::map<std::string, std::function<const BlockFaceConstraints&(const BlockConstraints&)>> faceMap = {
-        {"+Z", [](const auto& c) -> const auto& { return c.posZ; }},
-        {"-Z", [](const auto& c) -> const auto& { return c.negZ; }},
-        {"+X", [](const auto& c) -> const auto& { return c.posX; }},
-        {"-X", [](const auto& c) -> const auto& { return c.negX; }},
-        {"+Y", [](const auto& c) -> const auto& { return c.posY; }},
-        {"-Y", [](const auto& c) -> const auto& { return c.negY; }}
-    };
-    
-    auto it = faceMap.find(face);
-    return it != faceMap.end() ? &it->second(constraints) : nullptr;
-}
-
-std::string BlockGenerator::getOppositeFace(const std::string& face) {
-    static const std::map<std::string, std::string> opposites = {
-        {"+Z", "-Z"}, {"-Z", "+Z"}, {"+X", "-X"}, 
-        {"-X", "+X"}, {"+Y", "-Y"}, {"-Y", "+Y"}
-    };
-    
-    auto it = opposites.find(face);
-    return it != opposites.end() ? it->second : face;
 }
 
 // Helper functions
@@ -814,53 +799,6 @@ bool BlockGenerator::canPlaceBlock(int blockId) const {
     }
 }
 
-int BlockGenerator::selectBlockType() {
-    auto& settings = parameters.generationSettings;
-    
-    // First, check if we should use count-based selection
-    std::vector<int> availableBlocks;
-    
-    for (const auto& asset : loadedAssets) {
-        if (canPlaceBlock(asset.id)) {
-            availableBlocks.push_back(asset.id);
-        }
-    }
-    
-    if (availableBlocks.empty()) {
-        return VOID_BLOCK_ID; // No blocks available, place void
-    }
-    
-    // If all remaining blocks are unlimited, use weight-based selection
-    bool allUnlimited = true;
-    for (int blockId : availableBlocks) {
-        if (settings.maxBlockCounts[blockId] != -1) {
-            allUnlimited = false;
-            break;
-        }
-    }
-    
-    if (allUnlimited) {
-        // Use weight-based selection among unlimited blocks
-        return selectByWeight(availableBlocks);
-    } else {
-        // Prioritize count-based blocks (non-unlimited) first
-        std::vector<int> countBasedBlocks;
-        for (int blockId : availableBlocks) {
-            if (settings.maxBlockCounts[blockId] != -1) {
-                countBasedBlocks.push_back(blockId);
-            }
-        }
-        
-        if (!countBasedBlocks.empty()) {
-            // Randomly select from count-based blocks
-            return countBasedBlocks[rand() % countBasedBlocks.size()];
-        } else {
-            // Fall back to weight-based selection
-            return selectByWeight(availableBlocks);
-        }
-    }
-}
-
 int BlockGenerator::selectByWeight(const std::vector<int>& blocks) {
     if (blocks.empty()) return VOID_BLOCK_ID;
     
@@ -942,7 +880,6 @@ void BlockGenerator::incrementBlockCount(int blockId) {
               << settings.currentBlockCounts[blockId] << std::endl;
 }
 
-// Update your selectWeightedBlock method in BlockGenerator.cpp
 int BlockGenerator::selectWeightedBlock(const std::vector<int>& validBlocks) {
     // Filter blocks that can still be placed (haven't reached their count limit)
     std::vector<int> availableBlocks;
@@ -952,10 +889,10 @@ int BlockGenerator::selectWeightedBlock(const std::vector<int>& validBlocks) {
         }
     }
     
-    // If no blocks are available due to count limits, return VOID_BLOCK_ID or -1
+    // If no blocks are available due to count limits, return VOID_BLOCK_ID
     if (availableBlocks.empty()) {
         std::cout << "No blocks available - all have reached their count limits!" << std::endl;
-        return VOID_BLOCK_ID; // Or return -1 to indicate no block should be placed
+        return VOID_BLOCK_ID;
     }
     
     // Use weight-based selection only on blocks that can still be placed
