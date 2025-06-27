@@ -7,10 +7,11 @@
 #include <map>
 #include <functional>
 
+
 using namespace BlockUtilities;
 
 // Forward declarations
-class IBlockUIController;
+class BlockController;
 class Model;
 
 struct AssetInfo {
@@ -22,7 +23,7 @@ struct AssetInfo {
 
 class BlockUI {
 private:
-    IBlockUIController* controller;
+    BlockController* controller;
     BlockUtilities::BlockData parameters;
     std::vector<AssetInfo> loadedAssets;
     
@@ -50,6 +51,8 @@ private:
         bool enableRandomRotations = false;
     } genSettings;
     
+    bool showComponentEditor = false;
+    
     // Helper methods
     void resetConstraintsToDefault();
     BlockConstraints createDefaultConstraints(int blockId);
@@ -58,7 +61,7 @@ private:
     void OnApplyRandomRotationsRequested();
     
 public:
-    BlockUI(IBlockUIController* controller);
+    BlockUI(BlockController* controller);
     ~BlockUI();
     
     // Main UI display methods
@@ -101,4 +104,9 @@ public:
         rotationRequested = false; // Reset flag after reading
         return requested; 
     }
+    BlockUtilities::BlockData GetParameters() const {
+        return parameters;
+    }
+    void DisplayBlockConstraints();
+
 };

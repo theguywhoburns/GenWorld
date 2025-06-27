@@ -4,16 +4,18 @@
 #endif
 
 #include "BlockUI.h"
-#include "IBlockUIController.h"
+#include "../Controllers/BlockController.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <algorithm>
+#include <cctype>
+#include "../Core/BlockData.h"
+#include <iostream>
 #include <string>
 #include <cstring>
 #include <vector>
 #include <map>
 #include <memory>
-#include <iostream>
 #include <functional>
 #include <thread>
 
@@ -22,7 +24,7 @@
 #include "../Utils/FileDialogs.h"
 #include "../Drawables/Model.h"
 
-BlockUI::BlockUI(IBlockUIController* controller) : controller(controller) {
+BlockUI::BlockUI(BlockController* controller) : controller(controller) {
     // Initialize parameters with 3D support (gridWidth, gridHeight, gridLength, cellWidth, cellHeight, cellLength, blockScale)
     parameters = {20, 10, 20, 5.0f, 5.0f, 5.0f, 1.0f};
     // Initialize generation settings with 3D support
@@ -48,6 +50,8 @@ void BlockUI::DisplayUI() {
         if (ImGui::Button("Generate World", ImVec2(200, 40)) && controller) {
             controller->Generate();
         }
+        
+        DisplayBlockConstraints();  // Keep this for weight/limit controls
     }
     ImGui::End();
 }
@@ -311,6 +315,14 @@ void BlockUI::OnModelLoaded(std::shared_ptr<Model> model, const std::string& fil
         model
     };
     loadedAssets.push_back(newAsset);
+    
+    // Initialize count, weight, and limit for this new asset
+    parameters.generationSettings.currentBlockCounts[newAsset.id] = 0;
+    parameters.generationSettings.blockWeights[newAsset.id] = parameters.generationSettings.defaultWeight;
+    parameters.generationSettings.maxBlockCounts[newAsset.id] = -1; // Set to UNLIMITED by default, not 0!
+    
+    std::cout << "Loaded block " << newAsset.id << " - initialized with unlimited count" << std::endl;
+    
     resetConstraintsToDefault();
 }
 
@@ -334,4 +346,165 @@ void BlockUI::OnApplyRandomRotationsRequested() {
     // This will be handled by whoever owns the BlockGenerator
     // For now, we can store a flag or use a callback system
     rotationRequested = true;
+}
+
+void BlockUI::DisplayBlockConstraints() {
+    if (ImGui::CollapsingHeader("Block Generation Constraints", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto& settings = parameters.generationSettings;
+        
+        ImGui::Checkbox("Enforce Block Limits", &settings.enforceBlockLimits);
+        ImGui::SameLine();
+        if (ImGui::Button("?")) {
+            ImGui::SetTooltip("When enabled, blocks will stop generating once they reach their limit");
+        }
+        
+        ImGui::Checkbox("Use Weighted Selection", &settings.useWeightedSelection);
+        ImGui::SameLine();
+        if (ImGui::Button("??")) {
+            ImGui::SetTooltip("When enabled, blocks with higher weights appear more frequently");
+        }
+        
+        ImGui::SliderFloat("Default Weight", &settings.defaultWeight, 0.0f, 1.0f);
+        
+        ImGui::Separator();
+        
+        // Show total cells for reference
+        int totalCells = parameters.gridWidth * parameters.gridHeight * parameters.gridLength;
+        ImGui::Text("Total Grid Cells: %d", totalCells);
+        
+        // Display current counts and limits for each block type
+        if (ImGui::BeginTable("BlockConstraints", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn("Block");
+            ImGui::TableSetupColumn("Weight");
+            ImGui::TableSetupColumn("Count");
+            ImGui::TableSetupColumn("Unlimited");
+            ImGui::TableHeadersRow();
+            
+            auto& assets = GetLoadedAssets();
+            for (auto& asset : assets) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                
+                ImGui::Text("%s", GetFileName(asset.blockPath).c_str());
+                
+                ImGui::TableNextColumn();
+                float weight = settings.blockWeights[asset.id];
+                if (ImGui::SliderFloat(("##weight" + std::to_string(asset.id)).c_str(), &weight, 0.0f, 1.0f, "%.2f")) {
+                    settings.blockWeights[asset.id] = weight;
+                    std::cout << "Updated weight for block " << asset.id << " to " << weight << std::endl;
+                }
+                
+                ImGui::TableNextColumn();
+                // Make sure the count exists
+                if (settings.currentBlockCounts.find(asset.id) == settings.currentBlockCounts.end()) {
+                    settings.currentBlockCounts[asset.id] = 0;
+                }
+
+                bool unlimited = (settings.maxBlockCounts[asset.id] == -1);
+                if (unlimited) {
+                    ImGui::Text("Unlimited");
+                } else {
+                    int currentCount = settings.currentBlockCounts[asset.id];
+                    
+                    // Show count with + and - buttons
+                    if (ImGui::SmallButton(("-##" + std::to_string(asset.id)).c_str())) {
+                        if (settings.currentBlockCounts[asset.id] > 0) {
+                            settings.currentBlockCounts[asset.id]--;
+                        }
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("%d", currentCount);
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton(("+##" + std::to_string(asset.id)).c_str())) {
+                        settings.currentBlockCounts[asset.id]++;
+                        // Also update the limit to match the desired count
+                        if (settings.maxBlockCounts[asset.id] != -1) {
+                            settings.maxBlockCounts[asset.id] = settings.currentBlockCounts[asset.id];
+                        }
+                        std::cout << "Incremented block " << asset.id << " count to " 
+                                  << settings.currentBlockCounts[asset.id] << std::endl;
+                    }
+                }
+
+                ImGui::TableNextColumn();
+                if (ImGui::Checkbox(("##unlimited" + std::to_string(asset.id)).c_str(), &unlimited)) {
+                    settings.maxBlockCounts[asset.id] = unlimited ? -1 : totalCells / 4;
+                }
+            }
+            
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("Void Cells");
+                
+                ImGui::TableNextColumn();
+                float voidWeight = settings.blockWeights[VOID_BLOCK_ID];
+                if (ImGui::SliderFloat("##voidweight", &voidWeight, 0.0f, 1.0f, "%.2f")) {
+                    settings.blockWeights[VOID_BLOCK_ID] = voidWeight;
+                }
+                
+                ImGui::TableNextColumn();
+                bool voidUnlimited = (settings.maxBlockCounts[VOID_BLOCK_ID] == -1);
+                if (voidUnlimited) {
+                    ImGui::Text("Unlimited");
+                } else {
+                    int voidCount = settings.currentBlockCounts[VOID_BLOCK_ID];
+                    
+                    // Show void count with + and - buttons
+                    if (ImGui::SmallButton("-##void")) {
+                        if (settings.currentBlockCounts[VOID_BLOCK_ID] > 0) {
+                            settings.currentBlockCounts[VOID_BLOCK_ID]--;
+                        }
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("%d", voidCount);
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("+##void")) {
+                        settings.currentBlockCounts[VOID_BLOCK_ID]++;
+                    }
+                }
+
+                ImGui::TableNextColumn();
+                if (ImGui::Checkbox("##voidunlimited", &voidUnlimited)) {
+                    settings.maxBlockCounts[VOID_BLOCK_ID] = voidUnlimited ? -1 : totalCells;
+                }
+            }
+            
+            ImGui::EndTable();
+        
+        ImGui::Separator();
+        
+        if (ImGui::Button("Reset All Counts")) {
+            for (auto& [blockId, count] : settings.currentBlockCounts) {
+                count = 0;
+            }
+            std::cout << "Reset all block counts" << std::endl;
+        }
+        
+        ImGui::SameLine();
+        if (ImGui::Button("Equal Weights")) {
+            for (auto& [blockId, weight] : settings.blockWeights) {
+                weight = 0.5f;
+            }
+            std::cout << "Set all weights to 0.5" << std::endl;
+        }
+        
+        ImGui::SameLine();
+        if (ImGui::Button("Remove All Limits")) {
+            for (auto& [blockId, limit] : settings.maxBlockCounts) {
+                limit = -1; // Unlimited
+            }
+            std::cout << "Removed all block limits" << std::endl;
+        }
+        
+        // Debug weight information
+        if (ImGui::CollapsingHeader("Debug Info")) {
+            ImGui::Text("Weights Status:");
+            for (const auto& [blockId, weight] : settings.blockWeights) {
+                ImGui::Text("Block %d: Weight=%.2f, Count=%d, Limit=%d", 
+                           blockId, weight, 
+                           settings.currentBlockCounts[blockId],
+                           settings.maxBlockCounts[blockId]);
+            }
+        }
+    }
 }

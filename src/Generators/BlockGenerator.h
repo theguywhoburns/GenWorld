@@ -1,6 +1,7 @@
 #pragma once
 #include "../Core/BlockData.h"
 #include "IGeneratorStrategy.h"
+#include "../UI/BlockUI.h"
 #include <vector>
 #include <glm/glm.hpp>
 #include <memory>
@@ -48,6 +49,9 @@ private:
     // Rotation support
     bool randomRotationsEnabled = false;
 
+
+    std::vector<AssetInfo> loadedAssets;
+
 public:
     BlockGenerator();
     BlockGenerator(BlockController* controller);
@@ -74,6 +78,9 @@ public:
     void ApplyRandomRotationsToGrid();
     void SetRandomRotationsEnabled(bool enabled) { randomRotationsEnabled = enabled; }
     bool IsRandomRotationsEnabled() const { return randomRotationsEnabled; }
+    
+    // Block statistics and management
+    std::map<int, int> GetCurrentBlockCounts() const { return parameters.generationSettings.currentBlockCounts; }
 
 private:
     // Initialization
@@ -121,5 +128,20 @@ private:
 
     // Helper method for random rotations
     float getRandomYRotation() const;
+
+    // Block count and weight management
+    void initializeBlockWeights();
+    void resetBlockCounts();
+    bool canPlaceBlock(int blockId) const;
+    int selectWeightedBlock(const std::vector<int>& validBlocks);
+    void incrementBlockCount(int blockId);
+    std::vector<int> filterBlocksByConstraints(const std::vector<int>& blocks);
+
+    // Block selection and management methods
+    int selectBlockType();            // Already implemented in cpp
+    int selectByWeight(const std::vector<int>& blocks);
+    bool isUnlimitedBlock(int blockId) const;
+    std::vector<int> getAvailableBlocks() const;
+    bool hasReachedLimit(int blockId) const;
 };
 
