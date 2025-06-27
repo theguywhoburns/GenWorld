@@ -32,6 +32,7 @@ private:
     ~Application();
 
     void init();
+    void RenderTopBar();
     void shutdown();
     void LoadDefaultShaders();
 
@@ -45,6 +46,9 @@ private:
     SceneView sceneView;
     UiContext uiCtx;
     GeneratorController* generatorController;
+
+    BlockController* blockController = nullptr;
+    TerrainController* terrainController = nullptr;
 
     friend int main(void);
 };

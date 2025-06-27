@@ -45,10 +45,43 @@ void Application::init() {
 
     renderer.SetCamera(&camera);
 
-    std::cout << "Creating BlockController..." << std::endl;
-    generatorController = new BlockController(&renderer);
-    std::cout << "BlockController created successfully" << std::endl;
+    std::cout << "Creating Controllers..." << std::endl;
+
+    blockController = new BlockController(&renderer);
+    terrainController = new TerrainController(&renderer);
+
+    generatorController = blockController;
+
+    std::cout << "Controllers created successfully" << std::endl;
 }
+
+void Application::RenderTopBar() {
+    static int mode = 0; // 0 = Block Generation, 1 = Terrain Generation
+
+    // Main menu bar (at the very top)
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("Mode")) {
+            if (ImGui::MenuItem("Block Generation", nullptr, mode == 0)) {
+                mode = 0;
+            }
+            if (ImGui::MenuItem("Terrain Generation", nullptr, mode == 1)) {
+                mode = 1;
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::SameLine();
+        ImGui::Text("| Current: %s", mode == 0 ? "Block Generation" : "Terrain Generation");
+        ImGui::EndMainMenuBar();
+    }
+
+    // Always keep generatorController in sync with mode
+    if (mode == 0) {
+        generatorController = blockController;
+    } else {
+        generatorController = terrainController;
+    }
+}
+
 
 void Application::shutdown() {
     uiCtx.shutdown();
@@ -72,8 +105,10 @@ void Application::Run() {
 
         uiCtx.preRender();
 
+        
         uiCtx.render();	                    // Renders the Main Docking Window
         generatorController->DisplayUI();	    // Renders the TerrainUI Windows
+        RenderTopBar();	                    // Renders the top menu bar
         generatorController->Update();        // pushes the terrain data to Renderer
         sceneView.render();		            // Renders the Scene Window
 
