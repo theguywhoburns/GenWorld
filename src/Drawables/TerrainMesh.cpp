@@ -26,45 +26,16 @@ TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, 
 
 TerrainMesh::~TerrainMesh() {
     glDeleteTextures(1, &heightmapTextureID);
+    glDeleteTextures(1, &resultTextureID);
 }
 
 void TerrainMesh::Draw(Shader& shader) {
     // Activate the textures
-    std::vector<TerrainUtilities::TextureData> loadedTextures = data.loadedTextures;
-
-    shader.setInt("textureCount", loadedTextures.size());
-    shader.setBool("coloringMode", data.coloringMode);
-
-    for (int i = 0; i < loadedTextures.size(); i++) {
-        Texture::activate(GL_TEXTURE0 + i);
-
-        std::string name = "loadedTextures[" + std::to_string(i) + "]";
-        shader.setInt(name + ".texture", i);
-        shader.setFloat(name + ".height", loadedTextures[i].height);
-        shader.setVec2(name + ".tiling", loadedTextures[i].tiling);
-        shader.setVec2(name + ".offset", loadedTextures[i].offset);
-
-        loadedTextures[i].texture->bind();
-    }
-
-    shader.setInt("colorCount", data.colors.size());
-    for (int i = 0; i < data.colors.size(); i++) {
-        std::string name = "colors[" + std::to_string(i) + "]";
-        shader.setFloat(name + ".height", data.colors[i].height);
-        shader.setVec4(name + ".color", data.colors[i].color);
-    }
-
-    // Bind the height map texture
-    Texture::activate(GL_TEXTURE0 + loadedTextures.size());
-    shader.setInt("heightmap", loadedTextures.size());
-    glBindTexture(GL_TEXTURE_2D, heightmapTextureID);
-
+    BindTexturesAndColors();
     glBindVertexArray(arrayObj);
     glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
-
-    Texture::activate(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    UnbindTextures();
 
     // Preview with ImGui (Just for testing)
     ImGui::Begin("Terrain Texture Preview");
@@ -107,16 +78,23 @@ void TerrainMesh::RenderToTexture() {
     textureShader->use();
 
     FrameBuffer frameBuffer;
+
+    glViewport(0, 0, 1024, 1024);
     frameBuffer.Resize(1024, 1024);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     frameBuffer.bind();
-    glViewport(0, 0, 1024, 1024);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // Draw the terrain mesh to the framebuffer
-    Draw(*textureShader);
-
+    BindTexturesAndColors();
+    GLuint emptyVAO;
+    glGenVertexArrays(1, &emptyVAO);
+    glBindVertexArray(emptyVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &emptyVAO);
+    UnbindTextures();
 
     // Read the pixels from the framebuffer
     unsigned char* pixels = new unsigned char[1024 * 1024 * 4];
@@ -124,7 +102,6 @@ void TerrainMesh::RenderToTexture() {
     frameBuffer.unbind();
 
     // Create a texture for the result
-    glDeleteTextures(1, &resultTextureID);
     glGenTextures(1, &resultTextureID);
     glBindTexture(GL_TEXTURE_2D, resultTextureID);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -136,9 +113,43 @@ void TerrainMesh::RenderToTexture() {
     glBindTexture(GL_TEXTURE_2D, 0);
 
     delete[] pixels;
-
-    // Unbind the framebuffer
     frameBuffer.Destroy();
+}
+
+void TerrainMesh::BindTexturesAndColors() {
+    std::vector<TerrainUtilities::TextureData> loadedTextures = data.loadedTextures;
+
+    textureShader->setInt("textureCount", loadedTextures.size());
+    textureShader->setBool("coloringMode", data.coloringMode);
+
+    for (int i = 0; i < loadedTextures.size(); i++) {
+        Texture::activate(GL_TEXTURE0 + i);
+
+        std::string name = "loadedTextures[" + std::to_string(i) + "]";
+        textureShader->setInt(name + ".texture", i);
+        textureShader->setFloat(name + ".height", loadedTextures[i].height);
+        textureShader->setVec2(name + ".tiling", loadedTextures[i].tiling);
+        textureShader->setVec2(name + ".offset", loadedTextures[i].offset);
+
+        loadedTextures[i].texture->bind();
+    }
+
+    textureShader->setInt("colorCount", data.colors.size());
+    for (int i = 0; i < data.colors.size(); i++) {
+        std::string name = "colors[" + std::to_string(i) + "]";
+        textureShader->setFloat(name + ".height", data.colors[i].height);
+        textureShader->setVec4(name + ".color", data.colors[i].color);
+    }
+
+    // Bind the height map texture
+    Texture::activate(GL_TEXTURE0 + loadedTextures.size());
+    textureShader->setInt("heightmap", loadedTextures.size());
+    glBindTexture(GL_TEXTURE_2D, heightmapTextureID);
+}
+
+void TerrainMesh::UnbindTextures() {
+    Texture::activate(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projection) {
@@ -146,7 +157,7 @@ void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projecti
         const std::string& modelPath = pair.first;
         const std::vector<glm::mat4>& instances = pair.second;
 
-        if(instances.empty()) continue;
+        if (instances.empty()) continue;
 
         std::shared_ptr<Model> model = instanceMeshes[modelPath];
         if (model) {

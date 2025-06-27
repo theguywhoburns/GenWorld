@@ -26,6 +26,9 @@ private:
     std::shared_ptr<Shader> textureShader;
     void RenderToTexture();
 
+    void BindTexturesAndColors();
+    void UnbindTextures();
+
     std::unordered_map<std::string, std::shared_ptr<Model>> instanceMeshes;
     std::unordered_map<std::string, std::vector<glm::mat4>> modelInstances;
     void DrawInstances(const glm::mat4& view, const glm::mat4& projection);

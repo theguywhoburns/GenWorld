@@ -1,9 +1,5 @@
 #version 440 core
 
-layout(location = 1) in vec3 aNormal;
-layout(location = 2) in vec3 aColor;
-
-out vec3 vertexColor;
 out vec2 vertexTexCoord;
 
 void main() {
@@ -25,6 +21,5 @@ void main() {
         (pos.y + 1.0) * 0.5   // Convert from [-1,1] to [0,1]
     );
 
-    vertexColor = aColor;
     gl_Position = vec4(positions[gl_VertexID], 0.0, 1.0); 
 }

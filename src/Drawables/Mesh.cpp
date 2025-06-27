@@ -12,6 +12,7 @@ Mesh::~Mesh() {
 	if (vertexBuffer) glDeleteBuffers(1, &vertexBuffer);
 	if (indexBuffer) glDeleteBuffers(1, &indexBuffer);
 	if (arrayObj) glDeleteVertexArrays(1, &arrayObj);
+	if (instancingInitialized) glDeleteBuffers(1, &instanceVBO);
 
 	vertexBuffer = 0;
 	indexBuffer = 0;
