@@ -63,6 +63,8 @@ bool AppWindow::init() {
     glEnable(GL_CULL_FACE);            // Enable face culling
     glCullFace(GL_BACK);               // Cull back faces (default)
     glFrontFace(GL_CCW);               // Set front face to counter-clockwise winding order
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // uncomment this call to draw in wireframe polygons.
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

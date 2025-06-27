@@ -28,6 +28,17 @@ void Model::SetShader(std::shared_ptr<Shader> shader) {
 	}
 }
 
+void Model::SetShader(const std::string& shaderName) {
+	m_shader = ShaderManager::GetInstance()->getShader(shaderName);
+	if (!m_shader) {
+		throw std::runtime_error("Shader not found: " + shaderName);
+	}
+
+	for (auto& mesh : meshes) {
+		mesh->SetShader(m_shader);
+	}
+}
+
 void Model::loadModel(string path) {
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);

@@ -17,6 +17,9 @@ public:
 
     float GetHeightAt(float x, float z) const;
 
+protected:
+    void bindTextures(Shader& shader) override;
+
 private:
     TerrainUtilities::TerrainData data;
     vector<float> heightMap;
@@ -25,9 +28,6 @@ private:
     unsigned int resultTextureID = 0;
     std::shared_ptr<Shader> textureShader;
     void RenderToTexture();
-
-    void BindTexturesAndColors();
-    void UnbindTextures();
 
     std::unordered_map<std::string, std::shared_ptr<Model>> instanceMeshes;
     std::unordered_map<std::string, std::vector<glm::mat4>> modelInstances;

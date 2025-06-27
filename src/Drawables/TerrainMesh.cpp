@@ -7,7 +7,8 @@ TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, 
     this->data = terrainData;
     this->heightMap = heightMap;
 
-    m_shader = ShaderManager::GetInstance()->getShader("terrain");
+    m_renderedShader = "terrain";
+    SetShader(m_renderedShader);
     textureShader = ShaderManager::GetInstance()->getShader("terrainTexture");
 
     // Create a texture for the height map
@@ -31,11 +32,7 @@ TerrainMesh::~TerrainMesh() {
 
 void TerrainMesh::Draw(Shader& shader) {
     // Activate the textures
-    BindTexturesAndColors();
-    glBindVertexArray(arrayObj);
-    glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
-    UnbindTextures();
+    Mesh::Draw(shader);
 
     // Preview with ImGui (Just for testing)
     ImGui::Begin("Terrain Texture Preview");
@@ -44,17 +41,10 @@ void TerrainMesh::Draw(Shader& shader) {
 }
 
 void TerrainMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
-    if (m_shader != nullptr) {
-        m_shader->use();
-        glm::mat4 model = transform.getModelMatrix();
-        m_shader->setMat4("model", model);
-        m_shader->setMat4("view", view);
-        m_shader->setMat4("projection", projection);
-        Draw(*m_shader);
+    Mesh::Draw(view, projection);
 
-        // Draw instances
-        DrawInstances(view, projection);
-    }
+    // Draw instances
+    DrawInstances(view, projection);
 }
 
 void TerrainMesh::AddInstance(const std::string& modelPath, const Transform& transform) {
@@ -87,14 +77,14 @@ void TerrainMesh::RenderToTexture() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // Draw the terrain mesh to the framebuffer
-    BindTexturesAndColors();
+    bindTextures(*textureShader);
     GLuint emptyVAO;
     glGenVertexArrays(1, &emptyVAO);
     glBindVertexArray(emptyVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
     glDeleteVertexArrays(1, &emptyVAO);
-    UnbindTextures();
+    unbindTextures();
 
     // Read the pixels from the framebuffer
     unsigned char* pixels = new unsigned char[1024 * 1024 * 4];
@@ -116,40 +106,35 @@ void TerrainMesh::RenderToTexture() {
     frameBuffer.Destroy();
 }
 
-void TerrainMesh::BindTexturesAndColors() {
+void TerrainMesh::bindTextures(Shader& shader) {
     std::vector<TerrainUtilities::TextureData> loadedTextures = data.loadedTextures;
 
-    textureShader->setInt("textureCount", loadedTextures.size());
-    textureShader->setBool("coloringMode", data.coloringMode);
+    shader.setInt("textureCount", loadedTextures.size());
+    shader.setBool("coloringMode", data.coloringMode);
 
     for (int i = 0; i < loadedTextures.size(); i++) {
         Texture::activate(GL_TEXTURE0 + i);
 
         std::string name = "loadedTextures[" + std::to_string(i) + "]";
-        textureShader->setInt(name + ".texture", i);
-        textureShader->setFloat(name + ".height", loadedTextures[i].height);
-        textureShader->setVec2(name + ".tiling", loadedTextures[i].tiling);
-        textureShader->setVec2(name + ".offset", loadedTextures[i].offset);
+        shader.setInt(name + ".texture", i);
+        shader.setFloat(name + ".height", loadedTextures[i].height);
+        shader.setVec2(name + ".tiling", loadedTextures[i].tiling);
+        shader.setVec2(name + ".offset", loadedTextures[i].offset);
 
         loadedTextures[i].texture->bind();
     }
 
-    textureShader->setInt("colorCount", data.colors.size());
+    shader.setInt("colorCount", data.colors.size());
     for (int i = 0; i < data.colors.size(); i++) {
         std::string name = "colors[" + std::to_string(i) + "]";
-        textureShader->setFloat(name + ".height", data.colors[i].height);
-        textureShader->setVec4(name + ".color", data.colors[i].color);
+        shader.setFloat(name + ".height", data.colors[i].height);
+        shader.setVec4(name + ".color", data.colors[i].color);
     }
 
     // Bind the height map texture
     Texture::activate(GL_TEXTURE0 + loadedTextures.size());
-    textureShader->setInt("heightmap", loadedTextures.size());
+    shader.setInt("heightmap", loadedTextures.size());
     glBindTexture(GL_TEXTURE_2D, heightmapTextureID);
-}
-
-void TerrainMesh::UnbindTextures() {
-    Texture::activate(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projection) {
@@ -161,7 +146,7 @@ void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projecti
 
         std::shared_ptr<Model> model = instanceMeshes[modelPath];
         if (model) {
-            model->SetShader(ShaderManager::GetInstance()->getShader("unshaded"));  // TODO: change this to the appropriate shader if needed according to the viewport render mode
+            model->SetShader("rendered");  // TODO: change this to the appropriate shader if needed according to the viewport render mode
             model->DrawInstanced(view, projection, instances);
         }
     }

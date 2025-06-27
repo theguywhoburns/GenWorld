@@ -21,11 +21,9 @@ Mesh::~Mesh() {
 
 void Mesh::Draw(Shader& shader) {
 	bindTextures(shader);
-
 	glBindVertexArray(arrayObj);
 	glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
-
 	unbindTextures();
 }
 
@@ -34,17 +32,22 @@ void Mesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
 		m_shader->use();
 
 		glm::mat4 model = transform.getModelMatrix();
-		m_shader->setMat4("model", model);
-		m_shader->setMat4("view", view);
-		m_shader->setMat4("projection", projection);
+		m_shader->setMat4("uModel", model);
+		m_shader->setMat4("uView", view);
+		m_shader->setMat4("uProjection", projection);
+
+		// viewport shading uniforms
+
 		Draw(*m_shader);
 	}
 }
 
 void Mesh::DrawInstanced(unsigned int instanceCount, const glm::mat4& view, const glm::mat4& projection) {
 	m_shader->use();
-	m_shader->setMat4("view", view);
-	m_shader->setMat4("projection", projection);
+
+	m_shader->setMat4("uModel", glm::mat4(1.0f));
+	m_shader->setMat4("uView", view);
+	m_shader->setMat4("uProjection", projection);
 
 	bindTextures(*m_shader);
 
@@ -154,7 +157,7 @@ void Mesh::InitializeInstanceBuffer() {
 	glBindVertexArray(arrayObj);
 	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 
-	// Set attribute layout for mat4 (locations 4,5,6,7)
+	// Set attribute layout for mat4 (locations 8 to 11)
 	std::size_t vec4Size = sizeof(glm::vec4);
 	for (int i = 0; i < 4; ++i) {
 		glEnableVertexAttribArray(8 + i);
