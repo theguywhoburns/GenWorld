@@ -83,9 +83,6 @@ void AppWindow::newFrame() {
     processInput();
     calculateMousePos();
     updateTitle();
-
-    setClearColor(glm::vec4(0.1f, 0.1f, 0.1f, 1.0f));
-    clearBuffers();
 }
 
 void AppWindow::onUpdate() {
@@ -95,16 +92,16 @@ void AppWindow::onUpdate() {
     glfwPollEvents();
 }
 
-void AppWindow::setSize(int width, int height) {
-    SCR_WIDTH = width;
-    SCR_HEIGHT = height;
+void AppWindow::setViewPortSize(int width, int height) {
+    VIEWPORT_WIDTH = width;
+    VIEWPORT_HEIGHT = height;
     glViewport(0, 0, width, height);
 }
 
-void AppWindow::setSize(const glm::vec2& size) {
-    SCR_WIDTH = (int)size.x;
-    SCR_HEIGHT = (int)size.y;
-    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+void AppWindow::setViewPortSize(const glm::vec2& size) {
+    VIEWPORT_WIDTH = (int)size.x;
+    VIEWPORT_HEIGHT = (int)size.y;
+    glViewport(0, 0, size.x, size.y);
 }
 
 void AppWindow::calculateMousePos() {
@@ -134,5 +131,6 @@ void AppWindow::processInput() {
 
 void AppWindow::resize_callback(GLFWwindow* window, int width, int height) {
     AppWindow* win = static_cast<AppWindow*>(glfwGetWindowUserPointer(window));
-    win->setSize(width, height);
+    win->SCR_WIDTH = width;
+    win->SCR_HEIGHT = height;
 }
