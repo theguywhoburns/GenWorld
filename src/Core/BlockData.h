@@ -68,6 +68,7 @@ namespace BlockUtilities {
         // Add socket system
         SocketSystem socketSystem;
         std::map<int, int> blockRotations; // blockId -> current rotation
+        bool useSocketSystem = true;
     };
     
 } // namespace BlockUtilities

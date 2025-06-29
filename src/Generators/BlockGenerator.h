@@ -42,6 +42,13 @@ private:
     std::vector<std::vector<std::vector<GridCell>>> grid; // 3D grid: [x][y][z]
     Mesh* generatorMesh;
 
+    // Animation support
+    bool animationEnabled = false;
+    float animationDelay = 50.0f;
+    std::vector<std::tuple<int, int, int>> animationQueue; // 3D coordinates
+    
+    // Rotation support
+    bool randomRotationsEnabled = false;
     std::vector<AssetInfo> loadedAssets;
 
 public:
@@ -60,8 +67,16 @@ public:
     // Asset detection
     void DetectCellSizeFromAssets();
     
+    // Animation control
+    void SetAnimationEnabled(bool enabled) { animationEnabled = enabled; }
+    void SetAnimationDelay(float delay) { animationDelay = delay; }
+    bool IsAnimationInProgress() const { return !animationQueue.empty(); }
+    void UpdateAnimation();
 
+    // Rotation methods
     void ApplyRandomRotationsToGrid();
+    void SetRandomRotationsEnabled(bool enabled) { randomRotationsEnabled = enabled; }
+    bool IsRandomRotationsEnabled() const { return randomRotationsEnabled; }
     
     // Block statistics and management
     std::map<int, int> GetCurrentBlockCounts() const { return parameters.generationSettings.currentBlockCounts; }
@@ -81,6 +96,7 @@ private:
     
     // Generation methods
     void generateGridMultithreaded();
+    void generateGridWithAnimation();
     void processRemainingCells();
     
     // NEW: Socket-based constraint validation

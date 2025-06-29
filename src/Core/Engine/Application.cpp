@@ -21,28 +21,38 @@ Application::~Application() {
 }
 
 void Application::init() {
+    std::cout << "Starting window initialization..." << std::endl;
     if (!m_window->init()) {
         std::cerr << "Failed to initialize window" << std::endl;
         m_isRunning = false;
         return;
     }
+    std::cout << "Window initialized successfully" << std::endl;
 
+    std::cout << "Loading shaders..." << std::endl;
     LoadDefaultShaders();
+    std::cout << "Shaders loaded" << std::endl;
 
+    std::cout << "Initializing scene view..." << std::endl;
     sceneView.init(m_window);
     sceneView.setCamera(&camera);
     sceneView.setRenderer(&renderer);
+    std::cout << "Scene view initialized" << std::endl;
 
+    std::cout << "Initializing UI context..." << std::endl;
     uiCtx.init(m_window);
-
+    std::cout << "UI context initialized" << std::endl;
 
     renderer.SetCamera(&camera);
+
+    std::cout << "Creating Controllers..." << std::endl;
 
     blockController = new BlockController(&renderer);
     terrainController = new TerrainController(&renderer);
 
     generatorController = blockController;
 
+    std::cout << "Controllers created successfully" << std::endl;
 }
 
 void Application::RenderTopBar() {

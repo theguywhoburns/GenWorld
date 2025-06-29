@@ -30,6 +30,7 @@ struct BlockTemplate {
     std::string name;
     std::array<Socket, 6> sockets; // [+X, -X, +Y, -Y, +Z, -Z]
     std::vector<int> allowedRotations; // [0, 90, 180, 270] degrees
+    int forwardFace = 4; // Default: +Z is "front"
     BlockTemplate(int id = 0) : blockId(id) {
         // Default: all sockets are EMPTY and symmetric
         sockets.fill(Socket(SocketType::EMPTY, true));
