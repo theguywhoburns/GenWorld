@@ -17,9 +17,6 @@ public:
 
     float GetHeightAt(float x, float z) const;
 
-protected:
-    void bindTextures(Shader& shader) override;
-
 private:
     TerrainUtilities::TerrainData data;
     vector<float> heightMap;
