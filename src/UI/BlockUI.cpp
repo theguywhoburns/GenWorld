@@ -28,7 +28,7 @@ BlockUI::BlockUI(BlockController* controller) : controller(controller) {
     // Initialize parameters with 3D support (gridWidth, gridHeight, gridLength, cellWidth, cellHeight, cellLength, blockScale)
     parameters = {20, 10, 20, 5.0f, 5.0f, 5.0f, 1.0f};
     // Initialize generation settings with 3D support
-    genSettings = {4, true, 20, 10, 20, 1.0f, false, 50.0f, false}; // Added enableRandomRotations = false
+    genSettings = {20, 10, 20, 1.0f};
 }
 
 void BlockUI::DisplayUI() {
@@ -91,17 +91,7 @@ void BlockUI::DisplayBasicSettings() {
         
         ImGui::Separator();
         
-        // Random Rotation Settings
-        ImGui::Checkbox("Enable Random Y-Axis Rotations", &genSettings.enableRandomRotations);
-        if (genSettings.enableRandomRotations) {
-            ImGui::TextColored(ImVec4(0.7f, 0.9f, 0.7f, 1.0f), "Blocks will be randomly rotated around Y-axis (0°, 90°, 180°, 270°)");
-        }
         
-        // Apply Random Rotations button (only if world is already generated)
-        if (ImGui::Button("Apply Random Rotations to Existing World", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
-            OnApplyRandomRotationsRequested();
-        }
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "This will apply random Y-axis rotations to all blocks in the current world");
     }
     
     // Asset Management
@@ -130,30 +120,6 @@ void BlockUI::DisplayBasicSettings() {
         } else {
             for (const auto& asset : loadedAssets) {
                 ImGui::Text("ID %d: %s", asset.id, GetFileName(asset.blockPath).c_str());
-            }
-        }
-    }
-    
-    // Generation Settings
-    if (ImGui::CollapsingHeader("Generation Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::SliderInt("Thread Count", &genSettings.threadCount, 1, 16);
-        ImGui::Text("Recommended: %d threads", std::thread::hardware_concurrency());
-        
-        ImGui::Checkbox("Use Socket System", &parameters.useSocketSystem);
-        ImGui::SameLine();
-        if (ImGui::Button("?")) {
-            ImGui::SetTooltip("When enabled, uses socket-based constraints instead of face constraints");
-        }
-        
-        ImGui::Separator();
-        ImGui::Checkbox("Enable Popping Animation", &genSettings.enablePoppingAnimation);
-        
-        if (genSettings.enablePoppingAnimation) {
-            ImGui::SliderFloat("Animation Delay (ms)", &genSettings.animationDelay, 10.0f, 500.0f, "%.1f ms");
-            ImGui::Text("Blocks will appear with %.1f ms delay between each", genSettings.animationDelay);
-            
-            if (genSettings.threadCount > 1) {
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Note: Animation forces single-threaded generation");
             }
         }
     }
@@ -210,16 +176,8 @@ void BlockUI::DisplaySocketEditor() {
         
         ImGui::Separator();
         ImGui::Text("Block Orientation:");
-        ImGui::Text("Current Front Face: %s", faceNames[currentTemplate.forwardFace]);
+
         ImGui::SameLine();
-        if (ImGui::BeginCombo("Set Front Face", faceNames[currentTemplate.forwardFace])) {
-            for (int i = 0; i < 6; ++i) {
-                if (ImGui::Selectable(faceNames[i], currentTemplate.forwardFace == i)) {
-                    currentTemplate.forwardFace = i;
-                }
-            }
-            ImGui::EndCombo();
-        }
 
         for (int face = 0; face < 6; face++) {
             ImGui::PushID(face);
@@ -426,10 +384,6 @@ std::string BlockUI::GetFileName(const std::string& filepath) {
 BlockUI::~BlockUI() {
     loadedAssets.clear();
     controller = nullptr;
-}
-
-void BlockUI::OnApplyRandomRotationsRequested() {
-    rotationRequested = true;
 }
 
 void BlockUI::DisplayBlockConstraints() {
