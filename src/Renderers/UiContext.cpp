@@ -1,5 +1,14 @@
 #include "UiContext.h"
 
+void UiContext::switchTheme() {
+    isDarkTheme = !isDarkTheme;
+    if (isDarkTheme) {
+        ImGui::Spectrum::StyleColorsDark();
+    } else {
+        ImGui::Spectrum::StyleColorsLight();
+    }
+}
+
 bool UiContext::init(AppWindow* window) {
     this->window = window;
     if (window == nullptr) {
@@ -20,6 +29,8 @@ bool UiContext::init(AppWindow* window) {
 
     // Setup ImGui style
 
+    // Initialize with dark theme by default
+    ImGui::Spectrum::StyleColorsDark();
     // Check if layout file exists
     std::ifstream iniFile(io.IniFilename);
     if (iniFile.good()) {
@@ -151,6 +162,16 @@ void UiContext::renderMenuBar() {
             }
             if (ImGui::MenuItem("Properties")) {
                 // Toggle Properties visibility
+            }
+            // Theme selector as a submenu item
+            if (ImGui::BeginMenu("Theme")) {
+                if (ImGui::MenuItem("Dark Theme", nullptr, isDarkTheme)) {
+                    if (!isDarkTheme) switchTheme();
+                }
+                if (ImGui::MenuItem("Light Theme", nullptr, !isDarkTheme)) {
+                    if (isDarkTheme) switchTheme();
+                }
+                ImGui::EndMenu();
             }
             ImGui::EndMenu();
         }
