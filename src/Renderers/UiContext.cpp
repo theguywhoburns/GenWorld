@@ -3,9 +3,9 @@
 void UiContext::switchTheme() {
     isDarkTheme = !isDarkTheme;
     if (isDarkTheme) {
-        ImGui::Spectrum::StyleColorsDark();
+        ImGui::Spectrum::StyleColorsSpectrum();
     } else {
-        ImGui::Spectrum::StyleColorsLight();
+        ImGui::StyleColorsLight();
     }
 }
 
@@ -27,10 +27,9 @@ bool UiContext::init(AppWindow* window) {
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
-    // Setup ImGui style
 
     // Initialize with dark theme by default
-    ImGui::Spectrum::StyleColorsDark();
+    ImGui::Spectrum::StyleColorsSpectrum();
     // Check if layout file exists
     std::ifstream iniFile(io.IniFilename);
     if (iniFile.good()) {
