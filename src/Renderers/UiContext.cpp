@@ -112,7 +112,7 @@ void UiContext::renderDockingWindow() {
             defaultLayout();
         }
 
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoWindowMenuButton);
     }
     ImGui::End();
 }
@@ -214,15 +214,12 @@ void UiContext::defaultLayout() {
 
     // regions
     ImGuiID top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.2f, nullptr, &dockspace_id);
-    ImGuiID down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
-    ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.25f, nullptr, &dockspace_id);
-    ImGuiID right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.25f, nullptr, &dockspace_id);
+    ImGuiID down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.2f, nullptr, &dockspace_id);
+    ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.35f, nullptr, &dockspace_id);
+    ImGuiID right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.5f, nullptr, &dockspace_id);
 
     ImGui::DockBuilderDockWindow("Scene View", dockspace_id);
     ImGui::DockBuilderDockWindow("Terrain Settings", right);
-    ImGui::DockBuilderDockWindow("Decoration Settings", right);
-    ImGui::DockBuilderDockWindow("Color Settings", right);
-    ImGui::DockBuilderDockWindow("Texture Settings", right);
     // Add more windows later
 
     ImGui::DockBuilderFinish(dockspace_id);

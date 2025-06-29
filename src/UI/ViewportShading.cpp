@@ -63,7 +63,7 @@ void ShadingPanel::renderModeOverlay() {
     // Position at top-right of scene view
     ImVec2 overlayPos(
         contentRegionMin.x + 10,
-        contentRegionMin.y + 25
+        contentRegionMin.y + 40
     );
 
     ImGui::SetCursorPos(overlayPos);
@@ -186,7 +186,7 @@ void ShadingPanel::renderCollapsedPanel() {
         ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
         ImVec2 overlayPos(
             contentRegionMin.x + 10,
-            contentRegionMin.y + 70
+            contentRegionMin.y + 85
         );
         ImGui::SetCursorPos(overlayPos);
 
@@ -252,11 +252,11 @@ void ShadingPanel::renderExpandedPanel() {
     
     if (ImGui::Begin("ShadingPanelExpanded", nullptr, flags)) {
         ImVec2 originalPos = ImGui::GetCursorPos();
-        ImVec2 overlaySize(400, 300);
+        ImVec2 overlaySize(400, 500);
         ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
         ImVec2 overlayPos(
             contentRegionMin.x + 10,
-            contentRegionMin.y + 70
+            contentRegionMin.y + 85
         );
         ImGui::SetCursorPos(overlayPos);
 
