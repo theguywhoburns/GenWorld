@@ -5,15 +5,6 @@ TerrainUI::TerrainUI(TerrainController *controller) : controller(controller)
     // Initialize Spectrum UI theme
     ImGui::Spectrum::StyleColorsSpectrum();
 
-    // Set the initial theme
-    if (isDarkTheme)
-    {
-        ImGui::Spectrum::StyleColorsDark();
-    }
-    else
-    {
-        ImGui::Spectrum::StyleColorsLight();
-    }
 
     ImGui::Spectrum::LoadFonts(25.0f, 30.0f); // Load regular font at 25pt, bold font at 30pt
 
@@ -163,8 +154,12 @@ void TerrainUI::DisplaySceneViewOverlay()
                       ImGuiWindowFlags_NoScrollbar |
                           ImGuiWindowFlags_NoScrollWithMouse |
                           ImGuiWindowFlags_NoTitleBar);
-
+    
+    // Force white text for the checkbox to ensure visibility on dark overlay
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
     ImGui::Checkbox("Live Update", &liveUpdate);
+    ImGui::PopStyleColor();
+    // ImGui::Checkbox("Live Update", &liveUpdate);
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
