@@ -64,21 +64,10 @@ public:
         }
         
         auto it = connectionRules.find({socketA, socketB});
+        
         return it != connectionRules.end() ? it->second : false;
     }
     
-    void SetupDefaultRules() {
-        // Same types can connect to each other
-        AddRule(SocketType::GRASS, SocketType::GRASS, true);
-        AddRule(SocketType::STONE, SocketType::STONE, true);
-        AddRule(SocketType::WOOD, SocketType::WOOD, true);
-        AddRule(SocketType::METAL, SocketType::METAL, true);
-        
-        // Custom cross-connections (you can modify these)
-        AddRule(SocketType::GRASS, SocketType::STONE, false);
-        AddRule(SocketType::WOOD, SocketType::METAL, true);
-        // Add more rules as needed...
-    }
 
     void ClearAllRules() {
         connectionRules.clear();

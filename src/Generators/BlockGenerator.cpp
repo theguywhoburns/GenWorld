@@ -109,6 +109,7 @@ void BlockGenerator::initializeSocketSystem() {
     }
     
     parameters.socketSystem.GenerateRotatedVariants();
+    buildAdjacencyTable();
     std::cout << "Socket system initialized for all block types" << std::endl;
 }
 
@@ -394,22 +395,30 @@ void BlockGenerator::updateCellPossibilities(int x, int y, int z) {
     auto& cell = grid[x][y][z];
     if (cell.collapsed) return;
 
+    const int BLOCK_CANDIDATE_LIMIT = 10;      // Limit number of block types checked
+    const int ROTATION_CANDIDATE_LIMIT = 4;    // Limit number of rotations checked per block
+
     std::vector<int> validBlocks;
     std::vector<std::pair<int, int>> validPairs;
 
+    int blockCount = 0;
     for (int blockId : cell.possibleBlockTypes) {
         if (!canPlaceBlock(blockId)) continue;
+        if (blockCount >= BLOCK_CANDIDATE_LIMIT) break; // Limit block candidates
 
         auto& templates = parameters.socketSystem.GetBlockTemplates();
         auto it = templates.find(blockId);
 
         bool foundValidRotation = false;
+        int rotationCount = 0;
         if (it != templates.end()) {
             for (int rotation : it->second.allowedRotations) {
+                if (rotationCount >= ROTATION_CANDIDATE_LIMIT) break; // Limit rotation candidates
                 if (isBlockValidAtPosition(x, y, z, blockId, rotation)) {
                     validPairs.emplace_back(blockId, rotation);
                     foundValidRotation = true;
                 }
+                rotationCount++;
             }
         } else {
             if (isBlockValidAtPosition(x, y, z, blockId, 0)) {
@@ -420,6 +429,7 @@ void BlockGenerator::updateCellPossibilities(int x, int y, int z) {
         if (foundValidRotation) {
             validBlocks.push_back(blockId);
         }
+        blockCount++;
     }
 
     cell.possibleBlockTypes = validBlocks;
@@ -451,39 +461,76 @@ bool BlockGenerator::isBlockValidAtPosition(int x, int y, int z, int blockId, in
     return true;
 }
 
+void BlockGenerator::buildAdjacencyTable() {
+    adjacencyTable.clear();
+    auto& templates = parameters.socketSystem.GetBlockTemplates();
+
+    for (const auto& [blockId, blockTemplate] : templates) {
+        for (int rotation : blockTemplate.allowedRotations) {
+            for (int face = 0; face < 6; ++face) {
+                for (const auto& [neighborId, neighborTemplate] : templates) {
+                    for (int neighborRotation : neighborTemplate.allowedRotations) {
+                        // Skip void blocks if you want
+                        if (blockId == VOID_BLOCK_ID || neighborId == VOID_BLOCK_ID) continue;
+
+                        int oppositeFace = getOppositeFaceIndex(face);
+                        if (parameters.socketSystem.CanBlocksConnect(
+                                blockId, rotation, face,
+                                neighborId, neighborRotation, oppositeFace)) {
+                            adjacencyTable[{blockId, rotation, face}]
+                                .insert({neighborId, neighborRotation});
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 bool BlockGenerator::validateNeighborCompatibility(int blockId, int rotation, int faceIndex, 
                                                   const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ) {
     int oppositeFace = getOppositeFaceIndex(faceIndex);
-    
+
     if (neighborCell.collapsed && !neighborCell.blockTypeIds.empty()) {
-        // Neighbor is already placed
         int neighborBlockId = neighborCell.blockTypeIds[0];
         int neighborRotation = neighborCell.blockRotations.empty() ? 0 : neighborCell.blockRotations[0];
-        
-        return canBlocksConnectWithSockets(blockId, rotation, faceIndex, 
-                                          neighborBlockId, neighborRotation, oppositeFace);
+
+        if (neighborBlockId == VOID_BLOCK_ID || blockId == VOID_BLOCK_ID) {
+            return true;
+        }
+
+        // Use adjacency table
+        auto key = std::make_tuple(blockId, rotation, faceIndex);
+        auto it = adjacencyTable.find(key);
+        if (it != adjacencyTable.end()) {
+            return it->second.count({neighborBlockId, neighborRotation}) > 0;
+        }
+        return false;
     }
-    
+
     if (!neighborCell.collapsed) {
-        // Check if any possible neighbor configuration can connect
         for (int possibleNeighborId : neighborCell.possibleBlockTypes) {
-            // Try all possible rotations for the neighbor
-            auto& socketSystem = parameters.socketSystem;
-            auto& templates = socketSystem.GetBlockTemplates();
+            auto& templates = parameters.socketSystem.GetBlockTemplates();
             auto it = templates.find(possibleNeighborId);
-            
             if (it != templates.end()) {
                 for (int neighborRotation : it->second.allowedRotations) {
-                    if (canBlocksConnectWithSockets(blockId, rotation, faceIndex, 
-                                                   possibleNeighborId, neighborRotation, oppositeFace)) {
-                        return true; // Found at least one valid connection
+                    if (possibleNeighborId == VOID_BLOCK_ID || blockId == VOID_BLOCK_ID) {
+                        continue;
+                    }
+                    // Use adjacency table
+                    auto key = std::make_tuple(blockId, rotation, faceIndex);
+                    auto adjIt = adjacencyTable.find(key);
+                    if (adjIt != adjacencyTable.end()) {
+                        if (adjIt->second.count({possibleNeighborId, neighborRotation}) > 0) {
+                            return true;
+                        }
                     }
                 }
             }
         }
         return false;
     }
-    
+
     return true;
 }
 

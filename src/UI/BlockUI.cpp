@@ -175,9 +175,6 @@ void BlockUI::DisplaySocketEditor() {
         const char* faceNames[] = {"+X (Right)", "-X (Left)", "+Y (Top)", "-Y (Bottom)", "+Z (Front)", "-Z (Back)"};
         
         ImGui::Separator();
-        ImGui::Text("Block Orientation:");
-
-        ImGui::SameLine();
 
         for (int face = 0; face < 6; face++) {
             ImGui::PushID(face);
@@ -196,8 +193,13 @@ void BlockUI::DisplaySocketEditor() {
         
         ImGui::Separator();
         if (ImGui::Button("Apply Socket Changes")) {
-            socketSystem.GenerateRotatedVariants();
-            std::cout << "Socket changes applied for block " << selectedBlockId << std::endl;
+            auto& templates = socketSystem.GetBlockTemplates();
+            auto it = templates.find(selectedBlockId);
+            if (it != templates.end()) {
+                const_cast<BlockTemplate&>(it->second) = currentTemplate;
+            } else {
+                socketSystem.AddBlockTemplate(currentTemplate);
+            }
         }
     }
     
@@ -206,11 +208,6 @@ void BlockUI::DisplaySocketEditor() {
     // EXPANDED COMPATIBILITY RULES SECTION
     if (ImGui::CollapsingHeader("Socket Compatibility Rules", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& compatibility = parameters.socketSystem.GetCompatibility();
-
-        if (ImGui::Button("Setup Default Rules")) {
-            compatibility.SetupDefaultRules();
-            std::cout << "Applied default socket compatibility rules" << std::endl;
-        }
 
         ImGui::SameLine();
         if (ImGui::Button("Clear All Rules")) {
