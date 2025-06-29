@@ -35,7 +35,7 @@ void Application::init() {
 
     uiCtx.init(m_window);
 
-
+    uiCtx.setCamera(&camera);
     renderer.SetCamera(&camera);
 
     blockController = new BlockController(&renderer);

@@ -1,4 +1,7 @@
 #include "UiContext.h"
+#include "../Utils/ImGuizmo.h"
+#include <cstring>
+#include <glm/gtc/type_ptr.hpp>
 
 bool UiContext::init(Window* window) {
     this->window = window;
@@ -56,6 +59,9 @@ void UiContext::render() {
     
     // Render the docking window
     renderDockingWindow();
+
+    // Render the scene overlay
+    renderSceneOverlay();
 }
 
 void UiContext::postRender() {
@@ -182,6 +188,44 @@ void UiContext::renderMenuBar() {
 
         ImGui::EndMainMenuBar();
     }
+}
+
+void UiContext::renderSceneOverlay() {
+    glm::mat4 view = camera->GetViewMatrix();
+    float viewMatrix[16];
+    std::memcpy(viewMatrix, glm::value_ptr(view), sizeof(float) * 16);
+
+    glm::vec3 target = camera->position + camera->front * 10.0f;
+    float cameraDistance = glm::length(camera->position - target);
+
+    renderSceneOverlay(viewMatrix, cameraDistance);
+}
+void UiContext::renderSceneOverlay(float* viewMatrix, float cameraDistance) {
+    ImGuizmo::BeginFrame();
+
+    // Try to set the current window to "Scene View" for correct positioning
+    ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
+    if (!sceneWindow) return; // Scene View not found, don't render gizmo
+
+    // Only render if the window is docked and visible
+    if ((sceneWindow->DockId == 0) || (sceneWindow->Hidden)) return;
+
+    ImVec2 scenePos = sceneWindow->Pos;
+    ImVec2 sceneSize = sceneWindow->Size;
+
+    // Place gizmo in the top-right corner of the Scene View window
+    ImVec2 gizmoSize(150, 150);
+    ImVec2 gizmoPos(
+        scenePos.x + sceneSize.x - gizmoSize.x - 30, // 30px padding from right
+        scenePos.y + 30                              // 30px padding from top
+    );
+
+    ImGuizmo::DrawAxisTripod(
+        viewMatrix,
+        nullptr,
+        gizmoPos,
+        gizmoSize
+    );
 }
 
 void UiContext::defaultLayout() {

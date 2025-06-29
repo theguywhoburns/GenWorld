@@ -37,6 +37,12 @@ void BlockGenerator::initializeDefaults() {
 }
 
 void BlockGenerator::Generate() {
+    if (!(controller && controller->GetBlockUI() && !controller->GetBlockUI()->GetLoadedAssets().empty())) {
+        std::cerr << "ERROR: No blocks/models loaded. Generation aborted." << std::endl;
+        generatorMesh = createEmptyMesh();
+        return;
+    }
+    
     // NEW: Initialize socket system instead of old constraints
     initializeSocketSystem();
     
@@ -366,7 +372,7 @@ bool BlockGenerator::collapseCell(int x, int y, int z) {
     }
     int chosenRotation = rotations.empty() ? 0 : rotations[rand() % rotations.size()];
 
-    
+
     cell.collapsed = true;
     cell.possibleBlockTypes = {chosenBlockType};
     cell.blockTypeIds = {chosenBlockType};
