@@ -3,6 +3,7 @@
 #include "../Core/Shader.h"
 #include "../Core/ShaderManager.h"
 #include "../Core/Engine/Transform.h"
+#include "../UI/ViewportShading.h"
 #include <memory>
 
 class IDrawable {
@@ -13,6 +14,7 @@ protected:
     std::string m_wireframeShader;
 
     Transform transform;
+    ShadingParameters m_currentShadingParams;
 
 public:
     IDrawable() {
@@ -60,6 +62,22 @@ public:
     void rotate(const glm::vec3& rotation) { transform.rotate(rotation); }
     void scaleBy(const glm::vec3& scale) { transform.scaleBy(scale); }
     void scaleBy(float uniformScale) { transform.scaleBy(uniformScale); }
+
+    virtual void SetShaderParameters(const ShadingParameters& params) {
+        m_currentShadingParams = params;
+        switch (m_currentShadingParams.mode) {
+        case ViewportShadingMode::Wireframe:
+            SetShader(m_wireframeShader);
+            break;
+        case ViewportShadingMode::SolidColor:
+            SetShader(m_solidShader);
+            break;
+        case ViewportShadingMode::RenderedNoLights:
+        case ViewportShadingMode::RenderedWithLights:
+            SetShader(m_renderedShader);
+            break;
+        }
+    }
 
     void resetTransform() { transform.reset(); }
 

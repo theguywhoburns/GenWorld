@@ -201,7 +201,7 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImVec2 max_size(INT16_MAX, INT16_MAX);
     ImGui::SetNextWindowSizeConstraints(min_size, max_size);
 
-    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
 

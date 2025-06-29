@@ -46,6 +46,7 @@ private:
     bool instancingInitialized = false;
 
     void setupMesh();
+    void applyShadingUniforms();
 
 };
 

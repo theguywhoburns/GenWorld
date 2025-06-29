@@ -37,6 +37,7 @@ void Mesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
 		m_shader->setMat4("uProjection", projection);
 
 		// viewport shading uniforms
+		applyShadingUniforms();
 
 		Draw(*m_shader);
 	}
@@ -48,6 +49,9 @@ void Mesh::DrawInstanced(unsigned int instanceCount, const glm::mat4& view, cons
 	m_shader->setMat4("uModel", glm::mat4(1.0f));
 	m_shader->setMat4("uView", view);
 	m_shader->setMat4("uProjection", projection);
+
+	// viewport shading uniforms
+	applyShadingUniforms();
 
 	bindTextures(*m_shader);
 
@@ -200,4 +204,28 @@ void Mesh::UpdateInstanceData(const std::vector<glm::mat4>& instanceMatrices) {
 	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 	glBufferData(GL_ARRAY_BUFFER, instanceMatrices.size() * sizeof(glm::mat4), instanceMatrices.data(), GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void Mesh::applyShadingUniforms() {
+	switch (m_currentShadingParams.mode) {
+	case ViewportShadingMode::Wireframe:
+		m_shader->setFloat("wireframeWidth", m_currentShadingParams.wireframeWidth);
+		m_shader->setVec3("wireframeColor", m_currentShadingParams.wireframeColor);
+		m_shader->setBool("useFill", m_currentShadingParams.useFilledWireframe);
+		m_shader->setVec3("fillColor", m_currentShadingParams.filledWireframeColor);
+		break;
+	case ViewportShadingMode::SolidColor:
+		m_shader->setVec3("color", m_currentShadingParams.solidColor);
+		break;
+	case ViewportShadingMode::RenderedNoLights:
+		m_shader->setBool("useLights", false);
+		break;
+	case ViewportShadingMode::RenderedWithLights:
+		m_shader->setBool("useLights", true);
+		m_shader->setVec3("light.direction", m_currentShadingParams.lightDirection);
+		m_shader->setVec3("light.ambient", m_currentShadingParams.lightColor * m_currentShadingParams.ambient);
+		m_shader->setVec3("light.diffuse", m_currentShadingParams.lightColor * m_currentShadingParams.diffuse);
+		break;
+	}
+
 }

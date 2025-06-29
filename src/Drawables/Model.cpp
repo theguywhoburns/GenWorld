@@ -39,6 +39,13 @@ void Model::SetShader(const std::string& shaderName) {
 	}
 }
 
+void Model::SetShaderParameters(const ShadingParameters& params) {
+	m_currentShadingParams = params;
+	for (auto& mesh : meshes) {
+		mesh->SetShaderParameters(params);
+	}
+}
+
 void Model::loadModel(string path) {
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);

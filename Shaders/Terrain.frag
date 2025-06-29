@@ -35,8 +35,7 @@ uniform ColorData colors[MAX_COLOR_UNITS];
 uniform bool coloringMode;
 uniform sampler2D heightmap;
 
-// uniform Light light;
-Light light;
+uniform Light light;
 uniform bool useLights = true;
 
 vec4 CalcTexColor() {
@@ -117,11 +116,6 @@ void main() {
 	}
 
 	if(useLights) {
-		//TODO test values: set the uniform from the application UI
-		light.direction = vec3(-1.0, -1.0, -0.5);
-		light.ambient = vec3(0.5);
-		light.diffuse = vec3(1.0);
-
   		// calculate lighting
 		vec3 normal = normalize(vertexNormal);
 		vec3 lightColor = CalcDirLight(normal, finalColor.rgb);

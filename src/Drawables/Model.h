@@ -27,6 +27,7 @@ public:
 
 	void SetShader(std::shared_ptr<Shader> shader) override;
 	void SetShader(const std::string& shaderName) override;
+	virtual void SetShaderParameters(const ShadingParameters& params) override;
 
 private:
 	vector<Mesh*>	meshes;

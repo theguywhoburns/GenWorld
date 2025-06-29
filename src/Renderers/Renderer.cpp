@@ -42,6 +42,7 @@ void Renderer::renderScene() {
 
     for (IDrawable* mesh : renderQueue) {
         if (mesh != nullptr) {
+            mesh->SetShaderParameters(currentShadingParams);
             mesh->Draw(view, projection);
         }
     }

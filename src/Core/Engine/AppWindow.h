@@ -28,6 +28,7 @@ public:
     void setViewPortSize(const glm::vec2& size);
     void setTitle(const std::string& newTitle) { title = newTitle; }
     glm::vec2 getSize() const { return glm::vec2(SCR_WIDTH, SCR_HEIGHT); }
+    glm::vec2 getViewportSize() const { return glm::vec2(VIEWPORT_WIDTH, VIEWPORT_HEIGHT); }
     void setVsync(bool vsync) { glfwSwapInterval(vsync ? 1 : 0); }
 
     void clear() {

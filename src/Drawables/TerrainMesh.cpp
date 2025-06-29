@@ -8,7 +8,6 @@ TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, 
     this->heightMap = heightMap;
 
     m_renderedShader = "terrain";
-    SetShader(m_renderedShader);
     textureShader = ShaderManager::GetInstance()->getShader("terrainTexture");
 
     // Create a texture for the height map
@@ -146,7 +145,7 @@ void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projecti
 
         std::shared_ptr<Model> model = instanceMeshes[modelPath];
         if (model) {
-            model->SetShader("rendered");  // TODO: change this to the appropriate shader if needed according to the viewport render mode
+            model->SetShaderParameters(m_currentShadingParams);
             model->DrawInstanced(view, projection, instances);
         }
     }

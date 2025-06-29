@@ -2,17 +2,28 @@
 
 bool SceneView::init(AppWindow* wind) {
     window = wind;
-    m_ViewportSize = window->getSize();
+    m_ViewportSize = window->getViewportSize();
+
+    m_ShadingPanel.setOnParametersChanged(
+        [this](const ShadingParameters& params) {
+            renderer->updateShadingParameters(params);
+        }
+    );
     return true;
 }
 
 void SceneView::render() {
     processInput();
 
+    renderSceneView();
+    renderViewportShading();
+}
+
+void SceneView::renderSceneView() {
     ImVec2 min_size(150.0f, 150.0f);
     ImVec2 max_size(INT16_MAX, INT16_MAX);
     ImGui::SetNextWindowSizeConstraints(min_size, max_size);
-    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
     m_ViewportSize = { viewportSize.x, viewportSize.y };
@@ -32,6 +43,10 @@ void SceneView::render() {
     isSceneWindowHovered = ImGui::IsItemHovered() && ImGui::GetIO().WantCaptureMouse;
 
     ImGui::End();
+}
+
+void SceneView::renderViewportShading() {
+    m_ShadingPanel.render();
 }
 
 #pragma region Callbacks
