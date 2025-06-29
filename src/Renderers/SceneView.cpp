@@ -26,15 +26,7 @@ void SceneView::renderSceneView() {
     ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
-    m_ViewportSize = { viewportSize.x, viewportSize.y };
-    renderer->SetScreenSize(m_ViewportSize);
-    framebuffer.Resize(m_ViewportSize.x, m_ViewportSize.y);
-    window->setViewPortSize(framebuffer.GetWidth(), framebuffer.GetHeight());
-
-    framebuffer.bind();
-    window->clearBuffers();
-    renderer->Render();
-    framebuffer.unbind();
+    m_ViewportSize = {viewportSize.x, viewportSize.y};
 
     // add rendered texture to ImGUI scene window
     uint64_t textureID = framebuffer.GetColorTextureID();

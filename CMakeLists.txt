@@ -15,6 +15,17 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
+
+#------------------------------------------------------------------------------
+# Fonts Configuration
+# This section handles the configuration and setup of fonts used in the project.
+# Add font-related settings, dependencies, or path configurations here.
+#------------------------------------------------------------------------------
+set(FONT_DIR "${CMAKE_SOURCE_DIR}/Resources/assets/fonts/Source_Sans_3/static")
+set(REGULAR_FONT "${FONT_DIR}/SourceSans3-Regular.ttf")
+set(BOLD_FONT "${FONT_DIR}/SourceSans3-Bold.ttf")
+
+
 include(CTest)
 enable_testing()
 

@@ -12,7 +12,6 @@ Mesh::~Mesh() {
 	if (vertexBuffer) glDeleteBuffers(1, &vertexBuffer);
 	if (indexBuffer) glDeleteBuffers(1, &indexBuffer);
 	if (arrayObj) glDeleteVertexArrays(1, &arrayObj);
-	if (instancingInitialized) glDeleteBuffers(1, &instanceVBO);
 
 	vertexBuffer = 0;
 	indexBuffer = 0;
@@ -21,9 +20,11 @@ Mesh::~Mesh() {
 
 void Mesh::Draw(Shader& shader) {
 	bindTextures(shader);
+
 	glBindVertexArray(arrayObj);
 	glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
+
 	unbindTextures();
 }
 
@@ -45,10 +46,8 @@ void Mesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
 
 void Mesh::DrawInstanced(unsigned int instanceCount, const glm::mat4& view, const glm::mat4& projection) {
 	m_shader->use();
-
-	m_shader->setMat4("uModel", glm::mat4(1.0f));
-	m_shader->setMat4("uView", view);
-	m_shader->setMat4("uProjection", projection);
+	m_shader->setMat4("view", view);
+	m_shader->setMat4("projection", projection);
 
 	// viewport shading uniforms
 	applyShadingUniforms();
@@ -66,7 +65,6 @@ void Mesh::setupMesh() {
 	glGenVertexArrays(1, &arrayObj);
 	glGenBuffers(1, &vertexBuffer);
 	glGenBuffers(1, &indexBuffer);
-	glGenBuffers(1, &instanceVBO);
 
 	glBindVertexArray(arrayObj);
 	// load data into vertex buffers
@@ -105,26 +103,6 @@ void Mesh::setupMesh() {
 	// weights
 	glEnableVertexAttribArray(7);
 	glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
-
-	// Setup identity matrix for instance attributes (locations 8-11)
-	float identityMatrix[16] = {
-		1.0f, 0.0f, 0.0f, 0.0f,  // instanceModel0
-		0.0f, 1.0f, 0.0f, 0.0f,  // instanceModel1  
-		0.0f, 0.0f, 1.0f, 0.0f,  // instanceModel2
-		0.0f, 0.0f, 0.0f, 1.0f   // instanceModel3
-	};
-
-	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(identityMatrix), identityMatrix, GL_STATIC_DRAW);
-
-	// Instance matrix attributes (locations 8-11)
-	// default to identity matrix in case of regular rendering
-	std::size_t vec4Size = sizeof(glm::vec4);
-	for (int i = 0; i < 4; ++i) {
-		glEnableVertexAttribArray(8 + i);
-		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * vec4Size));
-		glVertexAttribDivisor(8 + i, 1);
-	}
 
 	glBindVertexArray(0);
 }
@@ -178,17 +156,15 @@ void Mesh::unbindTextures() {
 void Mesh::InitializeInstanceBuffer() {
 	if (instancingInitialized) return;
 
-	glDeleteBuffers(1, &instanceVBO);	// clean up any existing instance VBO
-
 	glGenBuffers(1, &instanceVBO);
 	glBindVertexArray(arrayObj);
 	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
 
-	// Set attribute layout for mat4 (locations 8 to 11)
+	// Set attribute layout for mat4 (locations 4,5,6,7)
 	std::size_t vec4Size = sizeof(glm::vec4);
 	for (int i = 0; i < 4; ++i) {
 		glEnableVertexAttribArray(8 + i);
-		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * vec4Size));
+		glVertexAttribPointer(8 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * sizeof(glm::vec4)));
 		glVertexAttribDivisor(8 + i, 1);
 	}
 

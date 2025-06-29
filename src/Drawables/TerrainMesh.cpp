@@ -26,86 +26,10 @@ TerrainMesh::TerrainMesh(vector<Vertex> vertices, vector<unsigned int> indices, 
 
 TerrainMesh::~TerrainMesh() {
     glDeleteTextures(1, &heightmapTextureID);
-    glDeleteTextures(1, &resultTextureID);
 }
 
 void TerrainMesh::Draw(Shader& shader) {
     // Activate the textures
-    Mesh::Draw(shader);
-
-    // Preview with ImGui (Just for testing)
-    ImGui::Begin("Terrain Texture Preview");
-    ImGui::Image((intptr_t)resultTextureID, ImVec2(512, 512));
-    ImGui::End();
-}
-
-void TerrainMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
-    Mesh::Draw(view, projection);
-
-    // Draw instances
-    DrawInstances(view, projection);
-}
-
-void TerrainMesh::AddInstance(const std::string& modelPath, const Transform& transform) {
-    // Check if the model is already loaded
-    if (instanceMeshes.find(modelPath) == instanceMeshes.end()) {
-        // Load the model if not already loaded
-        std::shared_ptr<Model> model = std::make_shared<Model>(modelPath.c_str());
-        if (model) {
-            instanceMeshes[modelPath] = model;
-        }
-        else {
-            std::cerr << "Model not found: " << modelPath << std::endl;
-            return;
-        }
-    }
-
-    modelInstances[modelPath].push_back(transform.getModelMatrix());
-}
-
-void TerrainMesh::RenderToTexture() {
-    textureShader->use();
-
-    FrameBuffer frameBuffer;
-
-    glViewport(0, 0, 1024, 1024);
-    frameBuffer.Resize(1024, 1024);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-    frameBuffer.bind();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    // Draw the terrain mesh to the framebuffer
-    bindTextures(*textureShader);
-    GLuint emptyVAO;
-    glGenVertexArrays(1, &emptyVAO);
-    glBindVertexArray(emptyVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
-    glDeleteVertexArrays(1, &emptyVAO);
-    unbindTextures();
-
-    // Read the pixels from the framebuffer
-    unsigned char* pixels = new unsigned char[1024 * 1024 * 4];
-    glReadPixels(0, 0, 1024, 1024, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    frameBuffer.unbind();
-
-    // Create a texture for the result
-    glGenTextures(1, &resultTextureID);
-    glBindTexture(GL_TEXTURE_2D, resultTextureID);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    delete[] pixels;
-    frameBuffer.Destroy();
-}
-
-void TerrainMesh::bindTextures(Shader& shader) {
     std::vector<TerrainUtilities::TextureData> loadedTextures = data.loadedTextures;
 
     shader.setInt("textureCount", loadedTextures.size());
@@ -134,6 +58,87 @@ void TerrainMesh::bindTextures(Shader& shader) {
     Texture::activate(GL_TEXTURE0 + loadedTextures.size());
     shader.setInt("heightmap", loadedTextures.size());
     glBindTexture(GL_TEXTURE_2D, heightmapTextureID);
+
+    glBindVertexArray(arrayObj);
+    glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    Texture::activate(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Preview with ImGui (Just for testing)
+    ImGui::Begin("Terrain Texture Preview");
+    ImGui::Image((intptr_t)resultTextureID, ImVec2(512, 512));
+    ImGui::End();
+}
+
+void TerrainMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
+    if (m_shader != nullptr) {
+        m_shader->use();
+        glm::mat4 model = transform.getModelMatrix();
+        m_shader->setMat4("model", model);
+        m_shader->setMat4("view", view);
+        m_shader->setMat4("projection", projection);
+        Draw(*m_shader);
+
+        // Draw instances
+        DrawInstances(view, projection);
+    }
+}
+
+void TerrainMesh::AddInstance(const std::string& modelPath, const Transform& transform) {
+    // Check if the model is already loaded
+    if (instanceMeshes.find(modelPath) == instanceMeshes.end()) {
+        // Load the model if not already loaded
+        std::shared_ptr<Model> model = std::make_shared<Model>(modelPath.c_str());
+        if (model) {
+            instanceMeshes[modelPath] = model;
+        }
+        else {
+            std::cerr << "Model not found: " << modelPath << std::endl;
+            return;
+        }
+    }
+
+    modelInstances[modelPath].push_back(transform.getModelMatrix());
+}
+
+void TerrainMesh::RenderToTexture() {
+    textureShader->use();
+
+    FrameBuffer frameBuffer;
+    frameBuffer.Resize(1024, 1024);
+
+    frameBuffer.bind();
+    glViewport(0, 0, 1024, 1024);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    // Draw the terrain mesh to the framebuffer
+    Draw(*textureShader);
+
+
+    // Read the pixels from the framebuffer
+    unsigned char* pixels = new unsigned char[1024 * 1024 * 4];
+    glReadPixels(0, 0, 1024, 1024, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    frameBuffer.unbind();
+
+    // Create a texture for the result
+    glDeleteTextures(1, &resultTextureID);
+    glGenTextures(1, &resultTextureID);
+    glBindTexture(GL_TEXTURE_2D, resultTextureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    delete[] pixels;
+
+    // Unbind the framebuffer
+    frameBuffer.Destroy();
 }
 
 void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projection) {
@@ -141,7 +146,7 @@ void TerrainMesh::DrawInstances(const glm::mat4& view, const glm::mat4& projecti
         const std::string& modelPath = pair.first;
         const std::vector<glm::mat4>& instances = pair.second;
 
-        if (instances.empty()) continue;
+        if(instances.empty()) continue;
 
         std::shared_ptr<Model> model = instanceMeshes[modelPath];
         if (model) {

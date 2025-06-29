@@ -2,6 +2,7 @@
 
 #include "IRenderContext.h"
 #include "../Utils/FileDialogs.h"
+#include "../UI/SpectrumUI.h"
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -18,9 +19,14 @@ public:
     void render() override;
     void postRender() override;
 
+    // Theme functions
+    void switchTheme();
+
 private:
     void renderDockingWindow();
     void renderMenuBar();
     void defaultLayout();
 
+    // Theme state
+    bool isDarkTheme = true;
 };

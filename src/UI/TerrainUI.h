@@ -26,12 +26,10 @@ private:
     void DisplayAppearanceTab();
     void DisplayDecorationTab();
 
-    // Renamed methods (remove the old ones and add these)
-    void DisplayColorSettings();           // was DisplayColorSettingsUI()
-    void DisplayTextureLayerSettings();    // was DisplayTextureLayerSettings() (same name)
-    void DisplayDecorationSettings();      // was DisplayDecorationSettings() (same name)
+    void DisplayColorSettings();
+    void DisplayTextureLayerSettings();
+    void DisplayDecorationSettings();
 
-    // Keep these existing methods unchanged:
     void RenderFalloffControls();
     void DisplaySceneViewOverlay();
 
