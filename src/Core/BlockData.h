@@ -10,6 +10,9 @@ namespace BlockUtilities {
     const int VOID_BLOCK_ID = -1;  // Represents empty space
     const int AIR_BLOCK_ID = -2;   // Represents air/ungenerated space
     
+
+
+
     struct BlockFaceConstraints {
         std::vector<int> validConnections;
         bool canBeExposed = true;

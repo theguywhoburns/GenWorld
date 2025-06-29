@@ -44,6 +44,11 @@ private:
 
     std::vector<AssetInfo> loadedAssets;
 
+    std::map<
+    std::tuple<int, int, int>, // blockId, rotation, face
+    std::set<std::pair<int, int>> // neighborBlockId, neighborRotation
+    > adjacencyTable;
+
 public:
     BlockGenerator();
     BlockGenerator(BlockController* controller);
@@ -79,6 +84,7 @@ private:
     bool collapseCell(int x, int y, int z);
     void updateCellPossibilities(int x, int y, int z);
     
+    void buildAdjacencyTable();
     // Generation methods
     void generateGridMultithreaded();
     void processRemainingCells();
