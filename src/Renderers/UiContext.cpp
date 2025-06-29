@@ -30,6 +30,9 @@ bool UiContext::init(AppWindow* window) {
 
     // Initialize with dark theme by default
     ImGui::Spectrum::StyleColorsSpectrum();
+
+    ImGui::Spectrum::LoadFonts(25.0f, 30.0f); // Load regular font at 25pt, bold font at 30pt
+
     // Check if layout file exists
     std::ifstream iniFile(io.IniFilename);
     if (iniFile.good()) {

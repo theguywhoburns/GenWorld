@@ -2,11 +2,6 @@
 
 TerrainUI::TerrainUI(TerrainController *controller) : controller(controller)
 {
-    // Initialize Spectrum UI theme
-    ImGui::Spectrum::StyleColorsSpectrum();
-
-
-    ImGui::Spectrum::LoadFonts(25.0f, 30.0f); // Load regular font at 25pt, bold font at 30pt
 
     // Terrain Data
     parameters.width = 100;
