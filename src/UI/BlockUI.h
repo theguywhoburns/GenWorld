@@ -18,15 +18,10 @@ struct AssetInfo {
 };
 
 struct GenerationSettings {
-    int threadCount = 4;
-    bool useConstraints = true;
     unsigned int gridWidth = 20;
     unsigned int gridHeight = 10;
     unsigned int gridLength = 20;
     float blockScale = 1.0f;
-    bool enablePoppingAnimation = false;
-    float animationDelay = 50.0f;
-    bool enableRandomRotations = false; // NEW: Random Y-axis rotations
 };
 
 class BlockUI {
@@ -77,15 +72,8 @@ public:
     const std::vector<AssetInfo>& GetLoadedAssets() const { return loadedAssets; }
     std::vector<AssetInfo>& GetLoadedAssets() { return loadedAssets; }
     
-    // Animation settings
-    bool IsAnimationEnabled() const { return genSettings.enablePoppingAnimation; }
-    float GetAnimationDelay() const { return genSettings.animationDelay; }
-    
-    // NEW: Rotation settings
-    bool IsRandomRotationEnabled() const { return genSettings.enableRandomRotations; }
     bool IsRotationRequested() const { return rotationRequested; }
     void ClearRotationRequest() { rotationRequested = false; }
-    void OnApplyRandomRotationsRequested();
 
 private:
     // File operations
