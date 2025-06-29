@@ -28,12 +28,6 @@ namespace ImGui
 {
     namespace Spectrum
     {
-        // a list of changes introduced to change the look of the widgets.
-        // Collected here as const rather than being magic numbers spread
-        // around imgui.cpp and imgui_widgets.cpp.
-        const float CHECKBOX_BORDER_SIZE = 2.0f;
-        const float CHECKBOX_ROUNDING = 2.0f;
-
         // Font pointers for access throughout the application
         extern ImFont *RegularFont;
         extern ImFont *BoldFont;
@@ -41,17 +35,15 @@ namespace ImGui
         // Loads both regular and bold fonts with different sizes
         void LoadFonts(float regularSize = 19.0f, float boldSize = 25.0f);
 
-        // Legacy function - loads both fonts but with bold being 20% larger
-        void LoadFont(float size = 16.0f);
-
         // Helper functions for working with bold fonts
         void BeginTitleFont();
         void EndTitleFont();
         bool CollapsingHeader(const char *label, ImGuiTreeNodeFlags flags = 0);
         void SectionTitle(const char *title);
 
-        // Sets the ImGui style to Spectrum
+        // Theme functions
         void StyleColorsSpectrum();
+        void StyleColorsLight();
 
         namespace
         {
