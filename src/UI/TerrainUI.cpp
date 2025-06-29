@@ -4,6 +4,17 @@ TerrainUI::TerrainUI(TerrainController *controller) : controller(controller)
 {
     // Initialize Spectrum UI theme
     ImGui::Spectrum::StyleColorsSpectrum();
+
+    // Set the initial theme
+    if (isDarkTheme)
+    {
+        ImGui::Spectrum::StyleColorsDark();
+    }
+    else
+    {
+        ImGui::Spectrum::StyleColorsLight();
+    }
+
     ImGui::Spectrum::LoadFonts(25.0f, 30.0f); // Load regular font at 25pt, bold font at 30pt
 
     // Terrain Data
@@ -134,7 +145,7 @@ void TerrainUI::DisplaySceneViewOverlay()
     ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
 
     const float padding = 10.0f;
-    ImVec2 overlaySize(120, 35);
+    ImVec2 overlaySize(142, 50);
     ImVec2 windowPos = ImGui::GetWindowPos();
     ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
@@ -327,7 +338,10 @@ void TerrainUI::DisplayTextureLayerSettings()
     {
         ImGui::PushID(i);
 
+        // Use bold font for layer header
+        ImGui::Spectrum::BeginTitleFont();
         ImGui::Text("Layer %d", i + 1);
+        ImGui::Spectrum::EndTitleFont();
 
         if (i < parameters.loadedTextures.size() - 1)
         {
@@ -362,19 +376,39 @@ void TerrainUI::DisplayTextureLayerSettings()
 
         ImGui::BeginGroup();
         {
+            // Display texture image
             ImTextureID textureID = (ImTextureID)(intptr_t)parameters.loadedTextures[i].texture->ID;
             ImGui::Image(textureID, ImVec2(128, 128));
             ImGui::SameLine();
 
+            // Controls next to the texture
             ImGui::BeginGroup();
             {
-                ImGui::Dummy(ImVec2{0, 128 - ImGui::GetTextLineHeight() - 30});
-                ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture->path.c_str());
-
-                if (ImGui::Button("Change", ImVec2(72, 20)))
+                // Show path with potential truncation if too long
+                std::string path = parameters.loadedTextures[i].texture->path;
+                if (path.length() > 40)
                 {
-                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files (*.png;*.jpg;*.jpeg;*.bmp)\0*.png;*.jpg;*.jpeg;*.bmp\0",
-                                                                    Application::GetInstance()->GetWindow()->getNativeWindow());
+                    path = "..." + path.substr(path.length() - 37);
+                }
+
+                // Position the text at the top for better layout
+                ImGui::Dummy(ImVec2(0, 10)); // Add some padding at top
+                ImGui::Text("Texture: %s", path.c_str());
+
+                // Add space between text and buttons
+                ImGui::Dummy(ImVec2(0, 40));
+
+                // Button layout - fixed width but increased height
+                const float buttonWidth = 75.0f;  // Fixed width similar to before
+                const float buttonHeight = 33.0f; // Increased height to fit text
+
+                // Style and position for Change button
+                if (ImGui::Button("Change", ImVec2(buttonWidth, buttonHeight)))
+                {
+                    std::string file = Utils::FileDialogs::OpenFile(
+                        "Select Texture",
+                        "Image Files (*.png;*.jpg;*.jpeg;*.bmp)\0*.png;*.jpg;*.jpeg;*.bmp\0",
+                        Application::GetInstance()->GetWindow()->getNativeWindow());
 
                     if (!file.empty())
                     {
@@ -383,12 +417,17 @@ void TerrainUI::DisplayTextureLayerSettings()
                     }
                 }
 
+                // Put buttons side by side with a small gap
+                ImGui::SameLine();
+                ImGui::Dummy(ImVec2(10, 0));
                 ImGui::SameLine();
 
+                // Style and position for Remove button
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-                if (ImGui::Button("Remove", ImVec2(72, 20)))
+
+                if (ImGui::Button("Remove", ImVec2(buttonWidth, buttonHeight)))
                 {
                     parameters.loadedTextures.erase(parameters.loadedTextures.begin() + i);
                     ImGui::EndGroup();
@@ -398,11 +437,11 @@ void TerrainUI::DisplayTextureLayerSettings()
                     break;
                 }
                 ImGui::PopStyleColor(3);
-
-                ImGui::EndGroup();
             }
             ImGui::EndGroup();
         }
+        ImGui::EndGroup();
+
         ImGui::PopID();
         ImGui::Separator();
     }
@@ -437,13 +476,19 @@ void TerrainUI::DisplayTextureLayerSettings()
 void TerrainUI::DisplayDecorationSettings()
 {
     ImGui::Begin("Decoration Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+
+    ImGui::Spectrum::BeginTitleFont();
     ImGui::Text("Decoration Settings");
+    ImGui::Spectrum::EndTitleFont();
+
     ImGui::Separator();
     for (size_t i = 0; i < parameters.decorationRules.size(); ++i)
     {
         ImGui::PushID(i);
 
+        ImGui::Spectrum::BeginTitleFont();
         ImGui::Text("Decoration %zu", i + 1);
+        ImGui::Spectrum::EndTitleFont();
 
         ImGui::DragFloat2("HeightLimits", glm::value_ptr(parameters.decorationRules[i].heightLimits), 0.01f, 0.0f, 1.0f);
         ImGui::DragFloat2("ScaleRange", glm::value_ptr(parameters.decorationRules[i].scaleRange), 0.01f, 0.01f, 10.0f);
@@ -455,6 +500,11 @@ void TerrainUI::DisplayDecorationSettings()
         ImGui::Text("Model Path");
         ImGui::SameLine();
         ImGui::Text("%s", parameters.decorationRules[i].modelPath.c_str());
+
+        // TODO: refactor buttons dimensions to be in higer class
+        // Button layout - fixed width but increased height
+        const float buttonWidth = 75.0f;  // Fixed width similar to before
+        const float buttonHeight = 33.0f; // Increased height to fit text
 
         ImGui::BeginGroup();
         {
@@ -489,7 +539,7 @@ void TerrainUI::DisplayDecorationSettings()
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-            if (ImGui::Button("Remove", ImVec2(72, 20)))
+            if (ImGui::Button("Remove", ImVec2(buttonWidth, buttonHeight)))
             {
                 parameters.decorationRules.erase(parameters.decorationRules.begin() + i);
                 ImGui::EndGroup();
