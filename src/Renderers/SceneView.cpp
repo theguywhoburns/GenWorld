@@ -9,21 +9,21 @@ bool SceneView::init(AppWindow* wind) {
 void SceneView::render() {
     processInput();
 
-    renderer->SetScreenSize(m_ViewportSize);
-    framebuffer.Resize(window->getSize().x, window->getSize().y);
-    
-    framebuffer.bind();
-    window->clearBuffers();
-    renderer->Render();
-    framebuffer.unbind();
-
     ImVec2 min_size(150.0f, 150.0f);
     ImVec2 max_size(INT16_MAX, INT16_MAX);
     ImGui::SetNextWindowSizeConstraints(min_size, max_size);
     ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
-    m_ViewportSize = {viewportSize.x, viewportSize.y};
+    m_ViewportSize = { viewportSize.x, viewportSize.y };
+    renderer->SetScreenSize(m_ViewportSize);
+    framebuffer.Resize(m_ViewportSize.x, m_ViewportSize.y);
+    window->setViewPortSize(framebuffer.GetWidth(), framebuffer.GetHeight());
+
+    framebuffer.bind();
+    window->clearBuffers();
+    renderer->Render();
+    framebuffer.unbind();
 
     // add rendered texture to ImGUI scene window
     uint64_t textureID = framebuffer.GetColorTextureID();

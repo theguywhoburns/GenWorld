@@ -9,15 +9,17 @@ class IDrawable {
 protected:
     std::shared_ptr<Shader> m_shader;
     std::string m_solidShader;
-    std::string m_unShadedShader;
+    std::string m_renderedShader;
+    std::string m_wireframeShader;
 
     Transform transform;
 
 public:
     IDrawable() {
+        m_wireframeShader = "wireframe";
         m_solidShader = "solid";
-        m_unShadedShader = "unshaded";
-        m_shader = ShaderManager::GetInstance()->getShader(m_solidShader);
+        m_renderedShader = "rendered";
+        SetShader(m_solidShader);
 
         transform = Transform(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(1.0f));
     }
@@ -26,6 +28,12 @@ public:
     virtual void Draw(Shader& shader) = 0;
     virtual void Draw(const glm::mat4& view, const glm::mat4& projection) = 0;
     virtual void SetShader(std::shared_ptr<Shader> shader) { m_shader = shader; }
+    virtual void SetShader(const std::string& shaderName) {
+        m_shader = ShaderManager::GetInstance()->getShader(shaderName);
+        if (!m_shader) {
+            throw std::runtime_error("Shader not found: " + shaderName);
+        }
+    }
     virtual std::shared_ptr<Shader> GetShader() { return m_shader; }
 
     virtual void setPosition(const glm::vec3& position) { transform.setPosition(position); }

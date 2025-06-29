@@ -69,8 +69,108 @@ void TerrainUI::DisplayUI()
     }
 }
 
-void TerrainUI::RenderFalloffControls()
-{
+void TerrainUI::DisplayMainSettingsWindow() {
+    ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+
+    if (ImGui::BeginTabBar("TerrainTabs")) {
+
+        // Terrain Tab
+        if (ImGui::BeginTabItem("Terrain")) {
+            DisplayTerrainSettingsTab();
+            ImGui::EndTabItem();
+        }
+
+        // Colors/Textures Tab
+        if (ImGui::BeginTabItem("Appearance")) {
+            DisplayAppearanceTab();
+            ImGui::EndTabItem();
+        }
+
+        // Decoration Tab
+        if (ImGui::BeginTabItem("Decoration")) {
+            DisplayDecorationTab();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
+    ImGui::End();
+}
+
+void TerrainUI::DisplayTerrainSettingsTab() {
+    ImGui::Text("Terrain Settings");
+    ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
+    ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
+    ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
+    ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+    ImGui::Text("Curve Settings");
+    ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
+
+    ImGui::NewLine();
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    ImGui::Text("Noise Settings");
+    ImGui::SliderFloat("Scale", &parameters.scale, 0.001f, 50.0f);
+    ImGui::SliderInt("Octaves", &parameters.octaves, 1, 10);
+    ImGui::SliderFloat("Lacunarity", &parameters.lacunarity, 0.1f, 50.0f);
+    ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
+    ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
+    ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    RenderFalloffControls();
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
+        parameters.seed = rand() % 10000;
+    }
+
+    if (ImGui::Button("Generate", ImVec2(200, 40))) {
+        controller->Generate();
+    }
+}
+
+void TerrainUI::DisplayAppearanceTab() {
+    ImGui::Text("Coloring Mode");
+    ImGui::RadioButton("Use Colors", &parameters.coloringMode, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Use Textures", &parameters.coloringMode, 1);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (parameters.coloringMode == 0) {
+        DisplayColorSettings();
+    }
+    else {
+        DisplayTextureLayerSettings();
+    }
+}
+
+void TerrainUI::DisplayDecorationTab() {
+    ImGui::Checkbox("Enable Decoration", &parameters.decorationEnabled);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (!parameters.decorationEnabled) {
+        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Decoration is disabled. Enable the checkbox above.");
+        return;
+    }
+
+    DisplayDecorationSettings();
+}
+
+void TerrainUI::RenderFalloffControls() {
     ImGui::Checkbox("Enable Falloff", &parameters.falloffParams.enabled);
     if (parameters.falloffParams.enabled)
     {
@@ -160,7 +260,7 @@ void TerrainUI::DisplaySceneViewOverlay()
     ImGui::PopStyleColor();
 
     ImGui::EndChild();
-    ImGui::SetCursorScreenPos(originalCursorPos); // Reset cursor position to draw the scene view correctly
+    ImGui::SetCursorScreenPos(originalCursorPos);
     ImGui::End();
 }
 
@@ -289,7 +389,6 @@ void TerrainUI::DisplayColorSettingsUI()
         }
 
         ImGui::ColorEdit3("Color", &parameters.colors[i].color[0]);
-
         ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f);
 
         ImGui::PopID();
@@ -312,8 +411,6 @@ void TerrainUI::DisplayColorSettingsUI()
     {
         ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 32 colors reached!");
     }
-
-    ImGui::End();
 }
 
 void TerrainUI::DisplayTextureLayerSettings()
@@ -459,8 +556,6 @@ void TerrainUI::DisplayTextureLayerSettings()
     {
         ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 16 layers reached!");
     }
-
-    ImGui::End();
 }
 
 void TerrainUI::DisplayDecorationSettings()
@@ -484,9 +579,8 @@ void TerrainUI::DisplayDecorationSettings()
         ImGui::DragFloat2("ScaleRange", glm::value_ptr(parameters.decorationRules[i].scaleRange), 0.01f, 0.01f, 10.0f);
 
         ImGui::Checkbox("Random Rotation", &parameters.decorationRules[i].randomRotation);
-        ImGui::DragFloat("Density", &parameters.decorationRules[i].density, 0.01f, 0.01f, 1.0f);
+        ImGui::DragFloat("Density", &parameters.decorationRules[i].density, 0.001f, 0.0f, 1.0f);
 
-        // Model selection
         ImGui::Text("Model Path");
         ImGui::SameLine();
         ImGui::Text("%s", parameters.decorationRules[i].modelPath.c_str());
@@ -573,11 +667,13 @@ void TerrainUI::DisplayDecorationSettings()
                 else
                 {
                     parameters.decorationRules.push_back(
-                        {glm::vec2(0.15f, 0.35f), // height limits
-                         glm::vec2(0.8f, 1.2f),   // scale range
-                         true,                    // random rotation
-                         0.004f,                  // density
-                         file});
+                        {
+                        glm::vec2(0.15f, 0.35f), // height limits
+                        glm::vec2(0.8f, 1.2f),   // scale range
+                        true,                    // random rotation
+                        0.004f,                  // density
+                        file
+                        });
                 }
             }
         }
@@ -586,8 +682,6 @@ void TerrainUI::DisplayDecorationSettings()
     {
         ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 16 layers reached!");
     }
-
-    ImGui::End();
 }
 
 TerrainUtilities::TerrainData TerrainUI::GetParameters() const
