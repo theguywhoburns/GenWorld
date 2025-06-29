@@ -56,7 +56,7 @@ void UiContext::preRender() {
 void UiContext::render() {
     // Render the Menu bar
     renderMenuBar();
-    
+
     // Render the docking window
     renderDockingWindow();
 
@@ -200,15 +200,30 @@ void UiContext::renderSceneOverlay() {
 
     renderSceneOverlay(viewMatrix, cameraDistance);
 }
+
 void UiContext::renderSceneOverlay(float* viewMatrix, float cameraDistance) {
-    ImGuizmo::BeginFrame();
+    const ImU32 flags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBackground;
 
     // Try to set the current window to "Scene View" for correct positioning
     ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
     if (!sceneWindow) return; // Scene View not found, don't render gizmo
 
-    // Only render if the window is docked and visible
-    if ((sceneWindow->DockId == 0) || (sceneWindow->Hidden)) return;
+    ImGui::SetNextWindowSize(sceneWindow->Size);
+    ImGui::SetNextWindowPos(sceneWindow->Pos);
+    ImGui::SetNextWindowBgAlpha(0.0f);
+    ImGui::SetNextWindowViewport(sceneWindow->ViewportId);
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
+    ImGui::PushStyleColor(ImGuiCol_Border, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+
+    ImGui::Begin("gizmo", NULL, flags);
 
     ImVec2 scenePos = sceneWindow->Pos;
     ImVec2 sceneSize = sceneWindow->Size;
@@ -226,6 +241,10 @@ void UiContext::renderSceneOverlay(float* viewMatrix, float cameraDistance) {
         gizmoPos,
         gizmoSize
     );
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
 }
 
 void UiContext::defaultLayout() {

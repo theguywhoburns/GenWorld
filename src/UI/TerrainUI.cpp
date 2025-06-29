@@ -110,29 +110,44 @@ void TerrainUI::RenderFalloffControls() {
 }
 
 void TerrainUI::DisplaySceneViewOverlay() {
-    ImVec2 min_size(150.0f, 150.0f);
-    ImVec2 max_size(INT16_MAX, INT16_MAX);
-    ImGui::SetNextWindowSizeConstraints(min_size, max_size);
+    const ImU32 flags =
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBackground;
 
-    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
+    ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
+    if (!sceneWindow) return; // Scene View not found, don't render gizmo
 
-    ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
+    ImGui::SetNextWindowSize(sceneWindow->Size);
+    ImGui::SetNextWindowPos(sceneWindow->Pos);
+    ImGui::SetNextWindowBgAlpha(0.0f);
+    ImGui::SetNextWindowViewport(sceneWindow->ViewportId);
 
-    const float padding = 10.0f;
-    ImVec2 overlaySize(120, 35);
-    ImVec2 windowPos = ImGui::GetWindowPos();
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
+    ImGui::PushStyleColor(ImGuiCol_Border, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+
+    ImGui::Begin("liveupdate", nullptr, flags);
+
+    ImVec2 originalPos = ImGui::GetCursorPos();
+    ImVec2 overalySize(120, 35);
     ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
-    ImVec2 overlayPos = ImVec2(contentRegionMax.x - overlaySize.x - padding, contentRegionMin.y + padding);
-
-    ImGui::SetCursorScreenPos(windowPos + overlayPos);
+    ImVec2 overlayPos(
+        contentRegionMax.x - overalySize.x - 10,
+        contentRegionMin.y + 150
+    );
+    ImGui::SetCursorPos(overlayPos);
 
     // Style overrides
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.18f, 0.95f));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
 
-    ImGui::BeginChild("SceneViewOverlay", overlaySize,
+    ImGui::BeginChild("SceneViewOverlay", overalySize,
         ImGuiChildFlags_Borders,
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoScrollWithMouse |
@@ -144,8 +159,12 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImGui::PopStyleColor();
 
     ImGui::EndChild();
-    ImGui::SetCursorScreenPos(originalCursorPos); // Reset cursor position to draw the scene view correctly
+
+    ImGui::SetCursorPos(originalPos);
+
     ImGui::End();
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
 }
 
 void TerrainUI::DisplayTerrainSettingsUI() {
