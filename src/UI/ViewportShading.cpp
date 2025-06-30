@@ -1,4 +1,5 @@
 #include "ViewportShading.h"
+#include "SpectrumUI.h"
 
 ShadingPanel::ShadingPanel() {
     // Initialize with default values
@@ -68,11 +69,11 @@ void ShadingPanel::renderModeOverlay() {
 
     ImGui::SetCursorPos(overlayPos);
 
-    // Style overrides for the mode selector
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.12f, 0.12f, 0.15f, 0.95f));
+    // Style overrides for the mode selector using Spectrum colors
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY75));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
-    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.3f, 0.3f, 0.35f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300));
 
     ImGui::BeginChild("ModeSelector", overlaySize,
         ImGuiChildFlags_Borders,
@@ -124,14 +125,16 @@ void ShadingPanel::renderModeButtons() {
         bool isActive = (params.mode == modes[i].mode);
 
         if (isActive) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.5f, 0.8f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.55f, 0.85f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.25f, 0.45f, 0.75f, 1.0f));
+            // Use Spectrum blue colors for active state
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE500));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE400));
         }
         else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.25f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.3f, 0.35f, 0.9f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.15f, 0.2f, 1.0f));
+            // Use Spectrum gray colors for inactive state
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY200));
         }
 
         if (ImGui::Button(modes[i].icon, ImVec2(buttonSize, buttonSize))) {
@@ -182,7 +185,7 @@ void ShadingPanel::renderCollapsedPanel() {
 
     if (ImGui::Begin("ShadingPanelCollapsed", nullptr, flags)) {
         ImVec2 originalPos = ImGui::GetCursorPos();
-        ImVec2 overlaySize(18, 40);
+        ImVec2 overlaySize(30, 38);
         ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
         ImVec2 overlayPos(
             contentRegionMin.x + 10,
@@ -190,7 +193,7 @@ void ShadingPanel::renderCollapsedPanel() {
         );
         ImGui::SetCursorPos(overlayPos);
 
-        // Style overrides
+        // Style overrides using Spectrum colors
         ImGui::PushStyleColor(ImGuiCol_ChildBg, 0);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
@@ -202,8 +205,9 @@ void ShadingPanel::renderCollapsedPanel() {
             ImGuiWindowFlags_NoTitleBar);
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.25f, 0.3f, 0.9f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.35f, 0.4f, 1.0f));
+        // Use Spectrum gray colors for the expand button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500));
 
         if (ImGui::Button(">", overlaySize)) {
             parametersCollapsed = false;
@@ -252,32 +256,53 @@ void ShadingPanel::renderExpandedPanel() {
     
     if (ImGui::Begin("ShadingPanelExpanded", nullptr, flags)) {
         ImVec2 originalPos = ImGui::GetCursorPos();
-        ImVec2 overlaySize(400, 500);
+        
+        // Calculate available space and set reasonable constraints
         ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
+        ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
+        float availableHeight = contentRegionMax.y - contentRegionMin.y;
+        
+        // Content-aware sizing with threshold for scrolling
+        float overlayWidth = 400.0f;
+        float maxHeight = availableHeight - 130.0f;
+        float contentThreshold = 405.0f;  // Threshold where scrolling kicks in
+        
+        // If we have less available space than threshold, use available space
+        if (maxHeight < contentThreshold) {
+            maxHeight = ImMax(maxHeight, 280.0f);  // Minimum usable height
+        } else {
+            maxHeight = contentThreshold;  // Use threshold as max before scrolling
+        }
+        
+        ImVec2 overlaySize(overlayWidth, maxHeight);
         ImVec2 overlayPos(
             contentRegionMin.x + 10,
             contentRegionMin.y + 85
         );
         ImGui::SetCursorPos(overlayPos);
 
-        // Style overrides
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.15f, 0.15f, 0.18f, 0.95f));
+        // Style overrides using Spectrum colors
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY75));
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
 
+        // Add scrollbar only if content would exceed our threshold
+        ImGuiWindowFlags childFlags = ImGuiWindowFlags_NoTitleBar;
+        if (maxHeight <= contentThreshold && availableHeight - 130.0f > contentThreshold) {
+            childFlags |= ImGuiWindowFlags_AlwaysVerticalScrollbar;
+        }
+
         ImGui::BeginChild("SceneViewOverlay", overlaySize,
-            ImGuiChildFlags_Borders,
-            ImGuiWindowFlags_NoScrollbar |
-            ImGuiWindowFlags_NoScrollWithMouse |
-            ImGuiWindowFlags_NoTitleBar);
+            ImGuiChildFlags_Borders, childFlags);
 
 
         // Header with collapse button
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.25f, 0.3f, 0.9f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.35f, 0.4f, 1.0f));
+        // Use Spectrum gray colors for the collapse button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500));
 
-        if (ImGui::Button("<", ImVec2(20, 20))) {
+        if (ImGui::Button("<", ImVec2(30, 38))) {
             parametersCollapsed = true;
         }
 
@@ -286,7 +311,10 @@ void ShadingPanel::renderExpandedPanel() {
         }
 
         ImGui::SameLine();
+        // Use bold font for the main title
+        ImGui::Spectrum::BeginTitleFont();
         ImGui::Text("Shading Parameters");
+        ImGui::Spectrum::EndTitleFont();
 
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar();
@@ -299,7 +327,8 @@ void ShadingPanel::renderExpandedPanel() {
             "Wireframe", "Solid Color", "Material Preview", "Rendered"
         };
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.9f, 1.0f, 1.0f));
+        // Use Spectrum text color for current mode
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600));
         ImGui::Text("Current Mode: %s", modeNames[static_cast<int>(params.mode)]);
         ImGui::PopStyleColor();
 
@@ -350,8 +379,8 @@ void ShadingPanel::renderModeSpecificUI() {
 }
 
 void ShadingPanel::renderWireframeUI() {
-    ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1.0f), "Wireframe Settings");
-    ImGui::Spacing();
+    // Use Spectrum section title with bold font
+    ImGui::Spectrum::SectionTitle("Wireframe Settings");
 
     if (ImGui::SliderFloat("Line Width", &params.wireframeWidth, 0.1f, 5.0f, "%.1f")) {
         triggerCallback();
@@ -399,8 +428,8 @@ void ShadingPanel::renderWireframeUI() {
 }
 
 void ShadingPanel::renderSolidColorUI() {
-    ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1.0f), "Solid Color Settings");
-    ImGui::Spacing();
+    // Use Spectrum section title with bold font
+    ImGui::Spectrum::SectionTitle("Solid Color Settings");
 
     if (ImGui::ColorEdit3("Color", &params.solidColor[0])) {
         triggerCallback();
@@ -425,11 +454,11 @@ void ShadingPanel::renderSolidColorUI() {
 }
 
 void ShadingPanel::renderNoLightsUI() {
-    ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1.0f), "Material Preview");
-    ImGui::Separator();
+    // Use Spectrum section title with bold font
+    ImGui::Spectrum::SectionTitle("Material Preview");
 
-    // Show informational text
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.8f, 0.8f, 0.6f, 1.0f));
+    // Show informational text using Spectrum color
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY600));
     ImGui::TextWrapped("This mode simulates material properties without lighting. It is useful for previewing textures and material settings without the influence of scene lighting.");
     ImGui::PopStyleColor();
 
@@ -438,8 +467,8 @@ void ShadingPanel::renderNoLightsUI() {
 }
 
 void ShadingPanel::renderWithLightsUI() {
-    ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1.0f), "Lighting Settings");
-    ImGui::Spacing();
+    // Use Spectrum section title with bold font
+    ImGui::Spectrum::SectionTitle("Lighting Settings");
 
     // Light Direction
     if (ImGui::SliderFloat3("Light Direction", &params.lightDirection[0], -1.0f, 1.0f)) {
@@ -482,6 +511,7 @@ void ShadingPanel::renderWithLightsUI() {
     ImGui::Spacing();
     ImGui::Text("Presets:");
 
+    // First row of presets
     if (ImGui::Button("Standard")) {
         params.lightColor = glm::vec3(1.0f);
         params.ambient = 0.5f;
@@ -502,7 +532,8 @@ void ShadingPanel::renderWithLightsUI() {
         params.diffuse = 2.0f;
         triggerCallback();
     }
-    ImGui::SameLine();
+
+    // Second row of presets
     if (ImGui::Button("Warm")) {
         params.lightColor = glm::vec3(1.0f, 0.9f, 0.7f);
         params.ambient = 0.2f;
