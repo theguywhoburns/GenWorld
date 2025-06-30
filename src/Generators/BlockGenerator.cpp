@@ -36,17 +36,43 @@ void BlockGenerator::initializeDefaults() {
     generatorMesh = nullptr;
 }
 
+
+void BlockGenerator::initializeDungeonMask() {
+    dungeonMask.assign(parameters.gridWidth, std::vector<bool>(parameters.gridLength, false));
+    int x = parameters.gridWidth / 2;
+    int z = parameters.gridLength / 2;
+    dungeonMask[x][z] = true;
+
+    std::mt19937 rng(parameters.randomSeed);
+    int steps = parameters.gridWidth * parameters.gridLength; // Adjust for density
+
+    for (int i = 0; i < steps; ++i) {
+        int dir = rng() % 4;
+        if (dir == 0 && x > 0) x--;
+        if (dir == 1 && x < parameters.gridWidth - 1) x++;
+        if (dir == 2 && z > 0) z--;
+        if (dir == 3 && z < parameters.gridLength - 1) z++;
+        dungeonMask[x][z] = true;
+    }
+}
+
 void BlockGenerator::Generate() {
+    
+    std::mt19937 mainRng(parameters.randomSeed);
+
     if (!(controller && controller->GetBlockUI() && !controller->GetBlockUI()->GetLoadedAssets().empty())) {
         std::cerr << "ERROR: No blocks/models loaded. Generation aborted." << std::endl;
+
+        
         generatorMesh = createEmptyMesh();
         return;
     }
+
+    isFirstBlock = true; // Reset for new generation
     
     // NEW: Initialize socket system instead of old constraints
     initializeSocketSystem();
     
-    // Initialize block weights and limits
     initializeBlockWeights();
     resetBlockCounts();
 
@@ -62,14 +88,13 @@ void BlockGenerator::Generate() {
     int centerY = parameters.gridHeight / 2;
     int centerZ = parameters.gridLength / 2;
     
-    if (!placeRandomBlockAt(centerX, centerY, centerZ)) {
+    if (!placeRandomBlockAt(centerX, centerY, centerZ, mainRng)) {
         std::cerr << "Failed to place initial block at center" << std::endl;
         generatorMesh = createEmptyMesh();
         return;
     }
 
-    generateGridMultithreaded();
-    
+    generateGridMultithreaded(mainRng);
 
     generatorMesh = generateMeshFromGrid();
 }
@@ -77,25 +102,19 @@ void BlockGenerator::Generate() {
 void BlockGenerator::initializeSocketSystem() {
     parameters.socketSystem.Initialize();
     
-    // Create default templates for all loaded assets
     if (controller && controller->GetBlockUI()) {
         auto assets = controller->GetBlockUI()->GetLoadedAssets();
+        auto& templates = parameters.socketSystem.GetBlockTemplates();
         for (const auto& asset : assets) {
-            BlockTemplate blockTemplate(asset.id);
-            blockTemplate.name = asset.name;
-            
-            // Set all sockets to EMPTY by default (connects to everything)
-            for (int i = 0; i < 6; i++) {
-                blockTemplate.sockets[i] = Socket(SocketType::EMPTY, true);
+            if (templates.find(asset.id) == templates.end()) {
+                BlockTemplate blockTemplate(asset.id);
+                blockTemplate.name = asset.name;
+                parameters.socketSystem.AddBlockTemplate(blockTemplate);
             }
-            
-            parameters.socketSystem.AddBlockTemplate(blockTemplate);
-            
-            // Initialize rotation to 0
             parameters.blockRotations[asset.id] = 0;
         }
     }
-    
+
     // Create void block template
     if (parameters.enableVoidCells) {
         BlockTemplate voidTemplate(VOID_BLOCK_ID);
@@ -113,58 +132,229 @@ void BlockGenerator::initializeSocketSystem() {
     std::cout << "Socket system initialized for all block types" << std::endl;
 }
 
-void BlockGenerator::generateGridMultithreaded() {
-    const unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency());
+void BlockGenerator::generateGridMultithreaded(std::mt19937& mainRng) {
+    //const unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency()); //TEST
+    const unsigned int numThreads = 1; //TEST
     std::vector<std::thread> workerThreads;
     std::atomic<int> totalProcessed(0);
     std::atomic<bool> workCompleted(false);
-    
+
     auto processChunk = [&](unsigned int threadId) {
+        std::mt19937 threadRng(mainRng()); // Per-thread RNG
         int cellsProcessed = 0;
         while (!workCompleted) {
             GridPosition nextPos{-1, -1, -1};
             bool foundWork = false;
-            
+
             {
                 std::lock_guard<std::mutex> lock(gridMutex);
-                nextPos = findLowestEntropyCell();
+                nextPos = findLowestEntropyCell(threadRng);
                 foundWork = (nextPos.x != -1 && nextPos.y != -1 && nextPos.z != -1);
                 if (!foundWork) workCompleted = true;
             }
-            
+
             if (!foundWork) break;
-            
+
             {
                 std::lock_guard<std::mutex> lock(gridMutex);
-                if (!grid[nextPos.x][nextPos.y][nextPos.z].collapsed && 
-                    collapseCell(nextPos.x, nextPos.y, nextPos.z)) {
+                if (!grid[nextPos.x][nextPos.y][nextPos.z].collapsed &&
+                    collapseCell(nextPos.x, nextPos.y, nextPos.z, threadRng)) {
                     cellsProcessed++;
                     totalProcessed++;
                 }
             }
         }
     };
-    
+
     // Launch and join worker threads
     for (unsigned int i = 0; i < numThreads; i++) {
         workerThreads.emplace_back(processChunk, i);
     }
-    
+
     for (auto& thread : workerThreads) {
         thread.join();
     }
-    
-    // Process remaining cells
-    processRemainingCells();
+
+    // Process remaining cells (single-threaded, so you can use the main rng)
+    processRemainingCells(mainRng);
 }
 
-void BlockGenerator::processRemainingCells() {
+// --- Update all relevant functions to accept and use std::mt19937& rng ---
+
+GridPosition BlockGenerator::findLowestEntropyCell(std::mt19937& rng) {
+    int lowestEntropy = INT_MAX;
+    std::vector<GridPosition> candidates;
+    std::mutex mutex;
+
+    //unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency());
+    unsigned int numThreads = 1; //TEST
+    std::vector<std::future<void>> futures;
+
+    auto processChunk = [&](unsigned int startX, unsigned int endX, int threadId) {
+        int localLowestEntropy = INT_MAX;
+        std::vector<GridPosition> localCandidates;
+
+        for (unsigned int x = startX; x < endX; x++) {
+            for (unsigned int y = 0; y < parameters.gridHeight; y++) {
+                for (unsigned int z = 0; z < parameters.gridLength; z++) {
+                    const auto& cell = grid[x][y][z];
+                    if (cell.collapsed || cell.possibleBlockTypes.empty()) continue;
+
+                    int entropy = cell.possibleBlockTypes.size();
+                    if (entropy < localLowestEntropy) {
+                        localLowestEntropy = entropy;
+                        localCandidates.clear();
+                        localCandidates.push_back({(int)x, (int)y, (int)z});
+                    } else if (entropy == localLowestEntropy) {
+                        localCandidates.push_back({(int)x, (int)y, (int)z});
+                    }
+                }
+            }
+        }
+
+        std::lock_guard<std::mutex> lock(mutex);
+        if (localLowestEntropy < lowestEntropy) {
+            lowestEntropy = localLowestEntropy;
+            candidates = std::move(localCandidates);
+        } else if (localLowestEntropy == lowestEntropy) {
+            candidates.insert(candidates.end(), localCandidates.begin(), localCandidates.end());
+        }
+    };
+
+    unsigned int chunkSize = parameters.gridWidth / numThreads;
+    unsigned int remainder = parameters.gridWidth % numThreads;
+    unsigned int startX = 0;
+
+    for (unsigned int t = 0; t < numThreads; ++t) {
+        unsigned int endX = startX + chunkSize + (t < remainder ? 1 : 0);
+        futures.push_back(std::async(std::launch::async, processChunk, startX, endX, t));
+        startX = endX;
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
+
+    if (candidates.empty()) {
+        return GridPosition{-1, -1, -1};
+    }
+
+    std::uniform_int_distribution<int> dist(0, candidates.size() - 1);
+    return candidates[dist(rng)];
+}
+
+bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
+    if (!isValidGridPosition(x, y, z)) return false;
+
+    auto& cell = grid[x][y][z];
+    if (cell.collapsed) return false;
+
+    updateCellPossibilities(x, y, z);
+
+    // If no valid (block, rotation) pairs, set to void/empty
+    if (cell.possibleBlockRotationPairs.empty()) {
+        cell.collapsed = true;
+        cell.possibleBlockTypes = {VOID_BLOCK_ID};
+        cell.blockTypeIds = {VOID_BLOCK_ID};
+        cell.blockRotations = {0};
+        cell.blockPositions.clear();
+        return true;
+    }
+
+    std::vector<int> blockCandidates;
+    for (const auto& pair : cell.possibleBlockRotationPairs) {
+        blockCandidates.push_back(pair.first);
+    }
+    int chosenBlockType = selectWeightedBlock(blockCandidates, rng);
+
+    std::vector<int> rotations;
+    for (const auto& pair : cell.possibleBlockRotationPairs) {
+        if (pair.first == chosenBlockType) {
+            rotations.push_back(pair.second);
+        }
+    }
+
+    std::uniform_int_distribution<int> rotationDist(0, rotations.size() - 1);
+    int chosenRotation = rotations.empty() ? 0 : rotations[rotationDist(rng)];
+
+    cell.collapsed = true;
+    cell.possibleBlockTypes = {chosenBlockType};
+    cell.blockTypeIds = {chosenBlockType};
+    cell.blockRotations = {chosenRotation};
+
+    if (chosenBlockType != VOID_BLOCK_ID) {
+        incrementBlockCount(chosenBlockType);
+        glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
+        cell.blockPositions = {blockPosition};
+    } else {
+        cell.blockPositions.clear();
+    }
+
+    propagateConstraints(x, y, z);
+    return true;
+}
+
+int BlockGenerator::selectWeightedBlock(const std::vector<int>& validBlocks, std::mt19937& rng) {
+    std::vector<int> availableBlocks;
+    for (int blockId : validBlocks) {
+        if (blockId != VOID_BLOCK_ID && canPlaceBlock(blockId)) {
+            availableBlocks.push_back(blockId);
+        }
+    }
+
+    if (availableBlocks.empty()) {
+        if (parameters.enableVoidCells && canPlaceBlock(VOID_BLOCK_ID)) {
+            return VOID_BLOCK_ID;
+        } else {
+            std::cout << "No blocks available - all have reached their count limits!" << std::endl;
+            return -1;
+        }
+    }
+
+    return selectByWeight(availableBlocks, rng);
+}
+
+int BlockGenerator::selectByWeight(const std::vector<int>& blocks, std::mt19937& rng) {
+    if (blocks.empty()) return VOID_BLOCK_ID;
+
+    auto& settings = parameters.generationSettings;
+
+    float totalWeight = 0.0f;
+    for (int blockId : blocks) {
+        auto it = settings.blockWeights.find(blockId);
+        if (it != settings.blockWeights.end()) {
+            totalWeight += it->second;
+        }
+    }
+
+    if (totalWeight <= 0.0f) {
+        std::uniform_int_distribution<int> dist(0, blocks.size() - 1);
+        return blocks[dist(rng)];
+    }
+
+    std::uniform_real_distribution<float> dist(0.0f, totalWeight);
+    float randomValue = dist(rng);
+    float currentWeight = 0.0f;
+
+    for (int blockId : blocks) {
+        auto it = settings.blockWeights.find(blockId);
+        if (it != settings.blockWeights.end()) {
+            currentWeight += it->second;
+            if (randomValue <= currentWeight) {
+                return blockId;
+            }
+        }
+    }
+
+    return blocks.back();
+}
+void BlockGenerator::processRemainingCells(std::mt19937& rng) {
     int remainingCells = 0;
     for (unsigned int x = 0; x < parameters.gridWidth; x++) {
         for (unsigned int y = 0; y < parameters.gridHeight; y++) {
             for (unsigned int z = 0; z < parameters.gridLength; z++) {
                 if (!grid[x][y][z].collapsed && !grid[x][y][z].possibleBlockTypes.empty()) {
-                    if (collapseCell(x, y, z)) remainingCells++;
+                    if (collapseCell(x, y, z, rng)) remainingCells++;
                 }
             }
         }
@@ -264,131 +454,47 @@ std::vector<int> BlockGenerator::getAllBlockTypes() {
     return blockTypes;
 }
 
-bool BlockGenerator::placeRandomBlockAt(int x, int y, int z) {
+bool BlockGenerator::placeRandomBlockAt(int x, int y, int z, std::mt19937& rng) {
     if (!isValidGridPosition(x, y, z)) return false;
-    
+
     auto& cell = grid[x][y][z];
     if (cell.possibleBlockTypes.empty()) return false;
-    
+
+    if (isFirstBlock) {
+        int blockId = VOID_BLOCK_ID;
+        for (int id : cell.possibleBlockTypes) {
+            if (id != VOID_BLOCK_ID) {
+                blockId = id;
+                break;
+            }
+        }
+        // If all are void, fallback to VOID_BLOCK_ID
+        if (blockId == VOID_BLOCK_ID && !cell.possibleBlockTypes.empty()) {
+            blockId = cell.possibleBlockTypes[0];
+        }
+
+        int rotation = 0;
+
+        cell.collapsed = true;
+        cell.possibleBlockTypes = {blockId};
+        cell.blockTypeIds = {blockId};
+        cell.blockRotations = {rotation};
+        glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
+        cell.blockPositions = {blockPosition};
+        incrementBlockCount(blockId);
+        propagateConstraints(x, y, z);
+
+        isFirstBlock = false;
+        return true;
+    }
+
     updateCellPossibilities(x, y, z);
     if (cell.possibleBlockTypes.empty()) {
         std::cerr << "No valid blocks for initial placement at (" << x << ", " << y << ", " << z << ")" << std::endl;
         return false;
     }
-    
-    return collapseCell(x, y, z);
-}
 
-GridPosition BlockGenerator::findLowestEntropyCell() {
-    int lowestEntropy = INT_MAX;
-    std::vector<GridPosition> candidates;
-    std::mutex mutex;
-
-    unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency());
-    std::vector<std::future<void>> futures;
-
-    // Lambda for each thread to process a chunk of the grid
-    auto processChunk = [&](unsigned int startX, unsigned int endX) {
-        int localLowestEntropy = INT_MAX;
-        std::vector<GridPosition> localCandidates;
-
-        for (unsigned int x = startX; x < endX; x++) {
-            for (unsigned int y = 0; y < parameters.gridHeight; y++) {
-                for (unsigned int z = 0; z < parameters.gridLength; z++) {
-                    const auto& cell = grid[x][y][z];
-                    if (cell.collapsed || cell.possibleBlockTypes.empty()) continue;
-
-                    int entropy = cell.possibleBlockTypes.size();
-                    if (entropy < localLowestEntropy) {
-                        localLowestEntropy = entropy;
-                        localCandidates.clear();
-                        localCandidates.push_back({(int)x, (int)y, (int)z});
-                    } else if (entropy == localLowestEntropy) {
-                        localCandidates.push_back({(int)x, (int)y, (int)z});
-                    }
-                }
-            }
-        }
-
-        std::lock_guard<std::mutex> lock(mutex);
-        if (localLowestEntropy < lowestEntropy) {
-            lowestEntropy = localLowestEntropy;
-            candidates = std::move(localCandidates);
-        } else if (localLowestEntropy == lowestEntropy) {
-            candidates.insert(candidates.end(), localCandidates.begin(), localCandidates.end());
-        }
-    };
-
-    unsigned int chunkSize = parameters.gridWidth / numThreads;
-    unsigned int remainder = parameters.gridWidth % numThreads;
-    unsigned int startX = 0;
-
-    for (unsigned int t = 0; t < numThreads; ++t) {
-        unsigned int endX = startX + chunkSize + (t < remainder ? 1 : 0);
-        futures.push_back(std::async(std::launch::async, processChunk, startX, endX));
-        startX = endX;
-    }
-
-    for (auto& f : futures) {
-        f.get();
-    }
-
-    if (candidates.empty()) {
-        return GridPosition{-1, -1, -1};
-    }
-    return candidates[rand() % candidates.size()];
-}
-
-bool BlockGenerator::collapseCell(int x, int y, int z) {
-    if (!isValidGridPosition(x, y, z)) return false;
-
-    auto& cell = grid[x][y][z];
-    if (cell.collapsed) return false;
-
-    updateCellPossibilities(x, y, z);
-
-    // If no valid (block, rotation) pairs, set to void/empty
-    if (cell.possibleBlockRotationPairs.empty()) {
-        cell.collapsed = true;
-        cell.possibleBlockTypes = {VOID_BLOCK_ID};
-        cell.blockTypeIds = {VOID_BLOCK_ID};
-        cell.blockRotations = {0};
-        cell.blockPositions.clear();
-        return true;
-    }
-
-    // Instead of picking a random pair:
-    std::vector<int> blockCandidates;
-    for (const auto& pair : cell.possibleBlockRotationPairs) {
-        blockCandidates.push_back(pair.first);
-    }
-    int chosenBlockType = selectWeightedBlock(blockCandidates);
-
-    // Now pick a rotation for the chosen block (random or weighted if you want)
-    std::vector<int> rotations;
-    for (const auto& pair : cell.possibleBlockRotationPairs) {
-        if (pair.first == chosenBlockType) {
-            rotations.push_back(pair.second);
-        }
-    }
-    int chosenRotation = rotations.empty() ? 0 : rotations[rand() % rotations.size()];
-
-
-    cell.collapsed = true;
-    cell.possibleBlockTypes = {chosenBlockType};
-    cell.blockTypeIds = {chosenBlockType};
-    cell.blockRotations = {chosenRotation};
-
-    if (chosenBlockType != VOID_BLOCK_ID) {
-        incrementBlockCount(chosenBlockType);
-        glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
-        cell.blockPositions = {blockPosition};
-    } else {
-        cell.blockPositions.clear();
-    }
-
-    propagateConstraints(x, y, z);
-    return true;
+    return collapseCell(x, y, z, rng);
 }
 
 void BlockGenerator::updateCellPossibilities(int x, int y, int z) {
@@ -563,10 +669,7 @@ int BlockGenerator::getOppositeFaceIndex(int faceIndex) {
     return (faceIndex >= 0 && faceIndex < 6) ? opposites[faceIndex] : 0;
 }
 
-int BlockGenerator::getRandomRotationIndex() const {
-    // Return 0, 1, 2, or 3 representing 0°, 90°, 180°, 270°
-    return rand() % 4;
-}
+
 
 void BlockGenerator::propagateConstraints(int x, int y, int z) {
     const std::vector<std::tuple<int, int, int>> neighbors = {
@@ -591,7 +694,10 @@ BlockMesh* BlockGenerator::generateMeshFromGrid() {
     BlockMesh* blockMesh = new BlockMesh(vertices, indices, parameters, textures);
 
     // Multithreaded mesh collection
-    unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency());
+
+    //unsigned int numThreads = std::min(4u, std::thread::hardware_concurrency());
+    unsigned int numThreads = 1; //TEST
+
     std::vector<std::vector<std::tuple<int, glm::vec3, int>>> threadBlocks(numThreads);
     std::vector<std::set<std::shared_ptr<Texture>>> threadTextures(numThreads);
 
@@ -704,45 +810,6 @@ void BlockGenerator::collectTexturesFromModel(const std::shared_ptr<Model>& mode
     }
 }
 
-void BlockGenerator::ApplyRandomRotationsToGrid() {
-    if (!generatorMesh) {
-        std::cout << "No world generated yet. Generate a world first!" << std::endl;
-        return;
-    }
-    
-    std::cout << "Applying random Y-axis rotations to all blocks..." << std::endl;
-    
-    // Update rotations in grid
-    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
-        for (unsigned int y = 0; y < parameters.gridHeight; y++) {
-            for (unsigned int z = 0; z < parameters.gridLength; z++) {
-                auto& cell = grid[x][y][z];
-                if (cell.collapsed && !cell.blockTypeIds.empty() && cell.blockTypeIds[0] != VOID_BLOCK_ID) {
-                    // Apply random rotation
-                    int randomRotation = getRandomRotationIndex() * 90; // 0, 90, 180, or 270 degrees
-                    cell.blockRotations = {randomRotation};
-                }
-            }
-        }
-    }
-    
-    // Regenerate mesh with new rotations
-    if (generatorMesh) {
-        delete generatorMesh;
-    }
-    
-    generatorMesh = generateMeshFromGrid();
-    
-    std::cout << "Random rotations applied successfully!" << std::endl;
-}
-
-float BlockGenerator::getRandomYRotation() const {
-    // Return random rotation in 90-degree increments (0°, 90°, 180°, 270°)
-    static const float rotations[] = {0.0f, 90.0f, 180.0f, 270.0f};
-    int randomIndex = rand() % 4;
-    return rotations[randomIndex];
-}
-
 // Helper functions
 bool BlockGenerator::isValidGridPosition(int x, int y, int z) const {
     return x >= 0 && x < (int)parameters.gridWidth && 
@@ -754,7 +821,8 @@ glm::vec3 BlockGenerator::calculateBlockPosition(int x, int y, int z) const {
     float cellCenterX = (x * parameters.cellWidth) - parameters.halfWorldWidth;
     float cellCenterY = y * parameters.cellHeight; // Y starts from 0
     float cellCenterZ = (z * parameters.cellLength) - parameters.halfWorldLength;
-    return glm::vec3(cellCenterX, cellCenterY, cellCenterZ);
+    glm::vec3 pos = glm::vec3(cellCenterX, cellCenterY, cellCenterZ);
+    return pos * parameters.gridScale; // <-- Apply grid scale here
 }
 
 BlockMesh* BlockGenerator::createEmptyMesh() {
@@ -833,43 +901,6 @@ bool BlockGenerator::canPlaceBlock(int blockId) const {
     }
 }
 
-int BlockGenerator::selectByWeight(const std::vector<int>& blocks) {
-    if (blocks.empty()) return VOID_BLOCK_ID;
-    
-    auto& settings = parameters.generationSettings;
-    
-    // Calculate total weight
-    float totalWeight = 0.0f;
-    for (int blockId : blocks) {
-        auto it = settings.blockWeights.find(blockId);
-        if (it != settings.blockWeights.end()) {
-            totalWeight += it->second;
-        }
-    }
-    
-    if (totalWeight <= 0.0f) {
-        // No weights set, use random selection
-        return blocks[rand() % blocks.size()];
-    }
-    
-    // Weighted random selection
-    float randomValue = (rand() / (float)RAND_MAX) * totalWeight;
-    float currentWeight = 0.0f;
-    
-    for (int blockId : blocks) {
-        auto it = settings.blockWeights.find(blockId);
-        if (it != settings.blockWeights.end()) {
-            currentWeight += it->second;
-            if (randomValue <= currentWeight) {
-                return blockId;
-            }
-        }
-    }
-    
-    // Fallback to last block
-    return blocks.back();
-}
-
 bool BlockGenerator::isUnlimitedBlock(int blockId) const {
     auto& settings = parameters.generationSettings;
     auto it = settings.maxBlockCounts.find(blockId);
@@ -911,21 +942,5 @@ void BlockGenerator::incrementBlockCount(int blockId) {
     settings.currentBlockCounts[blockId]++;
 }
 
-int BlockGenerator::selectWeightedBlock(const std::vector<int>& validBlocks) {
-    // Filter blocks that can still be placed (haven't reached their count limit)
-    std::vector<int> availableBlocks;
-    for (int blockId : validBlocks) {
-        if (canPlaceBlock(blockId)) {
-            availableBlocks.push_back(blockId);
-        }
-    }
-    
-    // If no blocks are available due to count limits, return VOID_BLOCK_ID
-    if (availableBlocks.empty()) {
-        std::cout << "No blocks available - all have reached their count limits!" << std::endl;
-        return VOID_BLOCK_ID;
-    }
-    
-    // Use weight-based selection only on blocks that can still be placed
-    return selectByWeight(availableBlocks);
-}
+
+

@@ -25,12 +25,23 @@
 #include "../Drawables/Model.h"
 
 BlockUI::BlockUI(BlockController* controller) : controller(controller) {
-    // Initialize parameters with 3D support (gridWidth, gridHeight, gridLength, cellWidth, cellHeight, cellLength, blockScale)
-    parameters = {20, 10, 20, 5.0f, 5.0f, 5.0f, 1.0f};
+        parameters = BlockUtilities::BlockData(
+        20,     // gridWidth
+        10,     // gridHeight
+        20,     // gridLength
+        5.0f,   // cellWidth
+        5.0f,   // cellHeight
+        5.0f,   // cellLength
+        1.0f,   // blockScale
+        1.0f,   // gridScale
+        12345,  // randomSeed
+        0.3f,   // voidProbability
+        true    // enableVoidCells
+    );
+
     // Initialize generation settings with 3D support
     genSettings = {20, 10, 20, 1.0f};
 }
-
 void BlockUI::DisplayUI() {
     if (ImGui::Begin("Block World Generator")) {
         if (ImGui::BeginTabBar("MainTabs")) {
@@ -46,10 +57,14 @@ void BlockUI::DisplayUI() {
         }
         
         ImGui::Separator();
-        if (ImGui::Button("Generate World", ImVec2(200, 40)) && controller) {
+        // Center the Generate World button and make it big
+        float buttonWidth = 200.0f;
+        float avail = ImGui::GetContentRegionAvail().x;
+        ImGui::SetCursorPosX((avail - buttonWidth) * 0.5f);
+        if (ImGui::Button("Generate World", ImVec2(buttonWidth, 40)) && controller) {
             controller->Generate();
         }
-        
+
         DisplayBlockConstraints();  // Keep this for weight/limit controls
     }
     ImGui::End();
@@ -85,12 +100,17 @@ void BlockUI::DisplayBasicSettings() {
         ImGui::DragFloat("Block Scale", &parameters.blockScale, 0.01f, 0.1f, 5.0f);
         genSettings.blockScale = parameters.blockScale;
         
-        if (ImGui::Button("Reset Scale")) {
+        if (ImGui::Button("Reset Block Scale")) {
             parameters.blockScale = genSettings.blockScale = 1.0f;
         }
         
         ImGui::Separator();
         
+    ImGui::DragFloat("Grid Scale", &parameters.gridScale, 0.01f, 0.1f, 10.0f);
+
+    if (ImGui::Button("Reset Grid Scale")) {
+        parameters.gridScale = 1.0f;
+    }
         
     }
     
@@ -123,8 +143,18 @@ void BlockUI::DisplayBasicSettings() {
             }
         }
     }
-}
 
+    ImGui::Separator();
+    ImGui::InputInt("Random Seed", reinterpret_cast<int*>(&parameters.randomSeed));
+
+    // Center the Randomize Seed button and make it big like Generate
+    float buttonWidth = 200.0f;
+    float avail = ImGui::GetContentRegionAvail().x;
+    ImGui::SetCursorPosX((avail - buttonWidth) * 0.5f);
+    if (ImGui::Button("Randomize Seed", ImVec2(buttonWidth, 40))) {
+        parameters.randomSeed = static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count());
+    }
+}
 void BlockUI::DisplaySocketEditor() {
     if (!ImGui::CollapsingHeader("Socket Editor", ImGuiTreeNodeFlags_DefaultOpen)) return;
     
@@ -387,18 +417,6 @@ void BlockUI::DisplayBlockConstraints() {
     if (ImGui::CollapsingHeader("Block Generation Constraints", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& settings = parameters.generationSettings;
         
-        ImGui::Checkbox("Enforce Block Limits", &settings.enforceBlockLimits);
-        ImGui::SameLine();
-        if (ImGui::Button("?")) {
-            ImGui::SetTooltip("When enabled, blocks will stop generating once they reach their limit");
-        }
-        
-        ImGui::Checkbox("Use Weighted Selection", &settings.useWeightedSelection);
-        ImGui::SameLine();
-        if (ImGui::Button("??")) {
-            ImGui::SetTooltip("When enabled, blocks with higher weights appear more frequently");
-        }
-        
         ImGui::SliderFloat("Default Weight", &settings.defaultWeight, 0.0f, 1.0f);
         
         ImGui::Separator();
@@ -531,17 +549,6 @@ void BlockUI::DisplayBlockConstraints() {
                 limit = -1; // Unlimited
             }
             std::cout << "Removed all block limits" << std::endl;
-        }
-        
-        // Debug weight information
-        if (ImGui::CollapsingHeader("Debug Info")) {
-            ImGui::Text("Weights Status:");
-            for (const auto& [blockId, weight] : settings.blockWeights) {
-                ImGui::Text("Block %d: Weight=%.2f, Count=%d, Limit=%d", 
-                           blockId, weight, 
-                           settings.currentBlockCounts[blockId],
-                           settings.maxBlockCounts[blockId]);
-            }
         }
     }
 }

@@ -10,6 +10,7 @@
 #include <set>
 #include <functional>
 #include <tuple>
+#include <random>
 
 using namespace BlockUtilities;
 
@@ -49,6 +50,10 @@ private:
     std::set<std::pair<int, int>> // neighborBlockId, neighborRotation
     > adjacencyTable;
 
+    std::vector<std::vector<bool>> dungeonMask; // [x][z] for 2D dungeon shape
+
+    bool isFirstBlock = true;
+
 public:
     BlockGenerator();
     BlockGenerator(BlockController* controller);
@@ -65,9 +70,6 @@ public:
     // Asset detection
     void DetectCellSizeFromAssets();
     
-
-    void ApplyRandomRotationsToGrid();
-    
     // Block statistics and management
     std::map<int, int> GetCurrentBlockCounts() const { return parameters.generationSettings.currentBlockCounts; }
 
@@ -79,15 +81,16 @@ private:
     
     // Core WFC methods
     std::vector<int> getAllBlockTypes();
-    bool placeRandomBlockAt(int x, int y, int z);
-    GridPosition findLowestEntropyCell();
-    bool collapseCell(int x, int y, int z);
+    bool placeRandomBlockAt(int x, int y, int z, std::mt19937& rng);
+    GridPosition findLowestEntropyCell(std::mt19937& rng);
+    bool collapseCell(int x, int y, int z, std::mt19937& rng);
     void updateCellPossibilities(int x, int y, int z);
     
+    void initializeDungeonMask();
     void buildAdjacencyTable();
     // Generation methods
-    void generateGridMultithreaded();
-    void processRemainingCells();
+    void generateGridMultithreaded(std::mt19937& mainRng);
+    void processRemainingCells(std::mt19937& rng);
     
     // NEW: Socket-based constraint validation
     bool isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation);
@@ -99,8 +102,7 @@ private:
     int getFaceIndex(const std::string& faceDirection);
     std::string getFaceDirection(int faceIndex);
     int getOppositeFaceIndex(int faceIndex);
-    int getRandomRotationIndex() const;
-    
+
     // Utility methods
     bool isValidGridPosition(int x, int y, int z) const;
     glm::vec3 calculateBlockPosition(int x, int y, int z) const;
@@ -117,18 +119,16 @@ private:
     void collectTexturesFromModel(const std::shared_ptr<Model>& model, 
                                  std::set<std::shared_ptr<Texture>>& uniqueTextures);
 
-    // Helper method for random rotations
-    float getRandomYRotation() const;
 
     // Block count and weight management
     void initializeBlockWeights();
     void resetBlockCounts();
     bool canPlaceBlock(int blockId) const;
-    int selectWeightedBlock(const std::vector<int>& validBlocks);
+    int selectWeightedBlock(const std::vector<int>& validBlocks, std::mt19937& rng);
     void incrementBlockCount(int blockId);
 
     // Block selection and management methods
-    int selectByWeight(const std::vector<int>& blocks);
+    int selectByWeight(const std::vector<int>& blocks, std::mt19937& rng);
     bool isUnlimitedBlock(int blockId) const;
     std::vector<int> getAvailableBlocks() const;
     bool hasReachedLimit(int blockId) const;

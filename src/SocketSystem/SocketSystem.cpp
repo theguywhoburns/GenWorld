@@ -99,10 +99,6 @@ bool SocketSystem::CanBlocksConnect(int blockId1, int rotation1, int face1,
     
     bool result = compatibility.CanConnect(sockets1[face1].type, sockets2[face2].type);
 
-    std::cout << "Checking: Block " << blockId1 << " (rot " << rotation1 << ") face " << face1
-              << " vs Block " << blockId2 << " (rot " << rotation2 << ") face " << face2
-              << " => " << (result ? "ALLOWED" : "BLOCKED") << std::endl;
-
     
     return result;
 }
