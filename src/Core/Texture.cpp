@@ -1,7 +1,6 @@
 #include "Texture.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include "../Utils/FileDialogs.h"
 
 Texture::Texture(std::string path, TexType type) {
     this->type = type;

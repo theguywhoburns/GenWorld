@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "../Utils/FileDialogs.h"
 #include "../Core/Texture.h"
 #include "Mesh.h"
 
