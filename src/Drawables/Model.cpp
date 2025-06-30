@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "../Utils/FileDialogs.h"
 
 void Model::Draw(Shader& shader) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
@@ -149,8 +150,9 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 		aiString str;
 		mat->GetTexture(type, i, &str);
 
-		string dir = directory.substr(0, directory.find_last_of('\\'));
-		string path = dir + "\\" + string(str.C_Str());
+		// Use forward slash and NormalizePath for cross-platform compatibility
+		string path = directory + "/" + string(str.C_Str());
+		path = Utils::FileDialogs::NormalizePath(path);
 
 		bool skip = false;
 

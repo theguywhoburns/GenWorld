@@ -1,10 +1,11 @@
 #include "Texture.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "../Utils/FileDialogs.h"
 
 Texture::Texture(std::string path, TexType type) {
     this->type = type;
-    this->path = path;
+    this->path = Utils::FileDialogs::NormalizePath(path);
 
     glGenTextures(1, &ID);
     bind();
@@ -12,7 +13,7 @@ Texture::Texture(std::string path, TexType type) {
     // tell stb_image.h to flip loaded texture's on the y-axis.
     // stbi_set_flip_vertically_on_load(true);
 
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
+    unsigned char* data = stbi_load(this->path.c_str(), &width, &height, &nrChannels, 0);
     if (data) {
         GLenum format = GL_RGB;
         if (nrChannels == 1)
