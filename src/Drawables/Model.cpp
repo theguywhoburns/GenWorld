@@ -48,13 +48,16 @@ void Model::SetShaderParameters(const ShadingParameters& params) {
 
 void Model::loadModel(string path) {
 	Assimp::Importer importer;
+
+	path = Utils::FileDialogs::NormalizePath(path);
+	directory = path.substr(0, path.find_last_of('/'));
+
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		cout << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
 		return;
 	}
-	directory = path.substr(0, path.find_last_of('/'));
 
 	processNode(scene->mRootNode, scene);
 }
@@ -149,9 +152,7 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 		aiString str;
 		mat->GetTexture(type, i, &str);
 
-		// Use forward slash and NormalizePath for cross-platform compatibility
-		string path = directory + "/" + string(str.C_Str());
-		path = Utils::FileDialogs::NormalizePath(path);
+		string path = directory + "/" + string(str.C_Str()); // already normalized above
 
 		bool skip = false;
 
