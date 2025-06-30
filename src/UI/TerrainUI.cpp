@@ -214,7 +214,7 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
 
     const float padding = 10.0f;
-    ImVec2 overlaySize(120, 35);
+    ImVec2 overlaySize(150, 50);
     ImVec2 windowPos = ImGui::GetWindowPos();
     ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
@@ -237,7 +237,6 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
     ImGui::Checkbox("Live Update", &liveUpdate);
     ImGui::PopStyleColor();
-    // ImGui::Checkbox("Live Update", &liveUpdate);
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
