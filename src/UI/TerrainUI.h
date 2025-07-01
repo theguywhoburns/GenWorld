@@ -20,11 +20,17 @@ private:
     TerrainController* controller;
     bool liveUpdate = true;
 
-    void RenderFalloffControls();
-    void DisplaySceneViewOverlay();
-    void DisplayTerrainSettingsUI();
-    void DisplayColorSettingsUI();
+    // New tab-based methods
+    void DisplayMainSettingsWindow();
+    void DisplayTerrainSettingsTab();
+    void DisplayAppearanceTab();
+    void DisplayDecorationTab();
+
+    void DisplayColorSettings();
     void DisplayTextureLayerSettings();
     void DisplayDecorationSettings();
+
+    void RenderFalloffControls();
+    void DisplaySceneViewOverlay();
 
 };

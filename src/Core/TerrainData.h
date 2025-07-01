@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "../Drawables/Mesh.h"
-#include "ImGuiCurveTest.h"
+#include "../Utils/HermiteCurve.h"
 
 
 namespace TerrainUtilities {
@@ -61,7 +61,7 @@ namespace TerrainUtilities {
 
         // Height Multiplier
         float heightMultiplier;
-        vector<ImGui::point> curvePoints;
+        vector<ImGui::CurvePoint> curvePoints;
 
         // Noise Parameters
         float lacunarity;
@@ -90,8 +90,15 @@ namespace TerrainUtilities {
         vector<DecorationRule> decorationRules;
 
         bool operator==(const TerrainData& other) const {
-            for (int i = 0; i < 4; ++i) {
-                if (curvePoints[i].x != other.curvePoints[i].x || curvePoints[i].y != other.curvePoints[i].y) {
+            if (curvePoints.size() != other.curvePoints.size()) {
+                return false;
+            }
+
+            for (int i = 0; i < curvePoints.size(); ++i) {
+                if (curvePoints[i].main.x != other.curvePoints[i].main.x ||
+                    curvePoints[i].main.y != other.curvePoints[i].main.y ||
+                    curvePoints[i].tangent.x != other.curvePoints[i].tangent.x ||
+                    curvePoints[i].tangent.y != other.curvePoints[i].tangent.y) {
                     return false;
                 }
             }

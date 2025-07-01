@@ -5,14 +5,14 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 
-#include "../Core/Engine/Window.h"
+#include "../Core/Engine/AppWindow.h"
 
 class IRenderContext {
 public:
     IRenderContext() : window(nullptr) {}
     virtual ~IRenderContext() = default;
 
-    virtual bool init(Window* window) = 0;
+    virtual bool init(AppWindow* window) = 0;
     virtual void shutdown() = 0;
 
     virtual void preRender() = 0;
@@ -20,6 +20,6 @@ public:
     virtual void postRender() = 0;
 
 protected:
-    Window* window;
+    AppWindow* window;
 
 };

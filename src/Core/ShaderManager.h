@@ -37,4 +37,11 @@ public:
         shaders[name] = shader;
         return shader;
     }
+
+    std::shared_ptr<Shader> loadShader(const std::string& name,
+        const char* vertexPath, const char* fragmentPath, const char* geometryPath) {
+        auto shader = std::make_shared<Shader>(vertexPath, fragmentPath, geometryPath);
+        shaders[name] = shader;
+        return shader;
+    }
 };

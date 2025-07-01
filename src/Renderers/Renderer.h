@@ -5,7 +5,7 @@
 #include "../Drawables/IDrawable.h"
 #include "../Core/Shader.h"
 #include "../Core/Camera.h"
-#include "../Core/Framebuffer.h"
+#include "../Core/FrameBuffer.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -24,6 +24,8 @@ public:
     void SetScreenSize(float width, float height);
     glm::vec2 GetScreenSize();
 
+    void updateShadingParameters(const ShadingParameters& params) { currentShadingParams = params; }
+
 private:
     void renderScene();
 
@@ -31,6 +33,7 @@ private:
     std::vector<IDrawable*> renderQueue;
     Camera* currentCamera;
     FrameBuffer framebuffer;
+    ShadingParameters currentShadingParams;
 
 };
 
