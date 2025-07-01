@@ -70,10 +70,10 @@ void ShadingPanel::renderModeOverlay() {
     ImGui::SetCursorPos(overlayPos);
 
     // Style overrides for the mode selector using Spectrum colors
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY75));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY75()));
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
-    ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300));
+    ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300()));
 
     ImGui::BeginChild("ModeSelector", overlaySize,
         ImGuiChildFlags_Borders,
@@ -126,15 +126,15 @@ void ShadingPanel::renderModeButtons() {
 
         if (isActive) {
             // Use Spectrum blue colors for active state
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE500));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE400));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE500()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE400()));
         }
         else {
             // Use Spectrum gray colors for inactive state
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY200));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY200()));
         }
 
         if (ImGui::Button(modes[i].icon, ImVec2(buttonSize, buttonSize))) {
@@ -206,8 +206,8 @@ void ShadingPanel::renderCollapsedPanel() {
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
         // Use Spectrum gray colors for the expand button
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400()));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500()));
 
         if (ImGui::Button(">", overlaySize)) {
             parametersCollapsed = false;
@@ -282,7 +282,7 @@ void ShadingPanel::renderExpandedPanel() {
         ImGui::SetCursorPos(overlayPos);
 
         // Style overrides using Spectrum colors
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY75));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY75()));
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
 
@@ -299,8 +299,8 @@ void ShadingPanel::renderExpandedPanel() {
         // Header with collapse button
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
         // Use Spectrum gray colors for the collapse button
-        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500));
+        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400()));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500()));
 
         if (ImGui::Button("<", ImVec2(30, 38))) {
             parametersCollapsed = true;
@@ -328,7 +328,7 @@ void ShadingPanel::renderExpandedPanel() {
         };
 
         // Use Spectrum text color for current mode
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600()));
         ImGui::Text("Current Mode: %s", modeNames[static_cast<int>(params.mode)]);
         ImGui::PopStyleColor();
 
@@ -458,7 +458,7 @@ void ShadingPanel::renderNoLightsUI() {
     ImGui::Spectrum::SectionTitle("Material Preview");
 
     // Show informational text using Spectrum color
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY600));
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY600()));
     ImGui::TextWrapped("This mode simulates material properties without lighting. It is useful for previewing textures and material settings without the influence of scene lighting.");
     ImGui::PopStyleColor();
 

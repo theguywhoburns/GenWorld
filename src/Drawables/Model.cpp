@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "../Utils/Utils.h"
 
 void Model::Draw(Shader& shader) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
@@ -152,7 +153,9 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 		aiString str;
 		mat->GetTexture(type, i, &str);
 
-		string path = directory + "/" + string(str.C_Str()); // already normalized above
+		// Use forward slash and NormalizePath for cross-platform compatibility
+		string path = directory + "/" + string(str.C_Str());
+		path = Utils::NormalizePath(path);
 
 		bool skip = false;
 

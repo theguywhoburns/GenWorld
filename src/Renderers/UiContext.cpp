@@ -5,7 +5,7 @@ void UiContext::switchTheme() {
     if (isDarkTheme) {
         ImGui::Spectrum::StyleColorsSpectrum();
     } else {
-        ImGui::StyleColorsLight();
+        ImGui::Spectrum::StyleColorsLight();
     }
 }
 

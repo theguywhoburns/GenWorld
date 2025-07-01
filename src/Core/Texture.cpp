@@ -1,10 +1,11 @@
 #include "Texture.h"
+#include "../Utils/Utils.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 Texture::Texture(std::string path, TexType type) {
     this->type = type;
-    this->path = Utils::FileDialogs::NormalizePath(path);
+    this->path = Utils::NormalizePath(path);
 
     glGenTextures(1, &ID);
     bind();
