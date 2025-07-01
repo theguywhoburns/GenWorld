@@ -1,61 +1,77 @@
 #include "Model.h"
 #include "../Utils/Utils.h"
 
-void Model::Draw(Shader& shader) {
-	for (unsigned int i = 0; i < meshes.size(); i++) {
+void Model::Draw(Shader &shader)
+{
+	for (unsigned int i = 0; i < meshes.size(); i++)
+	{
 		meshes[i]->Draw(shader);
 	}
 }
 
-void Model::Draw(const glm::mat4& view, const glm::mat4& projection) {
-	if (m_shader != nullptr) {
-		for (unsigned int i = 0; i < meshes.size(); i++) {
+void Model::Draw(const glm::mat4 &view, const glm::mat4 &projection)
+{
+	if (m_shader != nullptr)
+	{
+		for (unsigned int i = 0; i < meshes.size(); i++)
+		{
 			meshes[i]->Draw(view, projection);
 		}
 	}
 }
 
-void Model::DrawInstanced(const glm::mat4& view, const glm::mat4& projection, const std::vector<glm::mat4>& instanceMatrices) {
-	for (Mesh* mesh : meshes) {
+void Model::DrawInstanced(const glm::mat4 &view, const glm::mat4 &projection, const std::vector<glm::mat4> &instanceMatrices)
+{
+	for (Mesh *mesh : meshes)
+	{
 		mesh->UpdateInstanceData(instanceMatrices); // buffer updated here
 		mesh->DrawInstanced(instanceMatrices.size(), view, projection);
 	}
 }
 
-void Model::SetShader(std::shared_ptr<Shader> shader) {
+void Model::SetShader(std::shared_ptr<Shader> shader)
+{
 	m_shader = shader;
-	for (auto& mesh : meshes) {
+	for (auto &mesh : meshes)
+	{
 		mesh->SetShader(shader);
 	}
 }
 
-void Model::SetShader(const std::string& shaderName) {
+void Model::SetShader(const std::string &shaderName)
+{
 	m_shader = ShaderManager::GetInstance()->getShader(shaderName);
-	if (!m_shader) {
+	if (!m_shader)
+	{
 		throw std::runtime_error("Shader not found: " + shaderName);
 	}
 
-	for (auto& mesh : meshes) {
+	for (auto &mesh : meshes)
+	{
 		mesh->SetShader(m_shader);
 	}
 }
 
-void Model::SetShaderParameters(const ShadingParameters& params) {
+void Model::SetShaderParameters(const ShadingParameters &params)
+{
 	m_currentShadingParams = params;
-	for (auto& mesh : meshes) {
+	for (auto &mesh : meshes)
+	{
 		mesh->SetShaderParameters(params);
 	}
 }
 
-void Model::loadModel(string path) {
+void Model::loadModel(string path)
+{
 	Assimp::Importer importer;
 
-	path = Utils::FileDialogs::NormalizePath(path);
+	path = Utils::NormalizePath(path);
 	directory = path.substr(0, path.find_last_of('/'));
 
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+	const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+	{
 		cout << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
 		return;
 	}
@@ -63,26 +79,31 @@ void Model::loadModel(string path) {
 	processNode(scene->mRootNode, scene);
 }
 
-void Model::processNode(aiNode* node, const aiScene* scene) {
+void Model::processNode(aiNode *node, const aiScene *scene)
+{
 	// process all the node's meshes (if any)
-	for (unsigned int i = 0; i < node->mNumMeshes; i++) {
-		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+	for (unsigned int i = 0; i < node->mNumMeshes; i++)
+	{
+		aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
 		meshes.push_back(processMesh(mesh, scene));
 	}
 
 	// then do the same for each of its children
-	for (unsigned int i = 0; i < node->mNumChildren; i++) {
+	for (unsigned int i = 0; i < node->mNumChildren; i++)
+	{
 		processNode(node->mChildren[i], scene);
 	}
 }
 
-Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene) {
+Mesh *Model::processMesh(aiMesh *mesh, const aiScene *scene)
+{
 	vector<Vertex> vertices;
 	vector<unsigned int> indices;
 	vector<std::shared_ptr<Texture>> textures;
 
 	// load vertices
-	for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
+	{
 		Vertex vertex;
 		glm::vec3 vector;
 		vector.x = mesh->mVertices[i].x;
@@ -90,7 +111,8 @@ Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		vector.z = mesh->mVertices[i].z;
 		vertex.Position = vector;
 
-		if (mesh->HasNormals()) {
+		if (mesh->HasNormals())
+		{
 			vector.x = mesh->mNormals[i].x;
 			vector.y = mesh->mNormals[i].y;
 			vector.z = mesh->mNormals[i].z;
@@ -122,14 +144,15 @@ Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 	}
 
 	// load indices
-	for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+	for (unsigned int i = 0; i < mesh->mNumFaces; i++)
+	{
 		aiFace face = mesh->mFaces[i];
 		for (unsigned int j = 0; j < face.mNumIndices; j++)
 			indices.push_back(face.mIndices[j]);
 	}
 
 	// load materials
-	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+	aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
 
 	// 1. diffuse maps
 	vector<std::shared_ptr<Texture>> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, TexType::diffuse);
@@ -147,9 +170,11 @@ Mesh* Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 	return new Mesh(vertices, indices, textures);
 }
 
-vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, TexType typeName) {
+vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, TexType typeName)
+{
 	vector<std::shared_ptr<Texture>> textures;
-	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
+	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+	{
 		aiString str;
 		mat->GetTexture(type, i, &str);
 
@@ -159,15 +184,18 @@ vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial* mat, ai
 
 		bool skip = false;
 
-		for (unsigned int j = 0; j < textures_loaded.size(); j++) {
-			if (std::strcmp(textures_loaded[j]->path.data(), path.data()) == 0) {
+		for (unsigned int j = 0; j < textures_loaded.size(); j++)
+		{
+			if (std::strcmp(textures_loaded[j]->path.data(), path.data()) == 0)
+			{
 				textures.push_back(textures_loaded[j]);
 				skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
 				break;
 			}
 		}
 
-		if (!skip) {
+		if (!skip)
+		{
 			std::shared_ptr<Texture> tex = std::make_shared<Texture>(path, typeName);
 			textures.push_back(tex);
 			textures_loaded.push_back(tex);
