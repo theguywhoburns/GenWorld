@@ -1,38 +1,46 @@
 #include "ViewportShading.h"
 #include "SpectrumUI.h"
 
-ShadingPanel::ShadingPanel() {
+ShadingPanel::ShadingPanel()
+{
     // Initialize with default values
     params.mode = ViewportShadingMode::RenderedNoLights;
     resetAllDefaults();
     triggerCallback();
 }
 
-void ShadingPanel::setOnParametersChanged(std::function<void(const ShadingParameters&)> callback) {
+void ShadingPanel::setOnParametersChanged(std::function<void(const ShadingParameters &)> callback)
+{
     onParametersChanged = callback;
 }
 
-void ShadingPanel::render() {
+void ShadingPanel::render()
+{
     renderModeOverlay();
     renderSidePanel();
 }
 
-const ShadingParameters& ShadingPanel::getParameters() const {
+const ShadingParameters &ShadingPanel::getParameters() const
+{
     return params;
 }
 
-void ShadingPanel::setParameters(const ShadingParameters& newParams) {
+void ShadingPanel::setParameters(const ShadingParameters &newParams)
+{
     params = newParams;
     triggerCallback();
 }
 
-void ShadingPanel::triggerCallback() {
-    if (onParametersChanged) {
+void ShadingPanel::triggerCallback()
+{
+    if (onParametersChanged)
+    {
         onParametersChanged(params);
     }
 }
 
-void ShadingPanel::renderModeOverlay() {
+void ShadingPanel::renderModeOverlay()
+{
     const ImU32 flags =
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
@@ -42,8 +50,9 @@ void ShadingPanel::renderModeOverlay() {
         ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoDocking;
 
-    ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
-    if (!sceneWindow) return;
+    ImGuiWindow *sceneWindow = ImGui::FindWindowByName("Scene View");
+    if (!sceneWindow)
+        return;
 
     ImGui::SetNextWindowSize(sceneWindow->Size);
     ImGui::SetNextWindowPos(sceneWindow->Pos);
@@ -64,8 +73,7 @@ void ShadingPanel::renderModeOverlay() {
     // Position at top-right of scene view
     ImVec2 overlayPos(
         contentRegionMin.x + 10,
-        contentRegionMin.y + 40
-    );
+        contentRegionMin.y + 40);
 
     ImGui::SetCursorPos(overlayPos);
 
@@ -76,10 +84,10 @@ void ShadingPanel::renderModeOverlay() {
     ImGui::PushStyleColor(ImGuiCol_Border, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300()));
 
     ImGui::BeginChild("ModeSelector", overlaySize,
-        ImGuiChildFlags_Borders,
-        ImGuiWindowFlags_NoScrollbar |
-        ImGuiWindowFlags_NoScrollWithMouse |
-        ImGuiWindowFlags_NoTitleBar);
+                      ImGuiChildFlags_Borders,
+                      ImGuiWindowFlags_NoScrollbar |
+                      ImGuiWindowFlags_NoScrollWithMouse |
+                      ImGuiWindowFlags_NoTitleBar);
 
     renderModeButtons();
 
@@ -94,20 +102,21 @@ void ShadingPanel::renderModeOverlay() {
     ImGui::PopStyleColor(2);
 }
 
-void ShadingPanel::renderModeButtons() {
+void ShadingPanel::renderModeButtons()
+{
     // Mode button data
-    struct ModeButton {
+    struct ModeButton
+    {
         ViewportShadingMode mode;
-        const char* icon;
-        const char* tooltip;
+        const char *icon;
+        const char *tooltip;
     };
 
     ModeButton modes[] = {
-        { ViewportShadingMode::Wireframe, "W", "Wireframe" },
-        { ViewportShadingMode::SolidColor, "S", "Solid" },
-        { ViewportShadingMode::RenderedNoLights, "M", "Material Preview" },
-        { ViewportShadingMode::RenderedWithLights, "R", "Rendered" }
-    };
+        {ViewportShadingMode::Wireframe, "W", "Wireframe"},
+        {ViewportShadingMode::SolidColor, "S", "Solid"},
+        {ViewportShadingMode::RenderedNoLights, "M", "Material Preview"},
+        {ViewportShadingMode::RenderedWithLights, "R", "Rendered"}};
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
@@ -119,30 +128,36 @@ void ShadingPanel::renderModeButtons() {
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + startX);
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + startY);
 
-    for (int i = 0; i < 4; i++) {
-        if (i > 0) ImGui::SameLine();
+    for (int i = 0; i < 4; i++)
+    {
+        if (i > 0)
+            ImGui::SameLine();
 
         bool isActive = (params.mode == modes[i].mode);
 
-        if (isActive) {
+        if (isActive)
+        {
             // Use Spectrum blue colors for active state
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE500()));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600()));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE400()));
         }
-        else {
+        else
+        {
             // Use Spectrum gray colors for inactive state
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY300()));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400()));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY200()));
         }
 
-        if (ImGui::Button(modes[i].icon, ImVec2(buttonSize, buttonSize))) {
+        if (ImGui::Button(modes[i].icon, ImVec2(buttonSize, buttonSize)))
+        {
             params.mode = modes[i].mode;
             triggerCallback();
         }
 
-        if (ImGui::IsItemHovered()) {
+        if (ImGui::IsItemHovered())
+        {
             ImGui::SetTooltip("%s", modes[i].tooltip);
         }
 
@@ -152,18 +167,23 @@ void ShadingPanel::renderModeButtons() {
     ImGui::PopStyleVar(2);
 }
 
-void ShadingPanel::renderSidePanel() {
-    if (parametersCollapsed) {
+void ShadingPanel::renderSidePanel()
+{
+    if (parametersCollapsed)
+    {
         renderCollapsedPanel();
     }
-    else {
+    else
+    {
         renderExpandedPanel();
     }
 }
 
-void ShadingPanel::renderCollapsedPanel() {
-    ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
-    if (!sceneWindow) return;
+void ShadingPanel::renderCollapsedPanel()
+{
+    ImGuiWindow *sceneWindow = ImGui::FindWindowByName("Scene View");
+    if (!sceneWindow)
+        return;
 
     ImGui::SetNextWindowPos(sceneWindow->Pos);
     ImGui::SetNextWindowSize(sceneWindow->Size);
@@ -183,14 +203,14 @@ void ShadingPanel::renderCollapsedPanel() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-    if (ImGui::Begin("ShadingPanelCollapsed", nullptr, flags)) {
+    if (ImGui::Begin("ShadingPanelCollapsed", nullptr, flags))
+    {
         ImVec2 originalPos = ImGui::GetCursorPos();
         ImVec2 overlaySize(30, 38);
         ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
         ImVec2 overlayPos(
             contentRegionMin.x + 10,
-            contentRegionMin.y + 85
-        );
+            contentRegionMin.y + 85);
         ImGui::SetCursorPos(overlayPos);
 
         // Style overrides using Spectrum colors
@@ -199,30 +219,31 @@ void ShadingPanel::renderCollapsedPanel() {
         ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
 
         ImGui::BeginChild("SceneViewOverlay", overlaySize,
-            ImGuiChildFlags_Borders,
-            ImGuiWindowFlags_NoScrollbar |
-            ImGuiWindowFlags_NoScrollWithMouse |
-            ImGuiWindowFlags_NoTitleBar);
+                          ImGuiChildFlags_Borders,
+                          ImGuiWindowFlags_NoScrollbar |
+                              ImGuiWindowFlags_NoScrollWithMouse |
+                              ImGuiWindowFlags_NoTitleBar);
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
         // Use Spectrum gray colors for the expand button
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400()));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500()));
 
-        if (ImGui::Button(">", overlaySize)) {
+        if (ImGui::Button(">", overlaySize))
+        {
             parametersCollapsed = false;
         }
 
-        if (ImGui::IsItemHovered()) {
+        if (ImGui::IsItemHovered())
+        {
             ImGui::SetTooltip("Expand Shading Parameters");
         }
 
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar();
-        
+
         ImGui::EndChild();
 
-        
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor();
     }
@@ -232,9 +253,11 @@ void ShadingPanel::renderCollapsedPanel() {
     ImGui::PopStyleColor(2);
 }
 
-void ShadingPanel::renderExpandedPanel() {
-    ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
-    if (!sceneWindow) return;
+void ShadingPanel::renderExpandedPanel()
+{
+    ImGuiWindow *sceneWindow = ImGui::FindWindowByName("Scene View");
+    if (!sceneWindow)
+        return;
 
     ImGui::SetNextWindowPos(sceneWindow->Pos);
     ImGui::SetNextWindowSize(sceneWindow->Size);
@@ -253,32 +276,35 @@ void ShadingPanel::renderExpandedPanel() {
     ImGui::PushStyleColor(ImGuiCol_Border, 0);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    
-    if (ImGui::Begin("ShadingPanelExpanded", nullptr, flags)) {
+
+    if (ImGui::Begin("ShadingPanelExpanded", nullptr, flags))
+    {
         ImVec2 originalPos = ImGui::GetCursorPos();
-        
+
         // Calculate available space and set reasonable constraints
         ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
         ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
         float availableHeight = contentRegionMax.y - contentRegionMin.y;
-        
+
         // Content-aware sizing with threshold for scrolling
         float overlayWidth = 400.0f;
         float maxHeight = availableHeight - 130.0f;
-        float contentThreshold = 405.0f;  // Threshold where scrolling kicks in
-        
+        float contentThreshold = 405.0f; // Threshold where scrolling kicks in
+
         // If we have less available space than threshold, use available space
-        if (maxHeight < contentThreshold) {
-            maxHeight = ImMax(maxHeight, 280.0f);  // Minimum usable height
-        } else {
-            maxHeight = contentThreshold;  // Use threshold as max before scrolling
+        if (maxHeight < contentThreshold)
+        {
+            maxHeight = ImMax(maxHeight, 280.0f); // Minimum usable height
         }
-        
+        else
+        {
+            maxHeight = contentThreshold; // Use threshold as max before scrolling
+        }
+
         ImVec2 overlaySize(overlayWidth, maxHeight);
         ImVec2 overlayPos(
             contentRegionMin.x + 10,
-            contentRegionMin.y + 85
-        );
+            contentRegionMin.y + 85);
         ImGui::SetCursorPos(overlayPos);
 
         // Style overrides using Spectrum colors
@@ -288,13 +314,13 @@ void ShadingPanel::renderExpandedPanel() {
 
         // Add scrollbar only if content would exceed our threshold
         ImGuiWindowFlags childFlags = ImGuiWindowFlags_NoTitleBar;
-        if (maxHeight <= contentThreshold && availableHeight - 130.0f > contentThreshold) {
+        if (maxHeight <= contentThreshold && availableHeight - 130.0f > contentThreshold)
+        {
             childFlags |= ImGuiWindowFlags_AlwaysVerticalScrollbar;
         }
 
         ImGui::BeginChild("SceneViewOverlay", overlaySize,
-            ImGuiChildFlags_Borders, childFlags);
-
+                          ImGuiChildFlags_Borders, childFlags);
 
         // Header with collapse button
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
@@ -302,11 +328,13 @@ void ShadingPanel::renderExpandedPanel() {
         ImGui::PushStyleColor(ImGuiCol_Button, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY400()));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::GRAY500()));
 
-        if (ImGui::Button("<", ImVec2(30, 38))) {
+        if (ImGui::Button("<", ImVec2(30, 38)))
+        {
             parametersCollapsed = true;
         }
 
-        if (ImGui::IsItemHovered()) {
+        if (ImGui::IsItemHovered())
+        {
             ImGui::SetTooltip("Collapse Panel");
         }
 
@@ -323,9 +351,8 @@ void ShadingPanel::renderExpandedPanel() {
         ImGui::Spacing();
 
         // Current mode display
-        const char* modeNames[] = {
-            "Wireframe", "Solid Color", "Material Preview", "Rendered"
-        };
+        const char *modeNames[] = {
+            "Wireframe", "Solid Color", "Material Preview", "Rendered"};
 
         // Use Spectrum text color for current mode
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(ImGui::Spectrum::BLUE600()));
@@ -343,7 +370,8 @@ void ShadingPanel::renderExpandedPanel() {
         ImGui::Separator();
         ImGui::Spacing();
 
-        if (ImGui::Button("Reset All Defaults", ImVec2(-1, 0))) {
+        if (ImGui::Button("Reset All Defaults", ImVec2(-1, 0)))
+        {
             resetAllDefaults();
             triggerCallback();
         }
@@ -358,8 +386,10 @@ void ShadingPanel::renderExpandedPanel() {
     ImGui::PopStyleColor(2);
 }
 
-void ShadingPanel::renderModeSpecificUI() {
-    switch (params.mode) {
+void ShadingPanel::renderModeSpecificUI()
+{
+    switch (params.mode)
+    {
     case ViewportShadingMode::Wireframe:
         renderWireframeUI();
         break;
@@ -378,31 +408,37 @@ void ShadingPanel::renderModeSpecificUI() {
     }
 }
 
-void ShadingPanel::renderWireframeUI() {
+void ShadingPanel::renderWireframeUI()
+{
     // Use Spectrum section title with bold font
     ImGui::Spectrum::SectionTitle("Wireframe Settings");
 
-    if (ImGui::SliderFloat("Line Width", &params.wireframeWidth, 0.1f, 5.0f, "%.1f")) {
+    if (ImGui::SliderFloat("Line Width", &params.wireframeWidth, 0.1f, 5.0f, "%.1f"))
+    {
         triggerCallback();
     }
 
-    if (ImGui::ColorEdit3("Wire Color", &params.wireframeColor[0])) {
+    if (ImGui::ColorEdit3("Wire Color", &params.wireframeColor[0]))
+    {
         triggerCallback();
     }
 
     // Compact wire color presets
     ImGui::Text("Presets:");
-    if (ImGui::SmallButton("White")) {
+    if (ImGui::SmallButton("White"))
+    {
         params.wireframeColor = glm::vec3(1.0f);
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Black")) {
+    if (ImGui::SmallButton("Black"))
+    {
         params.wireframeColor = glm::vec3(0.0f);
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Green")) {
+    if (ImGui::SmallButton("Green"))
+    {
         params.wireframeColor = glm::vec3(0.0f, 1.0f, 0.0f);
         triggerCallback();
     }
@@ -410,16 +446,20 @@ void ShadingPanel::renderWireframeUI() {
     ImGui::Spacing();
 
     // Filled wireframe option
-    if (ImGui::Checkbox("Use Filled Wireframe", &params.useFilledWireframe)) {
+    if (ImGui::Checkbox("Use Filled Wireframe", &params.useFilledWireframe))
+    {
         triggerCallback();
     }
 
-    if (params.useFilledWireframe) {
+    if (params.useFilledWireframe)
+    {
         ImGui::Indent();
-        if (ImGui::ColorEdit3("Fill Color", &params.filledWireframeColor[0])) {
+        if (ImGui::ColorEdit3("Fill Color", &params.filledWireframeColor[0]))
+        {
             triggerCallback();
         }
-        if (ImGui::SmallButton("Gray")) {
+        if (ImGui::SmallButton("Gray"))
+        {
             params.filledWireframeColor = glm::vec3(0.4f);
             triggerCallback();
         }
@@ -427,33 +467,39 @@ void ShadingPanel::renderWireframeUI() {
     }
 }
 
-void ShadingPanel::renderSolidColorUI() {
+void ShadingPanel::renderSolidColorUI()
+{
     // Use Spectrum section title with bold font
     ImGui::Spectrum::SectionTitle("Solid Color Settings");
 
-    if (ImGui::ColorEdit3("Color", &params.solidColor[0])) {
+    if (ImGui::ColorEdit3("Color", &params.solidColor[0]))
+    {
         triggerCallback();
     }
 
     // Compact preset colors
     ImGui::Text("Presets:");
-    if (ImGui::Button("Clay")) {
+    if (ImGui::Button("Clay"))
+    {
         params.solidColor = glm::vec3(0.8f, 0.6f, 0.4f);
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Plastic")) {
+    if (ImGui::Button("Plastic"))
+    {
         params.solidColor = glm::vec3(0.7f);
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Metal")) {
+    if (ImGui::Button("Metal"))
+    {
         params.solidColor = glm::vec3(0.5f, 0.5f, 0.6f);
         triggerCallback();
     }
 }
 
-void ShadingPanel::renderNoLightsUI() {
+void ShadingPanel::renderNoLightsUI()
+{
     // Use Spectrum section title with bold font
     ImGui::Spectrum::SectionTitle("Material Preview");
 
@@ -466,27 +512,32 @@ void ShadingPanel::renderNoLightsUI() {
     ImGui::Text("No additional parameters required.");
 }
 
-void ShadingPanel::renderWithLightsUI() {
+void ShadingPanel::renderWithLightsUI()
+{
     // Use Spectrum section title with bold font
     ImGui::Spectrum::SectionTitle("Lighting Settings");
 
     // Light Direction
-    if (ImGui::SliderFloat3("Light Direction", &params.lightDirection[0], -1.0f, 1.0f)) {
+    if (ImGui::SliderFloat3("Light Direction", &params.lightDirection[0], -1.0f, 1.0f))
+    {
         triggerCallback();
     }
 
     // Compact light direction presets
-    if (ImGui::SmallButton("Top")) {
+    if (ImGui::SmallButton("Top"))
+    {
         params.lightDirection = glm::vec3(0.0f, -1.0f, 0.0f);
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Front")) {
+    if (ImGui::SmallButton("Front"))
+    {
         params.lightDirection = glm::vec3(0.0f, 0.0f, -1.0f);
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Side")) {
+    if (ImGui::SmallButton("Side"))
+    {
         params.lightDirection = glm::vec3(-1.0f, -0.5f, 0.0f);
         triggerCallback();
     }
@@ -494,16 +545,19 @@ void ShadingPanel::renderWithLightsUI() {
     ImGui::Spacing();
 
     // Light Color
-    if (ImGui::ColorEdit3("Light Color", &params.lightColor[0])) {
+    if (ImGui::ColorEdit3("Light Color", &params.lightColor[0]))
+    {
         triggerCallback();
     }
 
     // Ambient and Diffuse intensity
-    if (ImGui::SliderFloat("Ambient", &params.ambient, 0.0f, 1.0f, "%.2f")) {
+    if (ImGui::SliderFloat("Ambient", &params.ambient, 0.0f, 1.0f, "%.2f"))
+    {
         triggerCallback();
     }
 
-    if (ImGui::SliderFloat("Diffuse", &params.diffuse, 0.0f, 3.0f, "%.2f")) {
+    if (ImGui::SliderFloat("Diffuse", &params.diffuse, 0.0f, 3.0f, "%.2f"))
+    {
         triggerCallback();
     }
 
@@ -512,21 +566,24 @@ void ShadingPanel::renderWithLightsUI() {
     ImGui::Text("Presets:");
 
     // First row of presets
-    if (ImGui::Button("Standard")) {
+    if (ImGui::Button("Standard"))
+    {
         params.lightColor = glm::vec3(1.0f);
         params.ambient = 0.5f;
         params.diffuse = 1.0f;
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Soft")) {
+    if (ImGui::Button("Soft"))
+    {
         params.lightColor = glm::vec3(1.0f);
         params.ambient = 0.3f;
         params.diffuse = 0.7f;
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Dramatic")) {
+    if (ImGui::Button("Dramatic"))
+    {
         params.lightColor = glm::vec3(1.0f);
         params.ambient = 0.05f;
         params.diffuse = 2.0f;
@@ -534,14 +591,16 @@ void ShadingPanel::renderWithLightsUI() {
     }
 
     // Second row of presets
-    if (ImGui::Button("Warm")) {
+    if (ImGui::Button("Warm"))
+    {
         params.lightColor = glm::vec3(1.0f, 0.9f, 0.7f);
         params.ambient = 0.2f;
         params.diffuse = 1.2f;
         triggerCallback();
     }
     ImGui::SameLine();
-    if (ImGui::Button("Cool")) {
+    if (ImGui::Button("Cool"))
+    {
         params.lightColor = glm::vec3(0.7f, 0.8f, 1.0f);
         params.ambient = 0.15f;
         params.diffuse = 0.8f;
@@ -549,7 +608,8 @@ void ShadingPanel::renderWithLightsUI() {
     }
 }
 
-void ShadingPanel::resetAllDefaults() {
+void ShadingPanel::resetAllDefaults()
+{
     // Wireframe defaults
     params.wireframeWidth = 1.0f;
     params.wireframeColor = glm::vec3(0.0f);
