@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../Core/Framebuffer.h"
+#include "../Core/FrameBuffer.h"
 #include "../Core/Camera.h"
 #include "../Utils/Time.h"
-#include "../Core/Engine/Window.h"
+#include "../Core/Engine/AppWindow.h"
 #include "Renderer.h"
 
 #include <imgui.h>
@@ -12,7 +12,7 @@
 
 class SceneView {
 public:
-    bool init(Window* window);
+    bool init(AppWindow* window);
     void render();
 
     void setCamera(Camera* camera) { this->camera = camera; }
@@ -22,7 +22,7 @@ private:
     Renderer* renderer;
     FrameBuffer framebuffer;
     Camera* camera;
-    Window* window;
+    AppWindow* window;
     glm::vec2 m_ViewportSize;
 
     bool camMode = false;

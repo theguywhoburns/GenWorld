@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 project(GenWorld VERSION 0.1.0 LANGUAGES C CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# For GCC/Clang filesystem linking
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+    target_link_libraries(${PROJECT_NAME} PRIVATE stdc++fs)
+endif()
+
 find_package(OpenGL REQUIRED)
 
 # GLFW
@@ -24,11 +32,11 @@ file(GLOB_RECURSE MY_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
-add_executable(${PROJECT_NAME} ${MY_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/Exporter.h" "src/Utils/Exporter.cpp" "src/Core/stb_image_write.cpp")
+add_executable(${PROJECT_NAME} ${MY_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/OBJExporter.h" "src/Utils/OBJExporter.cpp" "src/Core/stb_image_write.cpp" "src/Utils/FBXExporter.h" "src/Utils/FBXExporter.cpp" "src/Utils/MeshData.h")
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
-set(ASSIMP_NO_EXPORT ON CACHE INTERNAL "" FORCE)
+set(ASSIMP_NO_EXPORT OFF CACHE INTERNAL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE INTERNAL "" FORCE)
 configure_file("${PROJECT_SOURCE_DIR}/vendor/assimp/include/assimp/config.h.in" "${PROJECT_SOURCE_DIR}/vendor/assimp/include/assimp/config.h")

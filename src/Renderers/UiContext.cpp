@@ -4,7 +4,7 @@
 #include "../src/Core/Engine/Application.h"
 
 
-bool UiContext::init(Window* window) {
+bool UiContext::init(AppWindow* window) {
     this->window = window;
     if (window == nullptr) {
         std::cerr << "Window is null!" << std::endl;
@@ -82,7 +82,7 @@ void UiContext::setTerrainGenerator(TerrainGenerator* tg) {
     terrainGen = tg;
 }
 
-void UiContext::exportTerrain() {
+void UiContext::exportTerrain(string format) {
     if (!terrainGen) {
         std::cerr << "TerrainGenerator not set.\n";
         return;
@@ -93,9 +93,13 @@ void UiContext::exportTerrain() {
         // Safely cast from Mesh* to TerrainMesh*
         TerrainMesh* terrainData = dynamic_cast<TerrainMesh*>(meshData);
         if (terrainData) {
-
-            // Export using base class interface
-            ExportMeshAsFBX(*terrainData, "terrain.fbx");
+            if (format == "fbx") {
+                ExportMeshAsFBX(*terrainData, "terrain.fbx");
+            }
+            if (format == "obj") {
+                ExportMeshAsOBJ(*terrainData, "terrain.obj");
+            }
+            
         }
         else {
             std::cerr << "Mesh is not a TerrainMesh.\n";
@@ -177,6 +181,17 @@ void UiContext::renderMenuBar() {
                     defaultLayout();
                 }
                 ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Export")) {
+            if (ImGui::MenuItem("FBX", "(.fbx)")) {
+                exportTerrain("fbx");
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("OBJ", "(.obj + .mtl)")) {
+                exportTerrain("obj");
+
             }
             ImGui::EndMenu();
         }
@@ -263,7 +278,7 @@ void UiContext::renderUniversalButtons() {
 
     // Export button (right side)
     if (ImGui::Button("Export", ImVec2(buttonWidth, -1))) {
-        exportTerrain();
+        //do nothing
     }
 
     ImGui::End();

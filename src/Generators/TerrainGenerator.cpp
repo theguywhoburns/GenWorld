@@ -117,12 +117,12 @@ Mesh* TerrainGenerator::GenerateFromHeightMap(const std::vector<float>& heightMa
                     // indices
                     if (i < parameters.numCellsLength - 1 && j < parameters.numCellsWidth - 1) {
                         task.indices.push_back(i * parameters.numCellsWidth + j);
-                        task.indices.push_back(i * parameters.numCellsWidth + j + 1);
                         task.indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
+                        task.indices.push_back(i * parameters.numCellsWidth + j + 1);
 
                         task.indices.push_back(i * parameters.numCellsWidth + j);
-                        task.indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
                         task.indices.push_back((i + 1) * parameters.numCellsWidth + j);
+                        task.indices.push_back((i + 1) * parameters.numCellsWidth + j + 1);
                     }
                 }
             }

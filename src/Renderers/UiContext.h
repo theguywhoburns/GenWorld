@@ -2,7 +2,8 @@
 
 #include "IRenderContext.h"
 #include "../Utils/FileDialogs.h"
-#include "../Utils/Exporter.h"
+#include "../Utils/OBJExporter.h"
+#include "../Utils/FBXExporter.h"
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -14,13 +15,13 @@ class UiContext : public IRenderContext {
 public:
     ~UiContext() override = default;
 
-    bool init(Window* window) override;
+    bool init(AppWindow* window) override;
     void shutdown() override;
 
     void preRender() override;
     void render() override;
     void postRender() override;
-    void exportTerrain();
+    void exportTerrain(string format);
 
     // New: allow external code to inject TerrainGenerator
     void setTerrainGenerator(TerrainGenerator* tg);

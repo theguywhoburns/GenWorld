@@ -1,4 +1,6 @@
-#include "FileDialogs.h"
+#ifdef _WIN32
+
+#include "../FileDialogs.h"
 
 namespace Utils {
     std::string FileDialogs::OpenFile(const char* title, const char* filter, GLFWwindow* window) {
@@ -37,3 +39,5 @@ namespace Utils {
         return "";
     }
 }
+
+#endif // _WIN32
