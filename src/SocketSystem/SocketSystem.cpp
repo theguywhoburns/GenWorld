@@ -89,16 +89,24 @@ std::array<Socket, 6> SocketSystem::GetRotatedSockets(int blockId, int rotation)
 }
 
 bool SocketSystem::CanBlocksConnect(int blockId1, int rotation1, int face1, 
-                                   int blockId2, int rotation2, int face2) const {
+                                   int blockId2, int rotation2, int face2,
+                                   bool neighborIsEmpty) const {
     auto sockets1 = GetRotatedSockets(blockId1, rotation1);
-    auto sockets2 = GetRotatedSockets(blockId2, rotation2);
-    
-    if (face1 < 0 || face1 >= 6 || face2 < 0 || face2 >= 6) {
-        return false;
-    }
-    
-    bool result = compatibility.CanConnect(sockets1[face1].type, sockets2[face2].type);
 
-    
-    return result;
+    SocketType type2;
+    if (neighborIsEmpty) {
+        type2 = SocketType::EMPTY; // Treat as wildcard
+    } else {
+        auto sockets2 = GetRotatedSockets(blockId2, rotation2);
+        type2 = sockets2[face2].type;
+    }
+
+    SocketType type1 = sockets1[face1].type;
+
+    // If neighbor is empty, allow any connection
+    if (neighborIsEmpty) {
+        return true;
+    }
+
+    return compatibility.CanConnect(type1, type2);
 }

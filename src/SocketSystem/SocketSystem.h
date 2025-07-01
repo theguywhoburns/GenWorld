@@ -23,6 +23,7 @@ struct Socket {
     
     Socket(SocketType t = SocketType::EMPTY, bool sym = true) 
         : type(t), symmetric(sym) {}
+
 };
 
 struct BlockTemplate {
@@ -86,8 +87,24 @@ public:
     void GenerateRotatedVariants();
     
     bool CanBlocksConnect(int blockId1, int rotation1, int face1, 
-                         int blockId2, int rotation2, int face2) const;
-    
+                         int blockId2, int rotation2, int face2,
+                         bool neighborIsEmpty) const;
+
+    const char* SocketTypeToString(SocketType type) const{
+        switch(type) {
+            case SocketType::CUSTOM_1: return "Custom1";
+            case SocketType::CUSTOM_2: return "Custom2";
+            case SocketType::CUSTOM_3: return "Custom3";
+            case SocketType::CUSTOM_4: return "Custom4";
+            case SocketType::CUSTOM_5: return "Custom5";
+            case SocketType::METAL:   return "Metal";
+            case SocketType::STONE:   return "Stone";
+            case SocketType::WOOD:    return "Wood";
+            case SocketType::GRASS:   return "Grass";
+            case SocketType::EMPTY:   return "Empty";
+            default:                  return "Invalid";
+        }
+    }
     std::array<Socket, 6> GetRotatedSockets(int blockId, int rotation) const;
     std::array<Socket, 6> RotateSockets(const std::array<Socket, 6>& original, int yRotation) const;
     
