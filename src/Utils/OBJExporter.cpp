@@ -1,4 +1,4 @@
-#include "Exporter.h"
+#include "OBJExporter.h"
 #include <assimp/Exporter.hpp>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
