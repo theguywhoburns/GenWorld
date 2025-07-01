@@ -18,7 +18,13 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 # Path to FBX SDK (update this to your install path)
 set(FBX_SDK_ROOT "D:/2020.3.7/temp/fbx202037_fbxsdk_vs2022_win")
-set(FBX_SDK_LIB_DIR "${FBX_SDK_ROOT}/lib/x64/debug")
+# Choose lib path based on build type
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(FBX_SDK_LIB_DIR "${FBX_SDK_ROOT}/lib/x64/release")
+else()
+    set(FBX_SDK_LIB_DIR "${FBX_SDK_ROOT}/lib/x64/debug")
+endif()
+
 
 #set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
 
@@ -70,11 +76,18 @@ target_include_directories(${PROJECT_NAME}
 
 # Post-build command to copy the DLL
 # For FBX DLL
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(FBX_DLL_PATH "${FBX_SDK_ROOT}/lib/x64/release/libfbxsdk.dll")
+else()
+    set(FBX_DLL_PATH "${FBX_SDK_ROOT}/lib/x64/debug/libfbxsdk.dll")
+endif()
+
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${FBX_SDK_ROOT}/lib/x64/debug/libfbxsdk.dll"
+    "${FBX_DLL_PATH}"
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
+
 
 
 # Copy assets to build directory.
