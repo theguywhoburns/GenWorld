@@ -18,12 +18,11 @@ bool AppWindow::init() {
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
+
+    // Start in fullscreen mode
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
-    /* Create a windowed mode window and its OpenGL context */
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-    window = glfwCreateWindow(mode->width, mode->height, title.c_str(), monitor, NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, title.c_str(), NULL, NULL);
 
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
