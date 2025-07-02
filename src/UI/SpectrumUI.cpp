@@ -102,6 +102,8 @@ namespace ImGui
 
         void StyleColorsSpectrum()
         {   
+            IsLightTheme = false;  // Mark as dark theme
+            
             ImGuiStyle &style = ImGui::GetStyle();
 
             // Set up style properties
