@@ -38,7 +38,14 @@
 [Bb]uild/
 [Cc]makeFiles/
 
-vendor/
+# Ignore vendor directory but allow Git submodules
+vendor/*
+!vendor/.gitkeep
+!vendor/glm/
+!vendor/glfw/
+!vendor/assimp/
+!vendor/glad/
+
 GenWorld
 CMakeFiles/
 Makefile
