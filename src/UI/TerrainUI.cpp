@@ -256,9 +256,12 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
-    ImGui::EndChild();
     ImGui::SetCursorPos(originalPos);
 
+    ImGui::EndChild();
+
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
 
     ImGui::End();
 }

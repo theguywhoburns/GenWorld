@@ -15,7 +15,7 @@
 #include <chrono>
 #include <future>
 #include <queue>
-
+#include <tuple>
 std::mutex gridMutex;
 
 BlockGenerator::BlockGenerator(BlockController* controller) : controller(controller) { initializeDefaults(); }
@@ -67,9 +67,7 @@ void BlockGenerator::initializeSocketSystem() {
 }
 
 
-void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {
-    // Start with the initial block at the center
-    
+void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {  
     std::uniform_int_distribution<int> distX(0, parameters.gridWidth - 1);
     std::uniform_int_distribution<int> distY(0, parameters.gridHeight - 1);
     std::uniform_int_distribution<int> distZ(0, parameters.gridLength - 1);
@@ -78,12 +76,11 @@ void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {
     int centerZ = distZ(rng);
 
     if (!placeRandomBlockAt(centerX, centerY, centerZ, rng)) {
-        std::cerr << "Failed to place initial block at center" << std::endl;
+        std::cerr << "Failed to place initial block" << std::endl;
         return;
     }
 
-    // Frontier: cells whose possibilities just changed and need to be collapsed
-    std::queue<GridPosition> frontier;
+    std::priority_queue<FrontierCell, std::vector<FrontierCell>, std::greater<>> frontier;
     std::set<GridPosition> inFrontier;
 
     // Add all neighbors of the initial cell to the frontier
@@ -93,80 +90,68 @@ void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {
     for (const auto& [dx, dy, dz] : neighborOffsets) {
         int nx = centerX + dx, ny = centerY + dy, nz = centerZ + dz;
         if (isValidGridPosition(nx, ny, nz) && !grid[nx][ny][nz].collapsed) {
-            frontier.push({nx, ny, nz});
+            double entropy = calculateCellEntropy(grid[nx][ny][nz]);
+            frontier.push({entropy, {nx, ny, nz}});
             inFrontier.insert({nx, ny, nz});
         }
     }
 
     // Main loop: process the frontier
     while (!frontier.empty()) {
-        // Find the lowest-entropy cell in the frontier
-        double minEntropy = std::numeric_limits<double>::max();
-        GridPosition bestPos = {-1, -1, -1};
-        size_t frontierSize = frontier.size();
-        for (size_t i = 0; i < frontierSize; ++i) {
-            GridPosition pos = frontier.front();
-            frontier.pop();
-            auto& cell = grid[pos.x][pos.y][pos.z];
-            if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) {
-                inFrontier.erase(pos);
-                continue;
-            }
-            double entropy = calculateCellEntropy(cell);
-            if (entropy < minEntropy) {
-                if (bestPos.x != -1) frontier.push(bestPos); // requeue previous best
-                minEntropy = entropy;
-                bestPos = pos;
-            } else {
-                frontier.push(pos);
-            }
+        // Always pop the lowest-entropy cell
+        FrontierCell fc = frontier.top();
+        frontier.pop();
+        auto& cell = grid[fc.pos.x][fc.pos.y][fc.pos.z];
+        if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) {
+            inFrontier.erase(fc.pos);
+            continue;
         }
-        if (bestPos.x == -1) break; // No valid cells left
 
         // Collapse the best cell
-        collapseCell(bestPos.x, bestPos.y, bestPos.z, rng);
-        inFrontier.erase(bestPos);
+        collapseCell(fc.pos.x, fc.pos.y, fc.pos.z, rng);
+        inFrontier.erase(fc.pos);
 
         // Add its neighbors to the frontier if not already collapsed or in frontier
         for (const auto& [dx, dy, dz] : neighborOffsets) {
-            int nx = bestPos.x + dx, ny = bestPos.y + dy, nz = bestPos.z + dz;
+            int nx = fc.pos.x + dx, ny = fc.pos.y + dy, nz = fc.pos.z + dz;
             GridPosition npos{nx, ny, nz};
             if (isValidGridPosition(nx, ny, nz) && !grid[nx][ny][nz].collapsed && inFrontier.find(npos) == inFrontier.end()) {
-                frontier.push(npos);
-                inFrontier.insert(npos);
+                double entropy = calculateCellEntropy(grid[nx][ny][nz]);
+                frontier.push({entropy, {nx, ny, nz}});
+                inFrontier.insert({nx, ny, nz});
             }
         }
     }
 }
 
-void BlockGenerator::generateGridMultithreaded(std::mt19937& mainRng) {
-    const unsigned int numThreads = 1;
-    std::vector<std::thread> workerThreads;
-    std::atomic<bool> workCompleted(false);
+// void BlockGenerator::generateGridMultithreaded(std::mt19937& mainRng) {
+//     const unsigned int numThreads = 1;
+//     std::vector<std::thread> workerThreads;
+//     std::atomic<bool> workCompleted(false);
 
-    auto processChunk = [&](unsigned int) {
-        std::mt19937 threadRng(mainRng());
-        while (!workCompleted) {
-            GridPosition nextPos{-1, -1, -1};
-            {
-                std::lock_guard<std::mutex> lock(gridMutex);
-                nextPos = findLowestEntropyCell(threadRng);
-                if (nextPos.x == -1) workCompleted = true;
-            }
-            if (nextPos.x == -1) break;
-            {
-                std::lock_guard<std::mutex> lock(gridMutex);
-                if (!grid[nextPos.x][nextPos.y][nextPos.z].collapsed)
-                    collapseCell(nextPos.x, nextPos.y, nextPos.z, threadRng);
-            }
-        }
-    };
+//     auto processChunk = [&](unsigned int) {
+//         std::mt19937 threadRng(mainRng());
+//         while (!workCompleted) {
+//             GridPosition nextPos{-1, -1, -1};
+//             {
+//                 std::lock_guard<std::mutex> lock(gridMutex);
+//                 nextPos = findLowestEntropyCell(threadRng);
+//                 if (nextPos.x == -1) workCompleted = true;
+//             }
+//             if (nextPos.x == -1) break;
+//             {
+//                 std::lock_guard<std::mutex> lock(gridMutex);
+//                 if (!grid[nextPos.x][nextPos.y][nextPos.z].collapsed)
+//                     collapseCell(nextPos.x, nextPos.y, nextPos.z, threadRng);
+//             }
+//         }
+//     };
 
-    for (unsigned int i = 0; i < numThreads; i++)
-        workerThreads.emplace_back(processChunk, i);
-    for (auto& thread : workerThreads) thread.join();
-    processRemainingCells(mainRng);
-}
+//     for (unsigned int i = 0; i < numThreads; i++)
+//         workerThreads.emplace_back(processChunk, i);
+//     for (auto& thread : workerThreads) thread.join();
+//     processRemainingCells(mainRng);
+// }
 
 double BlockGenerator::calculateCellEntropy(const GridCell& cell) const {
     if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) return 0.0;
@@ -180,30 +165,31 @@ double BlockGenerator::calculateCellEntropy(const GridCell& cell) const {
     }
     return std::log(sum) - (logSum / sum);
 }
-GridPosition BlockGenerator::findLowestEntropyCell(std::mt19937& rng) {
-    double minEntropy = std::numeric_limits<double>::max();
-    std::vector<GridPosition> candidates;
-    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
-        for (unsigned int y = 0; y < parameters.gridHeight; y++) {
-            for (unsigned int z = 0; z < parameters.gridLength; z++) {
-                const auto& cell = grid[x][y][z];
-                if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) continue;
-                double entropy = calculateCellEntropy(cell) + (double)rng() / rng.max() * 1e-6; // Add noise to break ties
-                if (entropy < minEntropy) {
-                    minEntropy = entropy;
-                    candidates.clear();
-                    candidates.push_back({(int)x, (int)y, (int)z});
-                } else if (entropy == minEntropy) {
-                    candidates.push_back({(int)x, (int)y, (int)z});
-                }
-            }
-        }
-    }
 
-    if (candidates.empty()) return {-1, -1, -1};
-    std::uniform_int_distribution<int> dist(0, candidates.size() - 1);
-    return candidates[dist(rng)];
-}
+// GridPosition BlockGenerator::findLowestEntropyCell(std::mt19937& rng) {
+//     double minEntropy = std::numeric_limits<double>::max();
+//     std::vector<GridPosition> candidates;
+//     for (unsigned int x = 0; x < parameters.gridWidth; x++) {
+//         for (unsigned int y = 0; y < parameters.gridHeight; y++) {
+//             for (unsigned int z = 0; z < parameters.gridLength; z++) {
+//                 const auto& cell = grid[x][y][z];
+//                 if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) continue;
+//                 double entropy = calculateCellEntropy(cell) + (double)rng() / rng.max() * 1e-6; // Add noise to break ties
+//                 if (entropy < minEntropy) {
+//                     minEntropy = entropy;
+//                     candidates.clear();
+//                     candidates.push_back({(int)x, (int)y, (int)z});
+//                 } else if (entropy == minEntropy) {
+//                     candidates.push_back({(int)x, (int)y, (int)z});
+//                 }
+//             }
+//         }
+//     }
+
+//     if (candidates.empty()) return {-1, -1, -1};
+//     std::uniform_int_distribution<int> dist(0, candidates.size() - 1);
+//     return candidates[dist(rng)];
+// }
 
 
 bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
@@ -227,9 +213,6 @@ bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
     auto chosenPair = cell.possibleBlockRotationPairs[pairDist(rng)];
     int chosenBlockType = chosenPair.first;
     int chosenRotation = chosenPair.second;
-
-    std::cout << "Collapsing cell at (" << x << ", " << y << ", " << z << ") to block type "
-              << chosenBlockType << " with rotation " << chosenRotation << std::endl;
 
     cell.collapsed = true;
     cell.possibleBlockRotationPairs = {chosenPair};
@@ -395,8 +378,6 @@ void BlockGenerator::updateCellPossibilities(int x, int y, int z) {
         }
     }
     cell.possibleBlockRotationPairs = validPairs;
-    std::cout << "Updated cell at (" << x << ", " << y << ", " << z << ") with "
-              << validPairs.size() << " valid block/rotation pairs." << std::endl;
 }
 
 bool BlockGenerator::isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation) {
@@ -421,11 +402,6 @@ void BlockGenerator::buildAdjacencyTable() {
             for (int face = 0; face < 6; ++face) {
                 for (const auto& [neighborId, neighborTemplate] : templates) {
                     for (int neighborRotation : neighborTemplate.allowedRotations) {
-                        if (face == 2 || face == 3) { // +Y or -Y
-                            std::cout << "Adjacency: Block " << blockId << " rot " << rotation << " face " << face
-                            << " can connect to Block " << neighborId << " rot " << neighborRotation
-                            << " face " << getOppositeFaceIndex(face) << std::endl;
-}
                         if (parameters.socketSystem.CanBlocksConnect(
                             blockId, rotation, face,
                             neighborId, neighborRotation, getOppositeFaceIndex(face), false)) {
@@ -460,12 +436,40 @@ bool BlockGenerator::validateNeighborCompatibility(int blockId, int rotation, in
 }
 
 void BlockGenerator::propagateConstraints(int x, int y, int z) {
-    const std::vector<std::tuple<int, int, int>> neighbors = {
-        {x, y, z+1}, {x, y, z-1}, {x+1, y, z}, {x-1, y, z}, {x, y+1, z}, {x, y-1, z}
-    };
-    for (const auto& [nx, ny, nz] : neighbors) {
-        if (isValidGridPosition(nx, ny, nz) && !grid[nx][ny][nz].collapsed)
+    std::queue<GridPosition> toPropagate;
+    std::set<GridPosition> inQueue;
+    toPropagate.push({x, y, z});
+    inQueue.insert({x, y, z});
+
+    while (!toPropagate.empty()) {
+        GridPosition pos = toPropagate.front();
+        toPropagate.pop();
+        inQueue.erase(pos);
+
+        const std::vector<std::tuple<int, int, int>> neighbors = {
+            {pos.x, pos.y, pos.z+1}, {pos.x, pos.y, pos.z-1},
+            {pos.x+1, pos.y, pos.z}, {pos.x-1, pos.y, pos.z},
+            {pos.x, pos.y+1, pos.z}, {pos.x, pos.y-1, pos.z}
+        };
+
+        for (const auto& [nx, ny, nz] : neighbors) {
+            if (!isValidGridPosition(nx, ny, nz)) continue;
+            auto& neighbor = grid[nx][ny][nz];
+            if (neighbor.collapsed) continue;
+
+            // Save old possibilities for comparison
+            auto oldPairs = neighbor.possibleBlockRotationPairs;
             updateCellPossibilities(nx, ny, nz);
+
+            // If possibilities changed, propagate further
+            if (neighbor.possibleBlockRotationPairs != oldPairs) {
+                GridPosition npos{nx, ny, nz};
+                if (inQueue.find(npos) == inQueue.end()) {
+                    toPropagate.push(npos);
+                    inQueue.insert(npos);
+                }
+            }
+        }
     }
 }
 
@@ -475,7 +479,7 @@ BlockMesh* BlockGenerator::generateMeshFromGrid() {
     std::vector<std::shared_ptr<Texture>> textures;
     std::set<std::shared_ptr<Texture>> uniqueTextures;
     BlockMesh* blockMesh = new BlockMesh(vertices, indices, parameters, textures);
-    unsigned int numThreads = 1;
+    unsigned int numThreads = std::thread::hardware_concurrency();
     std::vector<std::vector<std::tuple<int, glm::vec3, int>>> threadBlocks(numThreads);
     std::vector<std::set<std::shared_ptr<Texture>>> threadTextures(numThreads);
 
@@ -578,7 +582,6 @@ BlockMesh* BlockGenerator::createEmptyMesh() {
 void BlockGenerator::initializeBlockWeights() {
     auto& settings = parameters.generationSettings;
     settings.currentBlockCounts.clear();
-    std::cout << "Initializing block weights..." << std::endl;
     if (controller && controller->GetBlockUI()) {
         auto assets = controller->GetBlockUI()->GetLoadedAssets();
         for (const auto& asset : assets) {

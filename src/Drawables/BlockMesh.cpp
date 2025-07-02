@@ -9,8 +9,6 @@ BlockMesh::BlockMesh(vector<Vertex> vertices, vector<unsigned int> indices,
     
     this->data = blockData;
     this->blockTextures = textures;
-    
-    blockShader = ShaderManager::GetInstance()->getShader("unshaded");
 }
 
 BlockMesh::~BlockMesh() {
@@ -23,55 +21,14 @@ BlockMesh::~BlockMesh() {
 }
 
 void BlockMesh::Draw(Shader& shader) {
-    // Set block-specific uniforms
-    shader.setInt("gridWidth", data.gridWidth);
-    shader.setInt("gridLength", data.gridLength);
-    shader.setFloat("cellWidth", data.cellWidth);
-    shader.setFloat("cellLength", data.cellLength);
-    shader.setFloat("blockScale", data.blockScale);
-    
-    // Bind block textures
-    if (!blockTextures.empty()) {
-        shader.setInt("blockTextureCount", blockTextures.size());
-        for (size_t i = 0; i < blockTextures.size(); i++) {
-            glActiveTexture(GL_TEXTURE0 + i);
-            std::string uniformName = "blockTextures[" + std::to_string(i) + "]";
-            shader.setInt(uniformName, i);
-            blockTextures[i]->bind();
-        }
-        shader.setBool("hasBlockTextures", true);
-    } else {
-        shader.setBool("hasBlockTextures", false);
-    }
-    
-    // Draw the base mesh (if any)
-    if (!vertices.empty()) {
-        glBindVertexArray(arrayObj);
-        glDrawElements(GL_TRIANGLES, static_cast<unsigned int>(indices.size()), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-    }
-    
-    // Reset texture state
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    Mesh::Draw(shader);
 }
 
 void BlockMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
-    if (blockShader != nullptr) {
-        blockShader->use();
-        
-        // Set transformation matrices
-        glm::mat4 model = transform.getModelMatrix();
-        blockShader->setMat4("model", model);
-        blockShader->setMat4("view", view);
-        blockShader->setMat4("projection", projection);
-        
-        // Draw base mesh
-        Draw(*blockShader);
-        
-        // Draw all block instances
-        DrawBlockInstances(view, projection);
-    }
+    Mesh::Draw(view, projection);
+
+    // Draw all block instances
+    DrawBlockInstances(view, projection);
 }
 
 void BlockMesh::AddBlockInstance(int blockTypeId, const Transform& blockTransform) {
@@ -130,7 +87,7 @@ void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& proje
         if (blockModels.find(blockTypeId) != blockModels.end()) {
             std::shared_ptr<Model> model = blockModels[blockTypeId];
             if (model) {
-                model->SetShader(blockShader);
+                model->SetShader(m_shader);
                 model->DrawInstanced(view, projection, instances);
             }
         }
@@ -145,7 +102,7 @@ void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& proje
         
         std::shared_ptr<Model> model = assetModels[assetPath];
         if (model) {
-            model->SetShader(blockShader);
+            model->SetShader(m_shader);
             model->DrawInstanced(view, projection, instances);
         }
     }
@@ -153,10 +110,10 @@ void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& proje
 
 void BlockMesh::RenderBlockPreview() {
     // Similar to TerrainMesh::RenderToTexture() but for block preview
-    if (!blockShader) return;
-    
-    blockShader->use();
-    
+    if (!m_shader) return;
+
+    m_shader->use();
+
     FrameBuffer frameBuffer;
     frameBuffer.Resize(512, 512);
     

@@ -30,9 +30,10 @@ namespace BlockUtilities {
     
     // Block generation constraints and weights
     struct BlockGenerationSettings {
-        std::map<int, int> maxBlockCounts;        // blockId -> max count
-        std::map<int, int> currentBlockCounts;    // blockId -> current count
-        std::map<int, float> blockWeights;        // blockId -> weight (0.0-1.0)
+        std::map<int, int> maxBlockCounts;     // blockId -> max count
+        std::map<int, int> minBlockCounts;     // blockId -> min count
+        std::map<int, int> currentBlockCounts;  // blockId -> current count
+        std::map<int, float> blockWeights;      // blockId -> weight (0.0-1.0)
         bool enforceBlockLimits = true;
         bool useWeightedSelection = true;
         float defaultWeight = 0.5f;               // Default weight for new blocks
@@ -49,9 +50,7 @@ namespace BlockUtilities {
             float cellLength_ = 5.0f,
             float blockScale_ = 1.0f,
             float gridScale_ = 1.0f,
-            unsigned long randomSeed_ = 12345,
-            float voidProbability_ = 0.3f,
-            bool enableVoidCells_ = true
+            unsigned long randomSeed_ = 12345
         )
             : gridWidth(gridWidth_),
               gridHeight(gridHeight_),
@@ -61,9 +60,7 @@ namespace BlockUtilities {
               cellLength(cellLength_),
               randomSeed(randomSeed_),
               blockScale(blockScale_),
-              gridScale(gridScale_),
-              voidProbability(voidProbability_),
-              enableVoidCells(enableVoidCells_)
+              gridScale(gridScale_)
         {}
     
         unsigned int gridWidth = 20;
@@ -78,11 +75,7 @@ namespace BlockUtilities {
     
         float blockScale = 1.0f;
         float gridScale = 1.0f;
-    
-        // Void generation settings
-        float voidProbability = 0.3f;  // 30% chance for void cells
-        bool enableVoidCells = true;
-    
+  
         // World dimensions (calculated)
         float worldWidth = 0.0f;
         float worldHeight = 0.0f;

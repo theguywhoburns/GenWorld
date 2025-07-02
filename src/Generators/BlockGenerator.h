@@ -30,6 +30,12 @@ struct GridPosition {
     }
 };
 
+struct FrontierCell {
+    double entropy;
+    GridPosition pos;
+    bool operator>(const FrontierCell& other) const { return entropy > other.entropy; }
+};
+
 struct GridCell {
     std::vector<std::pair<int, int>> possibleBlockRotationPairs; // (blockId, rotation)
     bool collapsed = false;
@@ -83,13 +89,13 @@ private:
     
     bool placeRandomBlockAt(int x, int y, int z, std::mt19937& rng);
     double calculateCellEntropy(const GridCell& cell) const;
-    GridPosition findLowestEntropyCell(std::mt19937& rng);
+    //GridPosition findLowestEntropyCell(std::mt19937& rng);
     bool collapseCell(int x, int y, int z, std::mt19937& rng);
     void updateCellPossibilities(int x, int y, int z);
 
     void buildAdjacencyTable();
     void generateGridFrontierWFC(std::mt19937& rng);
-    void generateGridMultithreaded(std::mt19937& mainRng);
+    //void generateGridMultithreaded(std::mt19937& mainRng);
     void processRemainingCells(std::mt19937& rng);
 
     // Socket-based constraint validation

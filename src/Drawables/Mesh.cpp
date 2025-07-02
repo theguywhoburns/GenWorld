@@ -1,6 +1,7 @@
 #include "Mesh.h"
 
-Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<std::shared_ptr<Texture>> textures) {
+Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<std::shared_ptr<Texture>> textures) : IDrawable() {
+
 	this->vertices = vertices;
 	this->indices = indices;
 	this->textures = textures;

@@ -46,6 +46,5 @@ private:
     
     // Preview/Debug
     unsigned int previewTextureID = 0;
-    std::shared_ptr<Shader> blockShader;
     void RenderBlockPreview();
 };
