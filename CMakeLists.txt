@@ -28,6 +28,17 @@ endif()
 
 #set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
 
+
+#------------------------------------------------------------------------------
+# Fonts Configuration
+# This section handles the configuration and setup of fonts used in the project.
+# Add font-related settings, dependencies, or path configurations here.
+#------------------------------------------------------------------------------
+set(FONT_DIR "${CMAKE_SOURCE_DIR}/Resources/assets/fonts/Source_Sans_3/static")
+set(REGULAR_FONT "${FONT_DIR}/SourceSans3-Regular.ttf")
+set(BOLD_FONT "${FONT_DIR}/SourceSans3-Bold.ttf")
+
+
 include(CTest)
 enable_testing()
 

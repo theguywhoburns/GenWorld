@@ -26,12 +26,12 @@ TerrainUI::TerrainUI(TerrainController* controller) : controller(controller) {
     };
 
     parameters.colors = {
-        {0.075f, glm::vec4(0.21f, 0.4f, 0.68f, 1.0f)},        // Shallow Water (Lighter Blue)
-        {0.15f, glm::vec4(0.82f, 0.835f, 0.45f, 1.0f)},      // Sand (Yellowish)
-        {0.35f, glm::vec4(0.35f, 0.68f, 0.24f, 1.0f)},       // Lush Grass (Brighter Green)
-        {0.65f, glm::vec4(0.3f, 0.55f, 0.17f, 1.0f)},       // Grass (Green)
-        {0.85f, glm::vec4(0.4f, 0.38f, 0.34f, 1.0f)},        // Rock (Gray)
-        {1.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},          // Snow (White)
+        {0.075f, glm::vec4(0.21f, 0.4f, 0.68f, 1.0f)},  // Shallow Water (Lighter Blue)
+        {0.15f, glm::vec4(0.82f, 0.835f, 0.45f, 1.0f)}, // Sand (Yellowish)
+        {0.35f, glm::vec4(0.35f, 0.68f, 0.24f, 1.0f)},  // Lush Grass (Brighter Green)
+        {0.65f, glm::vec4(0.3f, 0.55f, 0.17f, 1.0f)},   // Grass (Green)
+        {0.85f, glm::vec4(0.4f, 0.38f, 0.34f, 1.0f)},   // Rock (Gray)
+        {1.0f, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)},      // Snow (White)
     };
 }
 
@@ -40,26 +40,121 @@ void TerrainUI::DisplayUI() {
 
     TerrainUtilities::TerrainData prevParameters = parameters;
 
-    // Terrain Settings
-    DisplayTerrainSettingsUI();
-
-    if (parameters.coloringMode == 0) {
-        // Color Settings
-        DisplayColorSettingsUI();
-    }
-    else {
-        // Texture Settings
-        DisplayTextureLayerSettings();
-    }
-
-    // Decoration Settings
-    if (parameters.decorationEnabled) {
-        DisplayDecorationSettings();
-    }
+    // Main Settings Window with Tabs
+    DisplayMainSettingsWindow();
 
     if (parameters != prevParameters && liveUpdate) {
         controller->Generate();
     }
+}
+
+void TerrainUI::DisplayMainSettingsWindow() {
+    ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+
+    if (ImGui::BeginTabBar("TerrainTabs")) {
+
+        // Terrain Tab
+        if (ImGui::BeginTabItem("Terrain")) {
+            DisplayTerrainSettingsTab();
+            ImGui::EndTabItem();
+        }
+
+        // Colors/Textures Tab
+        if (ImGui::BeginTabItem("Appearance")) {
+            DisplayAppearanceTab();
+            ImGui::EndTabItem();
+        }
+
+        // Decoration Tab
+        if (ImGui::BeginTabItem("Decoration")) {
+            DisplayDecorationTab();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
+    ImGui::End();
+}
+
+void TerrainUI::DisplayTerrainSettingsTab() {
+    ImGui::Spectrum::BeginTitleFont();
+    ImGui::Text("Terrain Settings");
+    ImGui::Spectrum::EndTitleFont();
+
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
+    ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
+    ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
+    ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+    ImGui::Text("Curve Settings");
+    ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
+
+    ImGui::NewLine();
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    ImGui::Spectrum::SectionTitle("Noise Settings");
+    ImGui::SliderFloat("Scale", &parameters.scale, 0.001f, 50.0f);
+    ImGui::SliderInt("Octaves", &parameters.octaves, 1, 10);
+    ImGui::SliderFloat("Lacunarity", &parameters.lacunarity, 0.1f, 50.0f);
+    ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
+    ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
+    ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    RenderFalloffControls();
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
+        parameters.seed = rand() % 10000;
+    }
+
+    if (ImGui::Button("Generate", ImVec2(200, 40))) {
+        controller->Generate();
+    }
+}
+
+void TerrainUI::DisplayAppearanceTab() {
+    ImGui::Spectrum::BeginTitleFont();
+    ImGui::Text("Coloring Mode");
+    ImGui::Spectrum::EndTitleFont();
+    ImGui::RadioButton("Use Colors", &parameters.coloringMode, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("Use Textures", &parameters.coloringMode, 1);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (parameters.coloringMode == 0) {
+        DisplayColorSettings();
+    }
+    else {
+        DisplayTextureLayerSettings();
+    }
+}
+
+void TerrainUI::DisplayDecorationTab() {
+    ImGui::Checkbox("Enable Decoration", &parameters.decorationEnabled);
+
+    ImGui::Separator();
+    ImGui::NewLine();
+
+    if (!parameters.decorationEnabled) {
+        ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Decoration is disabled. Enable the checkbox above.");
+        return;
+    }
+
+    DisplayDecorationSettings();
 }
 
 void TerrainUI::RenderFalloffControls() {
@@ -114,12 +209,12 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImVec2 max_size(INT16_MAX, INT16_MAX);
     ImGui::SetNextWindowSizeConstraints(min_size, max_size);
 
-    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     ImVec2 originalCursorPos = ImGui::GetCursorScreenPos();
 
     const float padding = 10.0f;
-    ImVec2 overlaySize(120, 35);
+    ImVec2 overlaySize(150, 50);
     ImVec2 windowPos = ImGui::GetWindowPos();
     ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
@@ -138,86 +233,37 @@ void TerrainUI::DisplaySceneViewOverlay() {
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NoTitleBar);
 
+    // Force white text for the checkbox to ensure visibility on dark overlay
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
     ImGui::Checkbox("Live Update", &liveUpdate);
+    ImGui::PopStyleColor();
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
 
     ImGui::EndChild();
-    ImGui::SetCursorScreenPos(originalCursorPos); // Reset cursor position to draw the scene view correctly
+    ImGui::SetCursorScreenPos(originalCursorPos);
     ImGui::End();
 }
 
-void TerrainUI::DisplayTerrainSettingsUI() {
-    ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
-    ImGui::Text("Terrain Settings");
-    ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
-    ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
-    ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
-    ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
-
-
-    ImGui::Separator();
-    ImGui::NewLine();
-    ImGui::Text("Curve Settings");
-    ImGui::DrawCurve("easeOutSine", parameters.curvePoints);
-    
-    ImGui::NewLine();
-    ImGui::Separator();
-    ImGui::NewLine();
-
-    ImGui::Text("Noise Settings");
-    ImGui::SliderFloat("Scale", &parameters.scale, 0.001f, 50.0f);
-    ImGui::SliderInt("Octaves", &parameters.octaves, 1, 10);
-    ImGui::SliderFloat("Lacunarity", &parameters.lacunarity, 0.1f, 50.0f);
-    ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
-    ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
-    ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
-
-    ImGui::Separator();
-    ImGui::NewLine();
-
-    ImGui::Checkbox("Enable Decoration", &parameters.decorationEnabled); // show decoration window
-
-    ImGui::Separator();
-    ImGui::NewLine();
-
-    RenderFalloffControls();
-
-    ImGui::Separator();
-    ImGui::NewLine();
-
-    ImGui::Text("Coloring Mode");
-    ImGui::RadioButton("Use Colors", &parameters.coloringMode, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Use Textures", &parameters.coloringMode, 1);
-
-    ImGui::Separator();
-    ImGui::NewLine();
-
-    if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
-        parameters.seed = rand() % 10000;
-    }
-
-    if (ImGui::Button("Generate", ImVec2(200, 40))) {
-        controller->Generate();
-    }
-
-    ImGui::End();
-}
-
-void TerrainUI::DisplayColorSettingsUI() {
-    ImGui::Begin("Color Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+void TerrainUI::DisplayColorSettings() {
+    // Use bold font for the main title
+    ImGui::Spectrum::BeginTitleFont();
     ImGui::Text("Color Settings");
+    ImGui::Spectrum::EndTitleFont();
+
     ImGui::Separator();
+    ImGui::Spacing();
 
     for (size_t i = 0; i < parameters.colors.size(); i++) {
         ImGui::PushID(i);
+        ImGui::Spectrum::BeginTitleFont();
         ImGui::Text("Color %d", i + 1);
+        ImGui::Spectrum::EndTitleFont();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));         // Red background
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));  // Lighter red on hover
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));   // Dark red when clicked
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
         ImGui::SameLine();
         if (ImGui::Button("X")) {
             parameters.colors.erase(parameters.colors.begin() + i);
@@ -243,7 +289,6 @@ void TerrainUI::DisplayColorSettingsUI() {
         }
 
         ImGui::ColorEdit3("Color", &parameters.colors[i].color[0]);
-
         ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f);
 
         ImGui::PopID();
@@ -263,19 +308,20 @@ void TerrainUI::DisplayColorSettingsUI() {
     else {
         ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 32 colors reached!");
     }
-
-    ImGui::End();
 }
 
 void TerrainUI::DisplayTextureLayerSettings() {
-    ImGui::Begin("Texture Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Spectrum::BeginTitleFont();
     ImGui::Text("Terrain Texture Layers");
+    ImGui::Spectrum::EndTitleFont();
     ImGui::Separator();
 
     for (int i = 0; i < parameters.loadedTextures.size(); ++i) {
         ImGui::PushID(i);
 
+        ImGui::Spectrum::BeginTitleFont();
         ImGui::Text("Layer %d", i + 1);
+        ImGui::Spectrum::EndTitleFont();
 
         if (i < parameters.loadedTextures.size() - 1) {
             ImGui::SameLine();
@@ -306,17 +352,35 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
         ImGui::BeginGroup();
         {
+            // Display texture image
             ImTextureID textureID = (ImTextureID)(intptr_t)parameters.loadedTextures[i].texture->ID;
             ImGui::Image(textureID, ImVec2(128, 128));
             ImGui::SameLine();
 
             ImGui::BeginGroup();
             {
-                ImGui::Dummy(ImVec2{ 0, 128 - ImGui::GetTextLineHeight() - 30 });
-                ImGui::Text("Texture: %s", parameters.loadedTextures[i].texture->path.c_str());
+                // Show path with potential truncation if too long
+                std::string path = parameters.loadedTextures[i].texture->path;
+                if (path.length() > 40) {
+                    path = "..." + path.substr(path.length() - 37);
+                }
 
-                if (ImGui::Button("Change", ImVec2(72, 20))) {
-                    std::string file = Utils::FileDialogs::OpenFile("Select Texture", "Image Files (*.png;*.jpg;*.jpeg;*.bmp)\0*.png;*.jpg;*.jpeg;*.bmp\0",
+                // Position the text at the top for better layout
+                ImGui::Dummy(ImVec2(0, 10)); // Add some padding at top
+                ImGui::Text("Texture: %s", path.c_str());
+
+                // Add space between text and buttons
+                ImGui::Dummy(ImVec2(0, 40));
+
+                // Button layout - fixed width but increased height
+                const float buttonWidth = 75.0f;  // Fixed width similar to before
+                const float buttonHeight = 33.0f; // Increased height to fit text
+
+                // Style and position for Change button
+                if (ImGui::Button("Change", ImVec2(buttonWidth, buttonHeight))) {
+                    std::string file = Utils::FileDialogs::OpenFile(
+                        "Select Texture",
+                        "Image Files (*.png;*.jpg;*.jpeg;*.bmp)\0*.png;*.jpg;*.jpeg;*.bmp\0",
                         Application::GetInstance()->GetWindow()->getNativeWindow());
 
                     if (!file.empty()) {
@@ -326,11 +390,13 @@ void TerrainUI::DisplayTextureLayerSettings() {
                 }
 
                 ImGui::SameLine();
+                ImGui::Dummy(ImVec2(10, 0));
+                ImGui::SameLine();
 
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-                if (ImGui::Button("Remove", ImVec2(72, 20))) {
+                if (ImGui::Button("Remove", ImVec2(buttonWidth, buttonHeight))) {
                     parameters.loadedTextures.erase(parameters.loadedTextures.begin() + i);
                     ImGui::EndGroup();
                     ImGui::EndGroup();
@@ -339,11 +405,11 @@ void TerrainUI::DisplayTextureLayerSettings() {
                     break;
                 }
                 ImGui::PopStyleColor(3);
-
-                ImGui::EndGroup();
             }
             ImGui::EndGroup();
         }
+        ImGui::EndGroup();
+
         ImGui::PopID();
         ImGui::Separator();
     }
@@ -367,29 +433,35 @@ void TerrainUI::DisplayTextureLayerSettings() {
     else {
         ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 16 layers reached!");
     }
-
-    ImGui::End();
 }
 
 void TerrainUI::DisplayDecorationSettings() {
-    ImGui::Begin("Decoration Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
+    ImGui::Spectrum::BeginTitleFont();
     ImGui::Text("Decoration Settings");
+    ImGui::Spectrum::EndTitleFont();
+
     ImGui::Separator();
     for (size_t i = 0; i < parameters.decorationRules.size(); ++i) {
         ImGui::PushID(i);
 
+        ImGui::Spectrum::BeginTitleFont();
         ImGui::Text("Decoration %zu", i + 1);
+        ImGui::Spectrum::EndTitleFont();
 
         ImGui::DragFloat2("HeightLimits", glm::value_ptr(parameters.decorationRules[i].heightLimits), 0.01f, 0.0f, 1.0f);
         ImGui::DragFloat2("ScaleRange", glm::value_ptr(parameters.decorationRules[i].scaleRange), 0.01f, 0.01f, 10.0f);
 
         ImGui::Checkbox("Random Rotation", &parameters.decorationRules[i].randomRotation);
-        ImGui::DragFloat("Density", &parameters.decorationRules[i].density, 0.01f, 0.01f, 1.0f);
+        ImGui::DragFloat("Density", &parameters.decorationRules[i].density, 0.001f, 0.0f, 1.0f);
 
         // Model selection
         ImGui::Text("Model Path");
         ImGui::SameLine();
         ImGui::Text("%s", parameters.decorationRules[i].modelPath.c_str());
+
+        // TODO: refactor buttons dimensions to be in higer class
+        const float buttonWidth = 75.0f;
+        const float buttonHeight = 33.0f;
 
         ImGui::BeginGroup();
         {
@@ -418,7 +490,7 @@ void TerrainUI::DisplayDecorationSettings() {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-            if (ImGui::Button("Remove", ImVec2(72, 20))) {
+            if (ImGui::Button("Remove", ImVec2(buttonWidth, buttonHeight))) {
                 parameters.decorationRules.erase(parameters.decorationRules.begin() + i);
                 ImGui::EndGroup();
                 ImGui::PopID();
@@ -454,14 +526,11 @@ void TerrainUI::DisplayDecorationSettings() {
                 }
                 else {
                     parameters.decorationRules.push_back(
-                        {
-                            glm::vec2(0.15f, 0.35f),    // height limits
-                            glm::vec2(0.8f, 1.2f),      // scale range
-                            true,                       // random rotation
-                            0.004f,                     // density
-                            file
-                        }
-                    );
+                        { glm::vec2(0.15f, 0.35f), // height limits
+                         glm::vec2(0.8f, 1.2f),   // scale range
+                         true,                    // random rotation
+                         0.004f,                  // density
+                         file });
                 }
             }
         }
@@ -469,8 +538,6 @@ void TerrainUI::DisplayDecorationSettings() {
     else {
         ImGui::TextColored(ImVec4(1, 0.5f, 0.5f, 1), "Maximum 16 layers reached!");
     }
-
-    ImGui::End();
 }
 
 TerrainUtilities::TerrainData TerrainUI::GetParameters() const {

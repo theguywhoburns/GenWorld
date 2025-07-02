@@ -3,8 +3,6 @@
 #define MAX_TEXTURE_UNITS 16
 #define MAX_COLOR_UNITS 32
 
-in vec3 vertexNormal;
-in vec3 vertexColor;
 in vec2 vertexTexCoord;
 
 out vec4 FragColor;

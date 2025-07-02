@@ -1,6 +1,7 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
+#include "../Utils/FileDialogs.h"
 #include <glad/glad.h>
 #include <iostream>
 

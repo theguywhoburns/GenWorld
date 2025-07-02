@@ -45,6 +45,8 @@ public:
 
 protected:
     unsigned int arrayObj = 0;
+    virtual void bindTextures(Shader& shader);
+    virtual void unbindTextures();
 
 private:
     unsigned int vertexBuffer, indexBuffer;
@@ -53,8 +55,7 @@ private:
     bool instancingInitialized = false;
 
     void setupMesh();
-    void bindTextures(Shader& shader);
-    void unbindTextures();
+    void applyShadingUniforms();
 
 };
 

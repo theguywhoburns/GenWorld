@@ -12,8 +12,7 @@ struct Light {
 };
 
 uniform sampler2D diffuse1;
-// uniform Light light;
-Light light;
+uniform Light light;
 uniform bool useLights = true;
 
 vec3 CalcDirLight(vec3 normal, vec3 diffTex) {
@@ -34,11 +33,6 @@ void main()
     vec4 finalColor = texture(diffuse1, TexCoords);
 
     if (useLights) {
-		//TODO test values: set the uniform from the application UI
-		light.direction = vec3(-1.0, -1.0, -0.5);
-        light.ambient = vec3(0.5);
-        light.diffuse = vec3(1.0);
-        
         // calculate lighting
         vec3 normal = normalize(vertexNormal);
         vec3 lightColor = CalcDirLight(normal, finalColor.rgb);

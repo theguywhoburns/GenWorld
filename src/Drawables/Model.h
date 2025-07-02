@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "../Utils/FileDialogs.h"
 #include "../Core/Texture.h"
 #include "Mesh.h"
 
@@ -26,6 +27,8 @@ public:
 	void DrawInstanced(const glm::mat4& view, const glm::mat4& projection, const std::vector<glm::mat4>& instances);
 
 	void SetShader(std::shared_ptr<Shader> shader) override;
+	void SetShader(const std::string& shaderName) override;
+	virtual void SetShaderParameters(const ShadingParameters& params) override;
 
 	const std::vector<Mesh*>& getMeshes() const {
 		return meshes;

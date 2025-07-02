@@ -29,6 +29,8 @@ public:
         return resultTextureID;
     }
 
+protected:
+    void bindTextures(Shader& shader) override;
 
 private:
     TerrainUtilities::TerrainData data;

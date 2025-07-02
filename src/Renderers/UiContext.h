@@ -4,6 +4,7 @@
 #include "../Utils/FileDialogs.h"
 #include "../Utils/OBJExporter.h"
 #include "../Utils/FBXExporter.h"
+#include "../UI/SpectrumUI.h"
 #include <GLFW/glfw3.h>
 
 #include <iostream>
@@ -26,6 +27,9 @@ public:
     // New: allow external code to inject TerrainGenerator
     void setTerrainGenerator(TerrainGenerator* tg);
 
+    // Theme functions
+    void switchTheme();
+
 private:
     void renderDockingWindow();
     void renderMenuBar();
@@ -34,4 +38,6 @@ private:
 
     TerrainGenerator* terrainGen = nullptr; // Pointer to avoid circular dependency
 
+    // Theme state
+    bool isDarkTheme = true;
 };

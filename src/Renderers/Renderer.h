@@ -24,6 +24,8 @@ public:
     void SetScreenSize(float width, float height);
     glm::vec2 GetScreenSize();
 
+    void updateShadingParameters(const ShadingParameters& params) { currentShadingParams = params; }
+
 private:
     void renderScene();
 
@@ -31,6 +33,7 @@ private:
     std::vector<IDrawable*> renderQueue;
     Camera* currentCamera;
     FrameBuffer framebuffer;
+    ShadingParameters currentShadingParams;
 
 };
 

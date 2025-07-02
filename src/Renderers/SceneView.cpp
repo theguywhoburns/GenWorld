@@ -2,28 +2,39 @@
 
 bool SceneView::init(AppWindow* wind) {
     window = wind;
-    m_ViewportSize = window->getSize();
+    m_ViewportSize = window->getViewportSize();
+
+    m_ShadingPanel.setOnParametersChanged(
+        [this](const ShadingParameters& params) {
+            renderer->updateShadingParameters(params);
+        }
+    );
     return true;
 }
 
 void SceneView::render() {
     processInput();
 
+    renderSceneView();
+    renderViewportShading();
+}
+
+void SceneView::renderSceneView() {
+    ImVec2 min_size(150.0f, 150.0f);
+    ImVec2 max_size(INT16_MAX, INT16_MAX);
+    ImGui::SetNextWindowSizeConstraints(min_size, max_size);
+    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
+    m_ViewportSize = { viewportSize.x, viewportSize.y };
     renderer->SetScreenSize(m_ViewportSize);
-    framebuffer.Resize(window->getSize().x, window->getSize().y);
-    
+    framebuffer.Resize(m_ViewportSize.x, m_ViewportSize.y);
+    window->setViewPortSize(framebuffer.GetWidth(), framebuffer.GetHeight());
+
     framebuffer.bind();
     window->clearBuffers();
     renderer->Render();
     framebuffer.unbind();
-
-    ImVec2 min_size(150.0f, 150.0f);
-    ImVec2 max_size(INT16_MAX, INT16_MAX);
-    ImGui::SetNextWindowSizeConstraints(min_size, max_size);
-    ImGui::Begin("Scene View", nullptr, ImGuiWindowFlags_NoCollapse);
-    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-
-    m_ViewportSize = {viewportSize.x, viewportSize.y};
 
     // add rendered texture to ImGUI scene window
     uint64_t textureID = framebuffer.GetColorTextureID();
@@ -32,6 +43,10 @@ void SceneView::render() {
     isSceneWindowHovered = ImGui::IsItemHovered() && ImGui::GetIO().WantCaptureMouse;
 
     ImGui::End();
+}
+
+void SceneView::renderViewportShading() {
+    m_ShadingPanel.render();
 }
 
 #pragma region Callbacks

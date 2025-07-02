@@ -43,9 +43,10 @@ void Application::shutdown() {
 void Application::LoadDefaultShaders() {
     ShaderManager* shaderManager = ShaderManager::GetInstance();
     shaderManager->loadShader("solid", "Shaders/VertexShader.vs", "Shaders/solid.fs");
-    shaderManager->loadShader("unshaded", "Shaders/VertexShader.vs", "Shaders/FragmentShader.fs");
+    shaderManager->loadShader("rendered", "Shaders/VertexShader.vs", "Shaders/FragmentShader.fs");
     shaderManager->loadShader("terrain", "Shaders/Terrain.vert", "Shaders/Terrain.frag");
     shaderManager->loadShader("terrainTexture", "Shaders/TerrainTexture.vert", "Shaders/TerrainTexture.frag");
+    shaderManager->loadShader("wireframe", "Shaders/Wireframe.vs", "Shaders/Wireframe.fs", "Shaders/Wireframe.gs");
 }
 
 void Application::Run() {
@@ -60,6 +61,8 @@ void Application::Run() {
         uiCtx.render();	                    // Renders the Main Docking Window
         terrainController->DisplayUI();	    // Renders the TerrainUI Windows
         terrainController->Update();        // pushes the terrain data to Renderer
+
+        m_window->clear();                  // Clears the Window
         sceneView.render();		            // Renders the Scene Window
 
         uiCtx.postRender();
