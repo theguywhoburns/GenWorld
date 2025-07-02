@@ -3,20 +3,23 @@
 # Project Setup
 
 ## Dependencies
-This project requires the following dependencies to be cloned inside the `vendor` folder:
+This project uses the following dependencies as Git submodules inside the `vendor` folder:
 
 - [GLM](https://github.com/g-truc/glm)
 - [GLFW](https://github.com/glfw/glfw)
 - [Assimp](https://github.com/assimp/assimp)
 
-## Cloning Dependencies
-Navigate to the project's root directory and run the following commands:
+## Cloning the Repository with Submodules
+To clone this repository along with all dependencies, use:
 
 ```sh
-cd vendor
-git clone https://github.com/g-truc/glm.git
-git clone https://github.com/glfw/glfw.git
-git clone https://github.com/assimp/assimp.git
+git clone --recurse-submodules <repo-url>
+```
+
+If you have already cloned the repository without submodules, initialize and update them with:
+
+```sh
+git submodule update --init --recursive
 ```
 
 ## Compiling Assimp
