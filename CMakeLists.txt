@@ -16,17 +16,6 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-# Path to FBX SDK (update this to your install path)
-set(FBX_SDK_ROOT "D:/2020.3.7/temp/fbx202037_fbxsdk_vs2022_win")
-# Choose lib path based on build type
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(FBX_SDK_LIB_DIR "${FBX_SDK_ROOT}/lib/x64/release")
-else()
-    set(FBX_SDK_LIB_DIR "${FBX_SDK_ROOT}/lib/x64/debug")
-endif()
-
-
-#set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
 
 
 #------------------------------------------------------------------------------
@@ -49,7 +38,7 @@ file(GLOB_RECURSE MY_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
-add_executable(${PROJECT_NAME} ${MY_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/OBJExporter.h" "src/Utils/OBJExporter.cpp" "src/Core/stb_image_write.cpp" "src/Utils/FBXExporter.h" "src/Utils/FBXExporter.cpp" "src/Utils/MeshData.h")
+add_executable(${PROJECT_NAME} ${MY_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/OBJExporter.h" "src/Utils/OBJExporter.cpp" "src/Core/stb_image_write.cpp" "src/Utils/MeshData.h")
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
@@ -66,7 +55,6 @@ add_subdirectory(vendor/assimp)
 
 include_directories(${CMAKE_SOURCE_DIR}/ImGui)
 include_directories(${OPENGL_INCLUDE_DIRS})
-include_directories("${FBX_SDK_ROOT}/include")
 
 target_link_libraries(${PROJECT_NAME} 
     PUBLIC glfw 
@@ -74,9 +62,6 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC glm 
     PUBLIC assimp
     ${OPENGL_LIBRARIES}
-    ${FBX_SDK_LIB_DIR}/libfbxsdk-md.lib
-    ${FBX_SDK_LIB_DIR}/libxml2-md.lib
-    ${FBX_SDK_LIB_DIR}/zlib-md.lib
 )
 
 target_include_directories(${PROJECT_NAME} 
@@ -84,21 +69,6 @@ target_include_directories(${PROJECT_NAME}
     PUBLIC vendor/assimp/include
     PUBLIC ImGui
 )
-
-# Post-build command to copy the DLL
-# For FBX DLL
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(FBX_DLL_PATH "${FBX_SDK_ROOT}/lib/x64/release/libfbxsdk.dll")
-else()
-    set(FBX_DLL_PATH "${FBX_SDK_ROOT}/lib/x64/debug/libfbxsdk.dll")
-endif()
-
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${FBX_DLL_PATH}"
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>
-)
-
 
 
 # Copy assets to build directory.

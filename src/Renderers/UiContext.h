@@ -3,7 +3,6 @@
 #include "IRenderContext.h"
 #include "../Utils/FileDialogs.h"
 #include "../Utils/OBJExporter.h"
-#include "../Utils/FBXExporter.h"
 #include "../UI/SpectrumUI.h"
 #include <GLFW/glfw3.h>
 
@@ -34,7 +33,6 @@ private:
     void renderDockingWindow();
     void renderMenuBar();
     void defaultLayout();
-    void renderUniversalButtons();
 
     TerrainGenerator* terrainGen = nullptr; // Pointer to avoid circular dependency
 
