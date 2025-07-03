@@ -1,21 +1,12 @@
 cmake_minimum_required(VERSION 3.12)
 project(GenWorld VERSION 0.1.0 LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# For GCC/Clang filesystem linking
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-    target_link_libraries(${PROJECT_NAME} PRIVATE stdc++fs)
-endif()
-
 find_package(OpenGL REQUIRED)
 
 # GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-
 
 
 #------------------------------------------------------------------------------
@@ -26,7 +17,6 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(FONT_DIR "${CMAKE_SOURCE_DIR}/Resources/assets/fonts/Source_Sans_3/static")
 set(REGULAR_FONT "${FONT_DIR}/SourceSans3-Regular.ttf")
 set(BOLD_FONT "${FONT_DIR}/SourceSans3-Bold.ttf")
-
 
 include(CTest)
 enable_testing()
