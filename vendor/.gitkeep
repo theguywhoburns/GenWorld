@@ -1,0 +1,2 @@
+# This file ensures the vendor directory is tracked in Git
+# The actual dependencies are managed as Git submodules 

@@ -34,6 +34,10 @@ public:
 	void SetShader(const std::string& shaderName) override;
 	virtual void SetShaderParameters(const ShadingParameters& params) override;
 
+	const std::vector<Mesh*>& getMeshes() const {
+		return meshes;
+	}
+
 private:
 	vector<Mesh*>	meshes;
 	vector<std::shared_ptr<Texture>> textures_loaded;

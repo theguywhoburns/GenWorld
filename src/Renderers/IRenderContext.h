@@ -7,6 +7,7 @@
 
 #include "../Core/Engine/AppWindow.h"
 
+
 class IRenderContext {
 public:
     IRenderContext() : window(nullptr) {}

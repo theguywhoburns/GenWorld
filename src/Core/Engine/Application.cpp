@@ -40,6 +40,7 @@ void Application::init() {
 
     blockController = new BlockController(&renderer);
     terrainController = new TerrainController(&renderer);
+    uiCtx.setTerrainGenerator(&terrainController->getGenerator());
 
     generatorController = blockController;
 

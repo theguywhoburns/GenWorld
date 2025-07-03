@@ -17,6 +17,18 @@ public:
 
     float GetHeightAt(float x, float z) const;
 
+    const std::unordered_map<std::string, std::shared_ptr<Model>>& getInstanceMeshes() const {
+        return instanceMeshes;
+    }
+
+    const std::unordered_map<std::string, std::vector<glm::mat4>>& getModelInstances() const {
+        return modelInstances;
+    }
+
+    const unsigned int getTextureID() const {
+        return resultTextureID;
+    }
+
 protected:
     void bindTextures(Shader& shader) override;
 

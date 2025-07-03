@@ -3,6 +3,10 @@
 #include <cstring>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../src/Drawables/Mesh.h" 
+#include "../Generators/TerrainGenerator.h"
+#include "../src/Core/Engine/Application.h"
+
 
 void UiContext::switchTheme()
 {
@@ -105,9 +109,37 @@ void UiContext::postRender()
     }
 }
 
-void UiContext::renderDockingWindow()
-{
-    ImGuiViewport *viewport = ImGui::GetMainViewport();
+void UiContext::setTerrainGenerator(TerrainGenerator* tg) {
+    terrainGen = tg;
+}
+
+void UiContext::exportTerrain(string format) {
+    if (!terrainGen) {
+        std::cerr << "TerrainGenerator not set.\n";
+        return;
+    }
+
+    Mesh* meshData = terrainGen->GetMesh();
+    if (meshData) {
+        // Safely cast from Mesh* to TerrainMesh*
+        TerrainMesh* terrainData = dynamic_cast<TerrainMesh*>(meshData);
+        if (terrainData) {
+            if (format == "obj") {
+                ExportMeshAsOBJ(*terrainData, "terrain.obj");
+            }
+        }
+        else {
+            std::cerr << "Mesh is not a TerrainMesh.\n";
+        }
+    }
+    else {
+        std::cerr << "Terrain mesh not generated.\n";
+    }
+}
+
+
+void UiContext::renderDockingWindow() {
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
     // Create dockspace parent window
     ImGui::SetNextWindowPos(viewport->Pos);
     ImGui::SetNextWindowSize(viewport->Size);
@@ -146,64 +178,22 @@ void UiContext::renderMenuBar()
 {
     if (ImGui::BeginMainMenuBar())
     {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::MenuItem("New", "Ctrl+N"))
-            {
-                // Handle New action
-            }
-            if (ImGui::MenuItem("Open", "Ctrl+O"))
-            {
-                // Handle Open action
-            }
-            if (ImGui::MenuItem("Save", "Ctrl+S"))
-            {
-                // Handle Save action
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::BeginMenu("Export")) {
+                if (ImGui::MenuItem("OBJ", "(.obj + .mtl)")) {
+                    exportTerrain("obj");
+
+                }
+                ImGui::EndMenu();
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("Exit", "Alt+F4"))
-            {
+            if (ImGui::MenuItem("Exit", "Alt+F4")) {
                 // Handle Exit action
+
             }
             ImGui::EndMenu();
         }
-
-        if (ImGui::BeginMenu("Edit"))
-        {
-            if (ImGui::MenuItem("Undo", "Ctrl+Z"))
-            {
-                // Handle Undo action
-            }
-            if (ImGui::MenuItem("Redo", "Ctrl+Y"))
-            {
-                // Handle Redo action
-            }
-            ImGui::Separator();
-            if (ImGui::MenuItem("Cut", "Ctrl+X"))
-            {
-                // Handle Cut action
-            }
-            if (ImGui::MenuItem("Copy", "Ctrl+C"))
-            {
-                // Handle Copy action
-            }
-            if (ImGui::MenuItem("Paste", "Ctrl+V"))
-            {
-                // Handle Paste action
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("View"))
-        {
-            if (ImGui::MenuItem("Scene View"))
-            {
-                // Toggle Scene View visibility
-            }
-            if (ImGui::MenuItem("Properties"))
-            {
-                // Toggle Properties visibility
-            }
+        if(ImGui::BeginMenu("View")) {
             // Theme selector as a submenu item
             if (ImGui::BeginMenu("Theme"))
             {
@@ -253,6 +243,7 @@ void UiContext::renderMenuBar()
             }
             ImGui::EndMenu();
         }
+        
 
         ImGui::EndMainMenuBar();
     }

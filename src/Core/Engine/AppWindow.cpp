@@ -19,14 +19,18 @@ bool AppWindow::init() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    /* Create a windowed mode window and its OpenGL context */
+    // Start in fullscreen mode
+    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+
     window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, title.c_str(), NULL, NULL);
+
     if (!window) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return false;
     }
 
+    glfwMaximizeWindow(window);
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
