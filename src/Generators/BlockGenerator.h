@@ -134,6 +134,11 @@ private:
     int selectByWeight(const std::vector<int>& blocks, std::mt19937& rng);
     std::vector<int> getAvailableBlocks() const;
     bool hasReachedLimit(int blockId) const;
+    
+    // Min/Max count management
+    bool hasMetMinimumRequirements() const;
+    std::vector<int> getBlocksNeedingMinCount() const;
+    bool shouldPrioritizeMinCountBlock(int x, int y, int z, int blockId) const;
 
     // Rectangular castle generation
     void generateRectangularCastle(std::mt19937& rng);
@@ -146,6 +151,11 @@ private:
     bool isCornerRotationValid(int x, int y, int z, int cornerBlockId, int rotation, bool isStartingCorner) const;
     int getCornerRotationForPosition(int x, int z) const;
     std::vector<int> getCornerBlocks() const;
+    
+    // Corner block preset system
+    int detectCornerBlockPreset(int cornerBlockId) const;
+    int getCornerPosition(int x, int z) const;
+    int getRotationForPresetAtCorner(int preset, int cornerPosition) const;
 
 private:
     std::vector<std::vector<std::vector<bool>>> gridMask; // 3D mask for rectangular castle generation

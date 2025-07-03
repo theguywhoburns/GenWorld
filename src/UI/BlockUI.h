@@ -79,4 +79,7 @@ private:
     // File operations
     void OpenModelFileDialog();
     std::string GetFileName(const std::string& filepath);
+    
+    // Corner block validation
+    bool validateCornerBlock(int blockId) const;
 };

@@ -10,11 +10,12 @@ enum class SocketType {
     STONE = 2,      // Stone blocks  
     WOOD = 3,       // Wooden blocks
     METAL = 4,      // Metal blocks
-    CUSTOM_1 = 5,   // User-defined types
-    CUSTOM_2 = 6,
-    CUSTOM_3 = 7,
-    CUSTOM_4 = 8,
-    CUSTOM_5 = 9
+    WALL = 5,       // Wall blocks (cannot connect to anything)
+    CUSTOM_1 = 6,   // User-defined types
+    CUSTOM_2 = 7,
+    CUSTOM_3 = 8,
+    CUSTOM_4 = 9,
+    CUSTOM_5 = 10,
 };
 
 struct Socket {
@@ -64,6 +65,11 @@ public:
             return true;
         }
         
+        // WALL sockets cannot connect to anything (they represent exterior faces)
+        if (socketA == SocketType::WALL || socketB == SocketType::WALL) {
+            return false;
+        }
+        
         auto it = connectionRules.find({socketA, socketB});
         
         return it != connectionRules.end() ? it->second : false;
@@ -101,6 +107,7 @@ public:
             case SocketType::STONE:   return "Stone";
             case SocketType::WOOD:    return "Wood";
             case SocketType::GRASS:   return "Grass";
+            case SocketType::WALL:    return "Wall";
             case SocketType::EMPTY:   return "Empty";
             default:                  return "Invalid";
         }

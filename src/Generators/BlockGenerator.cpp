@@ -57,6 +57,22 @@ void BlockGenerator::Generate() {
     } else {
         generateGridFrontierWFC(mainRng);
     }
+    
+    // Check if minimum requirements are met
+    if (!hasMetMinimumRequirements()) {
+        std::cout << "Warning: Some blocks did not meet minimum count requirements after generation." << std::endl;
+        auto blocksNeeded = getBlocksNeedingMinCount();
+        std::cout << "Blocks needing more placement: ";
+        for (int blockId : blocksNeeded) {
+            auto& settings = parameters.generationSettings;
+            auto currentIt = settings.currentBlockCounts.find(blockId);
+            auto minIt = settings.minBlockCounts.find(blockId);
+            int current = (currentIt != settings.currentBlockCounts.end()) ? currentIt->second : 0;
+            int needed = (minIt != settings.minBlockCounts.end()) ? minIt->second : 0;
+            std::cout << "Block " << blockId << " (" << current << "/" << needed << ") ";
+        }
+        std::cout << std::endl;
+    }
 
     generatorMesh = generateMeshFromGrid();
 }
@@ -150,9 +166,18 @@ double BlockGenerator::calculateCellEntropy(const GridCell& cell) const {
     if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) return 0.0;
     double sum = 0.0, logSum = 0.0;
     auto& weights = parameters.generationSettings.blockWeights;
+    auto blocksNeedingMin = getBlocksNeedingMinCount();
+    
     for (const auto& pair : cell.possibleBlockRotationPairs) {
         int id = pair.first;
         double w = weights.count(id) ? weights.at(id) : 1.0;
+        
+        // Moderate boost for blocks that haven't met minimum requirements
+        // Use smaller multiplier to avoid clustering
+        if (std::find(blocksNeedingMin.begin(), blocksNeedingMin.end(), id) != blocksNeedingMin.end()) {
+            w *= 1.3; // Smaller boost (30% instead of 100%) for better distribution
+        }
+        
         sum += w;
         logSum += w * std::log(w);
     }
@@ -177,8 +202,24 @@ bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
         return false;
     }
 
-    std::uniform_int_distribution<size_t> pairDist(0, cell.possibleBlockRotationPairs.size() - 1);
-    auto chosenPair = cell.possibleBlockRotationPairs[pairDist(rng)];
+    // Check if we need to prioritize blocks that haven't met minimum requirements
+    // But also consider spatial distribution to avoid clustering
+    std::vector<std::pair<int, int>> priorityPairs;
+    
+    // Filter possible pairs to only include blocks that need minimum count AND have good spatial distribution
+    for (const auto& pair : cell.possibleBlockRotationPairs) {
+        int blockId = pair.first;
+        if (shouldPrioritizeMinCountBlock(x, y, z, blockId)) {
+            priorityPairs.push_back(pair);
+        }
+    }
+    
+    // If we have spatially-appropriate blocks that need minimum count, use those
+    // Otherwise, use all possibilities for normal generation
+    auto& pairsToUse = priorityPairs.empty() ? cell.possibleBlockRotationPairs : priorityPairs;
+    
+    std::uniform_int_distribution<size_t> pairDist(0, pairsToUse.size() - 1);
+    auto chosenPair = pairsToUse[pairDist(rng)];
     int chosenBlockType = chosenPair.first;
     int chosenRotation = chosenPair.second;
 
@@ -612,11 +653,23 @@ void BlockGenerator::resetBlockCounts() {
 
 bool BlockGenerator::canPlaceBlock(int blockId) const {
     auto& settings = parameters.generationSettings;
+    
+    // Skip corner blocks - they use special placement logic
+    if (settings.cornerBlockIds.count(blockId) > 0) {
+        return true;
+    }
+    
     auto maxIt = settings.maxBlockCounts.find(blockId);
     auto currentIt = settings.currentBlockCounts.find(blockId);
     int currentCount = (currentIt != settings.currentBlockCounts.end()) ? currentIt->second : 0;
     bool isUnlimited = (maxIt == settings.maxBlockCounts.end() || maxIt->second == -1);
-    return isUnlimited ? true : (currentCount < maxIt->second);
+    
+    // If unlimited, no max constraint, otherwise check max limit
+    if (!isUnlimited && currentCount >= maxIt->second) {
+        return false;
+    }
+    
+    return true;
 }
 
 std::vector<int> BlockGenerator::getAvailableBlocks() const {
@@ -638,9 +691,45 @@ bool BlockGenerator::hasReachedLimit(int blockId) const {
     return currentCount >= maxIt->second;
 }
 
-void BlockGenerator::incrementBlockCount(int blockId) {
+bool BlockGenerator::hasMetMinimumRequirements() const {
     auto& settings = parameters.generationSettings;
-    settings.currentBlockCounts[blockId]++;
+    
+    for (const auto& [blockId, minCount] : settings.minBlockCounts) {
+        // Skip corner blocks - they use special placement logic
+        if (settings.cornerBlockIds.count(blockId) > 0) {
+            continue;
+        }
+        
+        auto currentIt = settings.currentBlockCounts.find(blockId);
+        int currentCount = (currentIt != settings.currentBlockCounts.end()) ? currentIt->second : 0;
+        
+        if (currentCount < minCount) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+std::vector<int> BlockGenerator::getBlocksNeedingMinCount() const {
+    auto& settings = parameters.generationSettings;
+    std::vector<int> blocksNeeded;
+    
+    for (const auto& [blockId, minCount] : settings.minBlockCounts) {
+        // Skip corner blocks - they use special placement logic
+        if (settings.cornerBlockIds.count(blockId) > 0) {
+            continue;
+        }
+        
+        auto currentIt = settings.currentBlockCounts.find(blockId);
+        int currentCount = (currentIt != settings.currentBlockCounts.end()) ? currentIt->second : 0;
+        
+        if (currentCount < minCount && canPlaceBlock(blockId)) {
+            blocksNeeded.push_back(blockId);
+        }
+    }
+    
+    return blocksNeeded;
 }
 
 int BlockGenerator::getFaceIndex(const std::string& faceDirection) {
@@ -805,14 +894,29 @@ bool BlockGenerator::tryPlaceCornerBlock(int x, int y, int z, std::mt19937& rng)
         return false;
     }
     
-    // Try each corner block
+    std::cout << "Available corner blocks: ";
+    for (int blockId : cornerBlocks) {
+        std::cout << blockId << " ";
+    }
+    std::cout << std::endl;
+    
+    // Shuffle the corner blocks for random selection
+    std::shuffle(cornerBlocks.begin(), cornerBlocks.end(), rng);
+    
+    // Try each corner block in random order
     for (int cornerBlockId : cornerBlocks) {
-        if (!canPlaceBlock(cornerBlockId)) continue;
+        std::cout << "Trying corner block " << cornerBlockId << " at (" << x << "," << y << "," << z << ")" << std::endl;
+        
+        if (!canPlaceBlock(cornerBlockId)) {
+            std::cout << "Corner block " << cornerBlockId << " cannot be placed (limit reached)" << std::endl;
+            continue;
+        }
         
         // Try to find the best rotation for this corner block
         int bestRotation = findBestCornerRotation(x, y, z, cornerBlockId);
         if (bestRotation != -1) {
             // Place the corner block with the best rotation
+            std::cout << "Successfully placed corner block " << cornerBlockId << " with rotation " << bestRotation << std::endl;
             cell.collapsed = true;
             cell.possibleBlockRotationPairs = {{cornerBlockId, bestRotation}};
             cell.blockTypeIds = {cornerBlockId};
@@ -830,6 +934,8 @@ bool BlockGenerator::tryPlaceCornerBlock(int x, int y, int z, std::mt19937& rng)
             // Propagate constraints
             propagateConstraints(x, y, z);
             return true;
+        } else {
+            std::cout << "Corner block " << cornerBlockId << " failed rotation validation" << std::endl;
         }
     }
     
@@ -849,10 +955,26 @@ int BlockGenerator::findBestCornerRotation(int x, int y, int z, int cornerBlockI
     
     const auto& blockTemplate = templateIt->second;
     
-    // Determine the corner type based on position in the rectangle
-    int targetRotation = getCornerRotationForPosition(x, z);
+    // Detect the preset of this corner block (which two faces are exterior in base orientation)
+    int preset = detectCornerBlockPreset(cornerBlockId);
+    if (preset == -1) {
+        std::cerr << "Could not detect preset for corner block " << cornerBlockId << std::endl;
+        return -1;
+    }
     
-    std::cout << "Trying corner block " << cornerBlockId << " at (" << x << "," << y << "," << z << ") with target rotation: " << targetRotation << std::endl;
+    // Determine which corner position this is
+    int cornerPosition = getCornerPosition(x, z);
+    if (cornerPosition == -1) {
+        std::cerr << "Invalid corner position (" << x << "," << z << ")" << std::endl;
+        return -1;
+    }
+    
+    // Get the correct rotation for this preset at this corner position
+    int targetRotation = getRotationForPresetAtCorner(preset, cornerPosition);
+    
+    std::cout << "Corner block " << cornerBlockId << " preset: " << preset 
+              << ", corner position: " << cornerPosition 
+              << ", target rotation: " << targetRotation << std::endl;
     
     // Check if this is the first block (starting corner)
     bool isStartingCorner = isFirstBlock;
@@ -865,23 +987,14 @@ int BlockGenerator::findBestCornerRotation(int x, int y, int z, int cornerBlockI
         }
     }
     
-    // If target rotation doesn't work, try rotations closest to the target
-    std::vector<int> sortedRotations = blockTemplate.allowedRotations;
-    std::sort(sortedRotations.begin(), sortedRotations.end(), [targetRotation](int a, int b) {
-        int diffA = std::abs(a - targetRotation);
-        int diffB = std::abs(b - targetRotation);
-        // Handle wraparound for 270 vs 0 degree difference
-        diffA = std::min(diffA, std::abs(diffA - 360));
-        diffB = std::min(diffB, std::abs(diffB - 360));
-        return diffA < diffB;
-    });
-    
-    // Try each rotation in order of preference
-    for (int rotation : sortedRotations) {
-        std::cout << "Trying rotation: " << rotation << std::endl;
-        if (isCornerRotationValid(x, y, z, cornerBlockId, rotation, isStartingCorner)) {
-            std::cout << "Found valid fallback rotation: " << rotation << std::endl;
-            return rotation;
+    // If target rotation doesn't work, try all other allowed rotations
+    for (int rotation : blockTemplate.allowedRotations) {
+        if (rotation != targetRotation) {
+            std::cout << "Trying fallback rotation: " << rotation << std::endl;
+            if (isCornerRotationValid(x, y, z, cornerBlockId, rotation, isStartingCorner)) {
+                std::cout << "Found valid fallback rotation: " << rotation << std::endl;
+                return rotation;
+            }
         }
     }
     
@@ -993,35 +1106,146 @@ bool BlockGenerator::isCornerRotationValid(int x, int y, int z, int cornerBlockI
 }
 
 int BlockGenerator::getCornerRotationForPosition(int x, int z) const {
-    // Determine which corner this is and return the appropriate rotation
+    // This function is now replaced by the preset-based system
+    // but kept for backward compatibility if needed
     bool isLeftEdge = (x == 0);
     bool isRightEdge = (x == (int)parameters.gridWidth - 1);
     bool isFrontEdge = (z == 0);
     bool isBackEdge = (z == (int)parameters.gridLength - 1);
     
-    // For corners, we need to think about which faces should be walls vs connectable
-    // A corner piece should have walls facing outward (toward the void) and connectable faces inward
-    // Rotate all corners by another 90 degrees clockwise
-    
     if (isLeftEdge && isFrontEdge) {
-        // Bottom-left corner (0,0): try 90 degrees (was 180)
         return 90;
     }
     else if (isRightEdge && isFrontEdge) {
-        // Bottom-right corner (max,0): try 0 degrees (was 270)
         return 0;
     }
     else if (isRightEdge && isBackEdge) {
-        // Top-right corner (max,max): try 90 degrees (was 0)
         return 90;
     }
     else if (isLeftEdge && isBackEdge) {
-        // Top-left corner (0,max): try 180 degrees (was 90)
         return 180;
     }
     
-    // Default fallback
     return 0;
+}
+
+int BlockGenerator::detectCornerBlockPreset(int cornerBlockId) const {
+    // Detect which preset this corner block belongs to by examining its base socket configuration
+    // Presets are based on which two faces are exterior (walls) in the base orientation:
+    // Preset 0: +X and +Z are exterior (faces 0 and 4)
+    // Preset 1: +X and -Z are exterior (faces 0 and 5) 
+    // Preset 2: -X and +Z are exterior (faces 1 and 4)
+    // Preset 3: -X and -Z are exterior (faces 1 and 5)
+    
+    auto& templates = parameters.socketSystem.GetBlockTemplates();
+    auto templateIt = templates.find(cornerBlockId);
+    
+    if (templateIt == templates.end()) {
+        std::cerr << "Block template not found for ID: " << cornerBlockId << std::endl;
+        return -1;
+    }
+    
+    const auto& blockTemplate = templateIt->second;
+    
+    // Check which horizontal faces are walls (exterior) in the base orientation
+    // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+    bool posXIsWall = (blockTemplate.sockets[0].type == SocketType::WALL);
+    bool negXIsWall = (blockTemplate.sockets[1].type == SocketType::WALL);
+    bool posZIsWall = (blockTemplate.sockets[4].type == SocketType::WALL);
+    bool negZIsWall = (blockTemplate.sockets[5].type == SocketType::WALL);
+    
+    std::cout << "Detecting preset for block " << cornerBlockId << ": "
+              << "+X=" << (posXIsWall ? "wall" : "open") << ", "
+              << "-X=" << (negXIsWall ? "wall" : "open") << ", "
+              << "+Z=" << (posZIsWall ? "wall" : "open") << ", "
+              << "-Z=" << (negZIsWall ? "wall" : "open") << std::endl;
+    
+    // Determine preset based on which two faces are walls
+    if (posXIsWall && posZIsWall) {
+        std::cout << "Detected preset 0: +X and +Z are exterior" << std::endl;
+        return 0;
+    }
+    else if (posXIsWall && negZIsWall) {
+        std::cout << "Detected preset 1: +X and -Z are exterior" << std::endl;
+        return 1;
+    }
+    else if (negXIsWall && posZIsWall) {
+        std::cout << "Detected preset 2: -X and +Z are exterior" << std::endl;
+        return 2;
+    }
+    else if (negXIsWall && negZIsWall) {
+        std::cout << "Detected preset 3: -X and -Z are exterior" << std::endl;
+        return 3;
+    }
+    else {
+        std::cerr << "Could not determine preset for block " << cornerBlockId 
+                  << " - invalid wall configuration for a corner block" << std::endl;
+        return -1;
+    }
+}
+
+int BlockGenerator::getCornerPosition(int x, int z) const {
+    // Determine which corner position this is
+    // Position 0: bottom-left (0, 0)
+    // Position 1: bottom-right (max, 0)
+    // Position 2: top-right (max, max)
+    // Position 3: top-left (0, max)
+    
+    bool isLeftEdge = (x == 0);
+    bool isRightEdge = (x == (int)parameters.gridWidth - 1);
+    bool isFrontEdge = (z == 0);
+    bool isBackEdge = (z == (int)parameters.gridLength - 1);
+    
+    if (isLeftEdge && isFrontEdge) {
+        return 0; // bottom-left
+    }
+    else if (isRightEdge && isFrontEdge) {
+        return 1; // bottom-right
+    }
+    else if (isRightEdge && isBackEdge) {
+        return 2; // top-right
+    }
+    else if (isLeftEdge && isBackEdge) {
+        return 3; // top-left
+    }
+    
+    return -1; // Not a corner
+}
+
+int BlockGenerator::getRotationForPresetAtCorner(int preset, int cornerPosition) const {
+    // For each corner position, we need the exterior faces to point outward
+    // Corner positions and their required exterior face directions:
+    // Position 0 (bottom-left): exterior should be -X and -Z
+    // Position 1 (bottom-right): exterior should be +X and -Z
+    // Position 2 (top-right): exterior should be +X and +Z
+    // Position 3 (top-left): exterior should be -X and +Z
+    
+    // Rotation mapping for each preset at each corner position
+    // Each row is a preset, each column is a corner position
+    static const int rotationTable[4][4] = {
+        // Preset 0 (+X,+Z exterior in base): needs rotation to place exterior at required directions
+        {180, 90, 0, 270},   // For positions 0,1,2,3
+
+        // Preset 1 (+X,-Z exterior in base):
+        {90, 0, 270, 180},   // For positions 0,1,2,3
+        
+        // Preset 2 (-X,+Z exterior in base):  
+        {0, 90, 180, 270},    // For positions 0,1,2,3
+        
+        // Preset 3 (-X,-Z exterior in base):
+        {270, 180, 90, 0},   // For positions 0,1,2,3
+    };
+    
+    if (preset < 0 || preset >= 4 || cornerPosition < 0 || cornerPosition >= 4) {
+        std::cerr << "Invalid preset (" << preset << ") or corner position (" << cornerPosition << ")" << std::endl;
+        return 0;
+    }
+    
+    int rotation = rotationTable[preset][cornerPosition];
+    std::cout << "For preset " << preset << " at corner position " << cornerPosition 
+              << ", using rotation " << rotation << " degrees" << std::endl;
+    
+    return rotation;
 }
 
 std::vector<int> BlockGenerator::getCornerBlocks() const {
@@ -1033,4 +1257,41 @@ std::vector<int> BlockGenerator::getCornerBlocks() const {
     }
     
     return cornerBlocks;
+}
+
+void BlockGenerator::incrementBlockCount(int blockId) {
+    auto& settings = parameters.generationSettings;
+    settings.currentBlockCounts[blockId]++;
+}
+
+bool BlockGenerator::shouldPrioritizeMinCountBlock(int x, int y, int z, int blockId) const {
+    auto& settings = parameters.generationSettings;
+    
+    // Check if this block needs minimum count
+    auto blocksNeeded = getBlocksNeedingMinCount();
+    if (std::find(blocksNeeded.begin(), blocksNeeded.end(), blockId) == blocksNeeded.end()) {
+        return false; // Block doesn't need more placement
+    }
+    
+    // Check nearby cells to avoid clustering
+    int nearbyCount = 0;
+    int searchRadius = 3; // Check within 3-cell radius
+    
+    for (int dx = -searchRadius; dx <= searchRadius; dx++) {
+        for (int dy = -searchRadius; dy <= searchRadius; dy++) {
+            for (int dz = -searchRadius; dz <= searchRadius; dz++) {
+                int nx = x + dx, ny = y + dy, nz = z + dz;
+                if (isValidGridPosition(nx, ny, nz) && grid[nx][ny][nz].collapsed) {
+                    for (int placedBlockId : grid[nx][ny][nz].blockTypeIds) {
+                        if (placedBlockId == blockId) {
+                            nearbyCount++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Only prioritize if there aren't too many nearby blocks of the same type
+    return nearbyCount < 2; // Allow max 2 of the same type in nearby area
 }

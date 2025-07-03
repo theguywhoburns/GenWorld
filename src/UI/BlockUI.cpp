@@ -168,7 +168,7 @@ void BlockUI::DisplaySocketEditor() {
     
     // Socket type names for UI
     const char* socketTypeNames[] = {
-        "Empty (connects to all)", "Grass", "Stone", "Wood", "Metal",
+        "Empty (connects to all)", "Grass", "Stone", "Wood", "Metal", "Wall (exterior)",
         "Custom 1", "Custom 2", "Custom 3", "Custom 4", "Custom 5"
     };
     
@@ -216,7 +216,7 @@ void BlockUI::DisplaySocketEditor() {
             ImGui::SameLine();
             
             int currentType = static_cast<int>(currentTemplate.sockets[face].type);
-            if (ImGui::Combo("##sockettype", &currentType, socketTypeNames, 10)) {
+            if (ImGui::Combo("##sockettype", &currentType, socketTypeNames, 11)) {
                 currentTemplate.sockets[face].type = static_cast<SocketType>(currentType);
                 socketSystem.GenerateRotatedVariants(); // Regenerate when changed
             }
@@ -258,11 +258,11 @@ void BlockUI::DisplaySocketEditor() {
 
         ImGui::Text("From Socket:");
         ImGui::SameLine();
-        ImGui::Combo("##fromSocket", &fromSocketType, socketTypeNames, 10);
+        ImGui::Combo("##fromSocket", &fromSocketType, socketTypeNames, 11);
 
         ImGui::Text("To Socket:");
         ImGui::SameLine();
-        ImGui::Combo("##toSocket", &toSocketType, socketTypeNames, 10);
+        ImGui::Combo("##toSocket", &toSocketType, socketTypeNames, 11);
 
         ImGui::Checkbox("Can Connect", &canConnect);
 
@@ -279,21 +279,21 @@ void BlockUI::DisplaySocketEditor() {
         ImGui::Text("Current Rules:");
 
         // Display current compatibility matrix
-        if (ImGui::BeginTable("CompatibilityMatrix", 11, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
+        if (ImGui::BeginTable("CompatibilityMatrix", 12, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable)) {
             // Header row
             ImGui::TableSetupColumn("From \\ To");
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 11; i++) {
                 ImGui::TableSetupColumn(socketTypeNames[i]);
             }
             ImGui::TableHeadersRow();
 
             // Data rows
-            for (int fromType = 0; fromType < 10; fromType++) {
+            for (int fromType = 0; fromType < 11; fromType++) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::Text("%s", socketTypeNames[fromType]);
 
-                for (int toType = 0; toType < 10; toType++) {
+                for (int toType = 0; toType < 11; toType++) {
                     ImGui::TableNextColumn();
 
                     SocketType from = static_cast<SocketType>(fromType);
@@ -327,8 +327,8 @@ void BlockUI::DisplaySocketEditor() {
         ImGui::Text("Quick Presets:");
 
         if (ImGui::Button("All Connect")) {
-            for (int i = 0; i < 10; i++) {
-                for (int j = 0; j < 10; j++) {
+            for (int i = 0; i < 11; i++) {
+                for (int j = 0; j < 11; j++) {
                     compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), true);
                 }
             }
@@ -337,8 +337,8 @@ void BlockUI::DisplaySocketEditor() {
 
         ImGui::SameLine();
         if (ImGui::Button("None Connect")) {
-            for (int i = 0; i < 10; i++) {
-                for (int j = 0; j < 10; j++) {
+            for (int i = 0; i < 11; i++) {
+                for (int j = 0; j < 11; j++) {
                     compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), false);
                 }
             }
@@ -347,8 +347,8 @@ void BlockUI::DisplaySocketEditor() {
 
         ImGui::SameLine();
         if (ImGui::Button("Same Only")) {
-            for (int i = 0; i < 10; i++) {
-                for (int j = 0; j < 10; j++) {
+            for (int i = 0; i < 11; i++) {
+                for (int j = 0; j < 11; j++) {
                     bool canConnect = (i == j || i == 0 || j == 0); // Same type OR Empty socket
                     compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), canConnect);
                 }
@@ -441,13 +441,31 @@ void BlockUI::DisplayBlockConstraints() {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 
-                ImGui::Text("%s", GetFileName(asset.blockPath).c_str());
+                // Check if this block is assigned as a corner block
+                bool isCornerBlock = settings.cornerBlockIds.count(asset.id) > 0;
+                
+                if (isCornerBlock) {
+                    ImGui::TextColored(ImVec4(0.7f, 0.5f, 1.0f, 1.0f), "%s (Corner)", GetFileName(asset.blockPath).c_str());
+                } else {
+                    ImGui::Text("%s", GetFileName(asset.blockPath).c_str());
+                }
                 
                 ImGui::TableNextColumn();
                 float weight = settings.blockWeights[asset.id];
-                if (ImGui::SliderFloat(("##weight" + std::to_string(asset.id)).c_str(), &weight, 0.0f, 1.0f, "%.2f")) {
-                    settings.blockWeights[asset.id] = weight;
-                    std::cout << "Updated weight for block " << asset.id << " to " << weight << std::endl;
+                
+                if (isCornerBlock) {
+                    // Disable weight control for corner blocks
+                    ImGui::BeginDisabled();
+                    ImGui::SliderFloat(("##weight" + std::to_string(asset.id)).c_str(), &weight, 0.0f, 1.0f, "Corner");
+                    ImGui::EndDisabled();
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                        ImGui::SetTooltip("Corner blocks use special placement logic, weight is not applicable");
+                    }
+                } else {
+                    if (ImGui::SliderFloat(("##weight" + std::to_string(asset.id)).c_str(), &weight, 0.0f, 1.0f, "%.2f")) {
+                        settings.blockWeights[asset.id] = weight;
+                        std::cout << "Updated weight for block " << asset.id << " to " << weight << std::endl;
+                    }
                 }
                 
                 // Ensure min/max exist
@@ -461,39 +479,73 @@ void BlockUI::DisplayBlockConstraints() {
                 // Min input field
                 ImGui::TableNextColumn();
                 int minCount = settings.minBlockCounts[asset.id];
-                char minBuf[16];
-                snprintf(minBuf, sizeof(minBuf), "%d", minCount);
-                if (ImGui::InputText(("##min" + std::to_string(asset.id)).c_str(), minBuf, sizeof(minBuf), ImGuiInputTextFlags_CharsDecimal)) {
-                    int newMin = atoi(minBuf);
-                    newMin = std::max(0, newMin);
-                    if (settings.maxBlockCounts[asset.id] != -1 && newMin > settings.maxBlockCounts[asset.id]) {
-                        newMin = settings.maxBlockCounts[asset.id];
-                        snprintf(minBuf, sizeof(minBuf), "%d", newMin); // update buffer if clamped
+                
+                if (isCornerBlock) {
+                    // Disable min count for corner blocks
+                    ImGui::BeginDisabled();
+                    ImGui::Text("Corner");
+                    ImGui::EndDisabled();
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                        ImGui::SetTooltip("Corner blocks are placed using special logic, min count is not applicable");
                     }
-                    settings.minBlockCounts[asset.id] = newMin;
+                } else {
+                    char minBuf[16];
+                    snprintf(minBuf, sizeof(minBuf), "%d", minCount);
+                    if (ImGui::InputText(("##min" + std::to_string(asset.id)).c_str(), minBuf, sizeof(minBuf), ImGuiInputTextFlags_CharsDecimal)) {
+                        int newMin = atoi(minBuf);
+                        newMin = std::max(0, newMin);
+                        if (settings.maxBlockCounts[asset.id] != -1 && newMin > settings.maxBlockCounts[asset.id]) {
+                            newMin = settings.maxBlockCounts[asset.id];
+                            snprintf(minBuf, sizeof(minBuf), "%d", newMin); // update buffer if clamped
+                        }
+                        settings.minBlockCounts[asset.id] = newMin;
+                    }
                 }
                 
                 // Max input field
                 ImGui::TableNextColumn();
                 int maxCount = settings.maxBlockCounts[asset.id];
-                if (maxCount == -1) {
-                    ImGui::Text("Unlimited");
+                
+                if (isCornerBlock) {
+                    // Disable max count for corner blocks
+                    ImGui::BeginDisabled();
+                    ImGui::Text("Corner");
+                    ImGui::EndDisabled();
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                        ImGui::SetTooltip("Corner blocks are placed using special logic, max count is not applicable");
+                    }
                 } else {
-                    char maxBuf[16];
-                    snprintf(maxBuf, sizeof(maxBuf), "%d", maxCount);
-                    if (ImGui::InputText(("##max" + std::to_string(asset.id)).c_str(), maxBuf, sizeof(maxBuf), ImGuiInputTextFlags_CharsDecimal)) {
-                        int newMax = atoi(maxBuf);
-                        newMax = std::max(settings.minBlockCounts[asset.id], newMax);
-                        newMax = std::min(newMax, totalCells);
-                        settings.maxBlockCounts[asset.id] = newMax;
+                    if (maxCount == -1) {
+                        ImGui::Text("Unlimited");
+                    } else {
+                        char maxBuf[16];
+                        snprintf(maxBuf, sizeof(maxBuf), "%d", maxCount);
+                        if (ImGui::InputText(("##max" + std::to_string(asset.id)).c_str(), maxBuf, sizeof(maxBuf), ImGuiInputTextFlags_CharsDecimal)) {
+                            int newMax = atoi(maxBuf);
+                            newMax = std::max(settings.minBlockCounts[asset.id], newMax);
+                            newMax = std::min(newMax, totalCells);
+                            settings.maxBlockCounts[asset.id] = newMax;
+                        }
                     }
                 }
 
                 // Unlimited checkbox
                 ImGui::TableNextColumn();
-                bool unlimited = (settings.maxBlockCounts[asset.id] == -1);
-                if (ImGui::Checkbox(("##unlimited" + std::to_string(asset.id)).c_str(), &unlimited)) {
-                    settings.maxBlockCounts[asset.id] = unlimited ? -1 : std::max(settings.minBlockCounts[asset.id], totalCells / 4);
+                
+                if (isCornerBlock) {
+                    // Disable unlimited checkbox for corner blocks
+                    ImGui::BeginDisabled();
+                    bool dummyUnlimited = false;
+                    ImGui::Checkbox(("##unlimited" + std::to_string(asset.id)).c_str(), &dummyUnlimited);
+                    ImGui::EndDisabled();
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                        ImGui::SetTooltip("Corner blocks are placed using special logic, count limits are not applicable");
+                    }
+                } else {
+                    bool unlimited = (settings.maxBlockCounts[asset.id] == -1);
+                    if (ImGui::Checkbox(("##unlimited" + std::to_string(asset.id)).c_str(), &unlimited)) {
+                        settings.maxBlockCounts[asset.id] = unlimited ? -1 : std::max(settings.minBlockCounts[asset.id], totalCells / 4);
+                    }
                 }
             }
             
@@ -540,14 +592,51 @@ void BlockUI::DisplayCastleMakerSettings() {
 
         if (castleSystemEnabled) {
             ImGui::Text("Select valid corner pieces:");
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Corner blocks must have at least 2 Wall sockets on X and Z axes");
+            
             for (const auto& asset : loadedAssets) {
                 bool isCorner = selectedCornerBlockIds.count(asset.id) > 0;
                 std::string label = "Corner: " + GetFileName(asset.blockPath);
+                
+                // Check if this block is valid as a corner block
+                bool isValidCorner = validateCornerBlock(asset.id);
+                
+                if (!isValidCorner && isCorner) {
+                    // If it's selected but not valid, show warning
+                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "⚠");
+                    ImGui::SameLine();
+                }
+                
                 if (ImGui::Checkbox((label + "##corner" + std::to_string(asset.id)).c_str(), &isCorner)) {
-                    if (isCorner)
-                        selectedCornerBlockIds.insert(asset.id);
-                    else
+                    if (isCorner) {
+                        if (isValidCorner) {
+                            selectedCornerBlockIds.insert(asset.id);
+                        } else {
+                            isCorner = false; // Reset checkbox
+                            ImGui::OpenPopup(("Invalid Corner Block##" + std::to_string(asset.id)).c_str());
+                        }
+                    } else {
                         selectedCornerBlockIds.erase(asset.id);
+                    }
+                }
+                
+                // Show validation popup
+                if (ImGui::BeginPopupModal(("Invalid Corner Block##" + std::to_string(asset.id)).c_str(), NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                    ImGui::Text("This block cannot be used as a corner block!");
+                    ImGui::Text("Corner blocks must have at least 2 Wall sockets");
+                    ImGui::Text("on the X and Z axes (+X, -X, +Z, -Z faces).");
+                    ImGui::Separator();
+                    ImGui::Text("Please set the appropriate faces to 'Wall (exterior)'");
+                    ImGui::Text("in the Socket Editor tab.");
+                    if (ImGui::Button("OK", ImVec2(120, 0))) {
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::EndPopup();
+                }
+                
+                if (!isValidCorner) {
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(0.7f, 0.3f, 0.3f, 1.0f), "(Invalid - needs 2+ Wall sockets on X/Z axes)");
                 }
             }
 
@@ -563,4 +652,31 @@ void BlockUI::DisplayCastleMakerSettings() {
     // Sync back to parameters
     parameters.generationSettings.cornerBlockIds = selectedCornerBlockIds;
     parameters.generationSettings.isGridMaskEnabled = castleSystemEnabled;
+}
+
+bool BlockUI::validateCornerBlock(int blockId) const {
+    // Check if this block has the required Wall sockets for corner block usage
+    auto& templates = parameters.socketSystem.GetBlockTemplates();
+    auto templateIt = templates.find(blockId);
+    
+    if (templateIt == templates.end()) {
+        return false; // No template found
+    }
+    
+    const auto& blockTemplate = templateIt->second;
+    
+    // Count Wall sockets on X and Z axes
+    // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+    int wallCount = 0;
+    
+    // Check X axis faces
+    if (blockTemplate.sockets[0].type == SocketType::WALL) wallCount++; // +X
+    if (blockTemplate.sockets[1].type == SocketType::WALL) wallCount++; // -X
+    
+    // Check Z axis faces
+    if (blockTemplate.sockets[4].type == SocketType::WALL) wallCount++; // +Z
+    if (blockTemplate.sockets[5].type == SocketType::WALL) wallCount++; // -Z
+    
+    // Must have at least 2 Wall sockets on X and Z axes
+    return wallCount >= 2;
 }
