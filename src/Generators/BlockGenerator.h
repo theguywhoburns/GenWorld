@@ -99,8 +99,8 @@ private:
     void processRemainingCells(std::mt19937& rng);
 
     // Socket-based constraint validation
-    bool isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation);
-    bool validateNeighborCompatibility(int blockId, int rotation, int faceIndex, const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ);
+    bool isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation) const;
+    bool validateNeighborCompatibility(int blockId, int rotation, int faceIndex, const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ) const;
     //bool canBlocksConnectWithSockets(int blockId1, int rotation1, int face1, int blockId2, int rotation2, int face2);
     void propagateConstraints(int x, int y, int z);
 
@@ -134,4 +134,19 @@ private:
     int selectByWeight(const std::vector<int>& blocks, std::mt19937& rng);
     std::vector<int> getAvailableBlocks() const;
     bool hasReachedLimit(int blockId) const;
+
+    // Rectangular castle generation
+    void generateRectangularCastle(std::mt19937& rng);
+    void initializeGridMask();
+    bool isGridCellMasked(int x, int y, int z) const;
+    bool isCornerPosition(int x, int y, int z) const;
+    GridPosition findFirstCornerPosition() const;
+    bool tryPlaceCornerBlock(int x, int y, int z, std::mt19937& rng);
+    int findBestCornerRotation(int x, int y, int z, int cornerBlockId) const;
+    bool isCornerRotationValid(int x, int y, int z, int cornerBlockId, int rotation, bool isStartingCorner) const;
+    int getCornerRotationForPosition(int x, int z) const;
+    std::vector<int> getCornerBlocks() const;
+
+private:
+    std::vector<std::vector<std::vector<bool>>> gridMask; // 3D mask for rectangular castle generation
 };

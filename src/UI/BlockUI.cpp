@@ -65,6 +65,7 @@ void BlockUI::DisplayUI() {
         }
 
         DisplayBlockConstraints();  // Keep this for weight/limit controls
+        DisplayCastleMakerSettings();  // Keep this for castle maker settings
     }
     ImGui::End();
 }
@@ -241,7 +242,7 @@ void BlockUI::DisplaySocketEditor() {
     if (ImGui::CollapsingHeader("Socket Compatibility Rules", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& compatibility = parameters.socketSystem.GetCompatibility();
 
-        ImGui::SameLine();
+        ImGui::Separator();
         if (ImGui::Button("Clear All Rules")) {
             compatibility.ClearAllRules();
             std::cout << "Cleared all socket compatibility rules" << std::endl;
@@ -487,7 +488,7 @@ void BlockUI::DisplayBlockConstraints() {
                         settings.maxBlockCounts[asset.id] = newMax;
                     }
                 }
-                
+
                 // Unlimited checkbox
                 ImGui::TableNextColumn();
                 bool unlimited = (settings.maxBlockCounts[asset.id] == -1);
@@ -527,4 +528,39 @@ void BlockUI::DisplayBlockConstraints() {
             std::cout << "Removed all block limits" << std::endl;
         }
     }
+}
+
+void BlockUI::DisplayCastleMakerSettings() {
+    // Sync from parameters to local UI set
+    auto selectedCornerBlockIds = parameters.generationSettings.cornerBlockIds;
+    bool castleSystemEnabled = parameters.generationSettings.isGridMaskEnabled;
+
+    if (ImGui::CollapsingHeader("Castle Maker Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Enable Castle Grid", &castleSystemEnabled);
+
+        if (castleSystemEnabled) {
+            ImGui::Text("Select valid corner pieces:");
+            for (const auto& asset : loadedAssets) {
+                bool isCorner = selectedCornerBlockIds.count(asset.id) > 0;
+                std::string label = "Corner: " + GetFileName(asset.blockPath);
+                if (ImGui::Checkbox((label + "##corner" + std::to_string(asset.id)).c_str(), &isCorner)) {
+                    if (isCorner)
+                        selectedCornerBlockIds.insert(asset.id);
+                    else
+                        selectedCornerBlockIds.erase(asset.id);
+                }
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Selected corner block IDs:");
+            for (int id : selectedCornerBlockIds) {
+                ImGui::SameLine();
+                ImGui::Text("%d", id);
+            }
+        }
+    }
+
+    // Sync back to parameters
+    parameters.generationSettings.cornerBlockIds = selectedCornerBlockIds;
+    parameters.generationSettings.isGridMaskEnabled = castleSystemEnabled;
 }

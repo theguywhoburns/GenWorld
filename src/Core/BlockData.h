@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
 #include "../SocketSystem/SocketSystem.h"
 
 namespace BlockUtilities {
@@ -37,6 +38,8 @@ namespace BlockUtilities {
         bool enforceBlockLimits = true;
         bool useWeightedSelection = true;
         float defaultWeight = 0.5f;               // Default weight for new blocks
+        bool isGridMaskEnabled = false;
+        std::set<int> cornerBlockIds;
     };
     
     struct BlockData {

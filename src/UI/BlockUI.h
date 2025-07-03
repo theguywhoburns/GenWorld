@@ -51,7 +51,7 @@ public:
     // Tab displays
     void DisplayBasicSettings();
     void DisplayBlockConstraints();
-    
+    void DisplayCastleMakerSettings();
     // NEW: Socket system editor
     void DisplaySocketEditor();
     
