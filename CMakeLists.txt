@@ -4,6 +4,13 @@ project(GenWorld VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Platform-specific dependencies
+if(UNIX AND NOT APPLE)
+    # Linux-specific
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+endif()
+
 # For GCC/Clang filesystem linking
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
     target_link_libraries(${PROJECT_NAME} PRIVATE stdc++fs)
@@ -16,8 +23,6 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-
-
 #------------------------------------------------------------------------------
 # Fonts Configuration
 # This section handles the configuration and setup of fonts used in the project.
@@ -27,9 +32,19 @@ set(FONT_DIR "${CMAKE_SOURCE_DIR}/Resources/assets/fonts/Source_Sans_3/static")
 set(REGULAR_FONT "${FONT_DIR}/SourceSans3-Regular.ttf")
 set(BOLD_FONT "${FONT_DIR}/SourceSans3-Bold.ttf")
 
-
 include(CTest)
 enable_testing()
+
+# Platform-specific source files
+if(WIN32)
+    set(PLATFORM_SOURCES
+        src/Utils/Platform/FileDialogsWindows.cpp
+    )
+elseif(UNIX AND NOT APPLE)
+    set(PLATFORM_SOURCES
+        src/Utils/Platform/FileDialogsLinux.cpp
+    )
+endif()
 
 file(GLOB_RECURSE MY_SOURCES 
     CONFIGURE_DEPENDS 
@@ -38,7 +53,11 @@ file(GLOB_RECURSE MY_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
-add_executable(${PROJECT_NAME} ${MY_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/OBJExporter.h" "src/Utils/OBJExporter.cpp" "src/Core/stb_image_write.cpp" "src/Utils/MeshData.h")
+
+# Remove platform-specific files from general sources to avoid duplicates
+list(FILTER MY_SOURCES EXCLUDE REGEX ".*FileDialogs(Windows|Linux)\\.cpp$")
+
+add_executable(${PROJECT_NAME} ${MY_SOURCES} ${PLATFORM_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/OBJExporter.h" "src/Utils/OBJExporter.cpp" "src/Core/stb_image_write.cpp" "src/Utils/MeshData.h")
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
@@ -62,14 +81,20 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC glm 
     PUBLIC assimp
     ${OPENGL_LIBRARIES}
+    $<$<PLATFORM_ID:Linux>:${GTK3_LIBRARIES}>
 )
 
 target_include_directories(${PROJECT_NAME} 
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/
     PUBLIC vendor/assimp/include
     PUBLIC ImGui
+    $<$<PLATFORM_ID:Linux>:${GTK3_INCLUDE_DIRS}>
 )
 
+# Add compile definitions/flags for GTK if on Linux
+if(UNIX AND NOT APPLE)
+    target_compile_options(${PROJECT_NAME} PUBLIC ${GTK3_CFLAGS_OTHER})
+endif()
 
 # Copy assets to build directory.
 # This is a temporary solution, we will use CMake to copy assets to the build directory.
@@ -86,7 +111,6 @@ foreach(FILE ${RESOURCE_FILES})
     file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Resources" "${FILE}")
     configure_file(${FILE} "${CMAKE_CURRENT_BINARY_DIR}/Resources/${REL_PATH}" COPYONLY)
 endforeach()
-
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
