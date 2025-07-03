@@ -290,8 +290,8 @@ void UiContext::renderSceneOverlay(float* viewMatrix, float cameraDistance) {
     // Place gizmo in the top-right corner of the Scene View window
     ImVec2 gizmoSize(150, 150);
     ImVec2 gizmoPos(
-        scenePos.x + sceneSize.x - gizmoSize.x - 30, // 30px padding from right
-        scenePos.y + 30                              // 30px padding from top
+        scenePos.x + sceneSize.x - gizmoSize.x - 50, // 30px padding from right
+        scenePos.y + 50                              // 30px padding from top
     );
 
     ImGuizmo::DrawAxisTripod(

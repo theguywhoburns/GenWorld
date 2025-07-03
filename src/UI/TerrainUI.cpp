@@ -214,7 +214,7 @@ void TerrainUI::DisplaySceneViewOverlay() {
         ImGuiWindowFlags_NoBackground;
 
     ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
-    if (!sceneWindow) return; // Scene View not found, don't render gizmo
+    if (!sceneWindow) return;
 
     ImGui::SetNextWindowSize(sceneWindow->Size);
     ImGui::SetNextWindowPos(sceneWindow->Pos);
@@ -228,12 +228,12 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImGui::Begin("liveupdate", nullptr, flags);
 
     ImVec2 originalPos = ImGui::GetCursorPos();
-    ImVec2 overalySize(120, 35);
+    ImVec2 overalySize(150, 50);
     ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
     ImVec2 overlayPos(
-        contentRegionMax.x - overalySize.x - 10,
-        contentRegionMin.y + 150
+        contentRegionMax.x - overalySize.x - 20,
+        contentRegionMin.y + 200
     );
     ImGui::SetCursorPos(overlayPos);
 

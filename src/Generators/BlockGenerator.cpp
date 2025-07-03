@@ -575,16 +575,13 @@ BlockMesh* BlockGenerator::generateMeshFromGrid() {
         for (const auto& block : threadBlocks[t]) {
             int blockId; glm::vec3 pos; int rot;
             std::tie(blockId, pos, rot) = block;
-            addBlockToMesh(blockMesh, blockId, pos, rot, uniqueTextures);
+            addBlockToMesh(blockMesh, blockId, pos, rot);
         }
-        uniqueTextures.insert(threadTextures[t].begin(), threadTextures[t].end());
     }
-    blockMesh->SetBlockTextures({uniqueTextures.begin(), uniqueTextures.end()});
     return blockMesh;
 }
 
-void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, int rotation,
-                                   std::set<std::shared_ptr<Texture>>& uniqueTextures) {
+void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, int rotation) {
     if (blockId < 0) return;
     Transform blockTransform;
     blockTransform.setPosition(position);
@@ -595,7 +592,6 @@ void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm
         for (const auto& asset : assets) {
             if (asset.id == blockId) {
                 blockMesh->AddBlockInstance(asset.blockPath, blockTransform);
-                collectTexturesFromModel(asset.model, uniqueTextures);
                 return;
             }
         }
@@ -603,15 +599,6 @@ void BlockGenerator::addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm
     blockMesh->AddBlockInstance(blockId, blockTransform);
 }
 
-void BlockGenerator::collectTexturesFromModel(const std::shared_ptr<Model>& model,
-                                             std::set<std::shared_ptr<Texture>>& uniqueTextures) {
-    if (!model) return;
-    for (auto* mesh : model->getMeshes()) {
-        if (mesh)
-            for (auto& texture : mesh->textures)
-                uniqueTextures.insert(texture);
-    }
-}
 
 bool BlockGenerator::isValidGridPosition(int x, int y, int z) const {
     return x >= 0 && x < (int)parameters.gridWidth &&

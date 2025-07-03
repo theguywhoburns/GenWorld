@@ -69,7 +69,6 @@ void BlockController::Generate() {
         hasExistingTransform = true;
         delete blockMesh;
         blockMesh = nullptr;
-        renderer->ClearQueue();
     }
     
     generator->Generate();

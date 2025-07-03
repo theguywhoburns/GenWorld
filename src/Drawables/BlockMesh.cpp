@@ -8,16 +8,6 @@ BlockMesh::BlockMesh(vector<Vertex> vertices, vector<unsigned int> indices,
     : Mesh(vertices, indices, textures) {
     
     this->data = blockData;
-    this->blockTextures = textures;
-}
-
-BlockMesh::~BlockMesh() {
-    if (blockTextureArrayID != 0) {
-        glDeleteTextures(1, &blockTextureArrayID);
-    }
-    if (previewTextureID != 0) {
-        glDeleteTextures(1, &previewTextureID);
-    }
 }
 
 void BlockMesh::Draw(Shader& shader) {
@@ -50,11 +40,6 @@ void BlockMesh::AddBlockInstance(const std::string& assetPath, const Transform& 
     assetInstances[assetPath].push_back(blockTransform.getModelMatrix());
 }
 
-void BlockMesh::ClearInstances() {
-    blockInstances.clear();
-    assetInstances.clear();
-}
-
 glm::vec3 BlockMesh::GetBlockPosition(int gridX, int gridZ) const {
     if (!IsValidGridPosition(gridX, gridZ)) {
         return glm::vec3(0.0f);
@@ -69,10 +54,6 @@ glm::vec3 BlockMesh::GetBlockPosition(int gridX, int gridZ) const {
 bool BlockMesh::IsValidGridPosition(int gridX, int gridZ) const {
     return gridX >= 0 && gridX < (int)data.gridWidth && 
            gridZ >= 0 && gridZ < (int)data.gridLength;
-}
-
-void BlockMesh::SetBlockTextures(const std::vector<std::shared_ptr<Texture>>& textures) {
-    blockTextures = textures;
 }
 
 void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& projection) {
@@ -106,49 +87,4 @@ void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& proje
             model->DrawInstanced(view, projection, instances);
         }
     }
-}
-
-void BlockMesh::RenderBlockPreview() {
-    // Similar to TerrainMesh::RenderToTexture() but for block preview
-    if (!m_shader) return;
-
-    m_shader->use();
-
-    FrameBuffer frameBuffer;
-    frameBuffer.Resize(512, 512);
-    
-    frameBuffer.bind();
-    glViewport(0, 0, 512, 512);
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    // Render blocks from top-down view
-    glm::mat4 view = glm::lookAt(
-        glm::vec3(0, 50, 0),  // Camera above the blocks
-        glm::vec3(0, 0, 0),   // Looking at center
-        glm::vec3(0, 0, -1)   // Up direction
-    );
-    glm::mat4 projection = glm::ortho(-25.0f, 25.0f, -25.0f, 25.0f, 0.1f, 100.0f);
-    
-    Draw(view, projection);
-    
-    // Read pixels and create preview texture
-    unsigned char* pixels = new unsigned char[512 * 512 * 4];
-    glReadPixels(0, 0, 512, 512, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    frameBuffer.unbind();
-    
-    // Create preview texture
-    if (previewTextureID != 0) {
-        glDeleteTextures(1, &previewTextureID);
-    }
-    
-    glGenTextures(1, &previewTextureID);
-    glBindTexture(GL_TEXTURE_2D, previewTextureID);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 512, 512, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    
-    delete[] pixels;
-    frameBuffer.Destroy();
 }
