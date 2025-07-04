@@ -48,15 +48,18 @@ void Application::init() {
 
 void Application::RenderTopBar() {
     static int mode = 0; // 0 = Block Generation, 1 = Terrain Generation
+    current_mode = mode;
 
     // Main menu bar (at the very top)
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Mode")) {
             if (ImGui::MenuItem("Block Generation", nullptr, mode == 0)) {
                 mode = 0;
+                current_mode = mode;
             }
             if (ImGui::MenuItem("Terrain Generation", nullptr, mode == 1)) {
                 mode = 1;
+                current_mode = mode;
             }
             ImGui::EndMenu();
         }
