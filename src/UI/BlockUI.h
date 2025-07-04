@@ -29,6 +29,7 @@ private:
     BlockController* controller;
     std::vector<AssetInfo> loadedAssets;
     
+    int assetToRemoveId = -1;
     // Parameters and settings
     BlockUtilities::BlockData parameters;
     GenerationSettings genSettings;

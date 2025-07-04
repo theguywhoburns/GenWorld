@@ -7,28 +7,6 @@
 
 namespace BlockUtilities {
     
-    // Special block type IDs
-    const int VOID_BLOCK_ID = -1;  // Represents empty space
-    const int AIR_BLOCK_ID = -2;   // Represents air/ungenerated space
-    
-
-
-
-    struct BlockFaceConstraints {
-        std::vector<int> validConnections;
-        bool canBeExposed = true;
-    };
-    
-    struct BlockConstraints {
-        int blockId;
-        BlockFaceConstraints posZ;    // +Z face
-        BlockFaceConstraints negZ;    // -Z face
-        BlockFaceConstraints posX;    // +X face
-        BlockFaceConstraints negX;    // -X face
-        BlockFaceConstraints posY;    // +Y face (top)
-        BlockFaceConstraints negY;    // -Y face (bottom)
-    };
-    
     // Block generation constraints and weights
     struct BlockGenerationSettings {
         std::map<int, int> maxBlockCounts;     // blockId -> max count

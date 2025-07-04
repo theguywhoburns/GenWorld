@@ -31,20 +31,14 @@ public:
 private:
     BlockUtilities::BlockData data;
     
-    // Instance management (similar to TerrainMesh)
-    std::unordered_map<int, std::shared_ptr<Model>> blockModels;           // blockTypeId -> Model
+    // Instance management - only asset path instances are actually rendered
     std::unordered_map<std::string, std::shared_ptr<Model>> assetModels;   // assetPath -> Model
-    std::unordered_map<int, std::vector<glm::mat4>> blockInstances;        // blockTypeId -> transforms
+    std::unordered_map<int, std::vector<glm::mat4>> blockInstances;      // blockTypeId -> transforms
     std::unordered_map<std::string, std::vector<glm::mat4>> assetInstances; // assetPath -> transforms
     
     // Texture management
     std::vector<std::shared_ptr<Texture>> blockTextures;
-    unsigned int blockTextureArrayID = 0;
     
     // Rendering
     void DrawBlockInstances(const glm::mat4& view, const glm::mat4& projection);
-    
-    // Preview/Debug
-    unsigned int previewTextureID = 0;
-    void RenderBlockPreview();
 };

@@ -120,6 +120,41 @@ void BlockUI::DisplayBasicSettings() {
             OpenModelFileDialog();
         }
         
+        // Add Clear All button if there are assets
+        if (!loadedAssets.empty()) {
+            if (ImGui::Button("Clear All Assets", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                ImGui::OpenPopup("Clear All Assets?");
+            }
+            
+            // Confirmation popup for clearing all
+            if (ImGui::BeginPopupModal("Clear All Assets?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("Are you sure you want to remove all loaded assets?");
+                ImGui::Text("This action cannot be undone.");
+                ImGui::Separator();
+                if (ImGui::Button("Yes, Clear All", ImVec2(120, 0))) {
+                    // Clear all assets and related data
+                    loadedAssets.clear();
+                    auto& settings = parameters.generationSettings;
+                    settings.currentBlockCounts.clear();
+                    settings.blockWeights.clear();
+                    settings.maxBlockCounts.clear();
+                    settings.minBlockCounts.clear();
+                    settings.cornerBlockIds.clear();
+                    
+                    // Clear socket system templates
+                    parameters.socketSystem.Initialize(); // This will clear all templates
+                    
+                    std::cout << "Cleared all assets and related data." << std::endl;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+        }
+        
         // Error popup
         if (showModelError) {
             ImGui::OpenPopup("Model Load Error");
@@ -138,8 +173,37 @@ void BlockUI::DisplayBasicSettings() {
         if (loadedAssets.empty()) {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No assets loaded.");
         } else {
+            assetToRemoveId = -1;
+            
             for (const auto& asset : loadedAssets) {
+                ImGui::PushID(asset.id);
+                
+                // Display asset info
                 ImGui::Text("ID %d: %s", asset.id, GetFileName(asset.blockPath).c_str());
+                ImGui::SameLine();
+                
+                // Remove button
+                if (ImGui::Button("Remove")) {
+                    auto& settings = parameters.generationSettings;
+                    settings.currentBlockCounts.erase(asset.id);
+                    settings.blockWeights.erase(asset.id);
+                    settings.maxBlockCounts.erase(asset.id);
+                    settings.minBlockCounts.erase(asset.id);
+                    settings.cornerBlockIds.erase(asset.id);
+                    
+                    parameters.socketSystem.RemoveBlockTemplate(asset.id);
+                    
+                    if (selectedBlockId == asset.id) {
+                        selectedBlockId = -1;
+                    }
+                    
+                    RemoveAsset(asset.id);
+
+                    ImGui::PopID();
+                    break;
+                }
+                
+                ImGui::PopID();
             }
         }
     }
