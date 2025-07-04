@@ -26,6 +26,15 @@ public:
     }
 
     AppWindow* GetWindow() const { return m_window; }
+    int GetCurrentController() const {
+        return current_mode;
+    }
+    bool GetRunningStatus() {
+        return m_isRunning;
+    }
+    void SetRunningStatus() {
+        m_isRunning = !m_isRunning;
+    }
 
 private:
     Application();
@@ -39,6 +48,8 @@ private:
     static Application* _instance;
 
     bool m_isRunning = true;
+
+    int current_mode;
 
     AppWindow* m_window;
     Camera camera = Camera(glm::vec3(0.0f, 75.0f, 100.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -25.0f);
