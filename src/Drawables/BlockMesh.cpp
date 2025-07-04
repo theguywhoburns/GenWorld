@@ -69,7 +69,6 @@ void BlockMesh::SetBlockTextures(const std::vector<std::shared_ptr<Texture>>& te
 }
 
 void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& projection) {
-    // Only draw instances by asset path (the blockTypeId instances are unused)
     for (const auto& pair : assetInstances) {
         const std::string& assetPath = pair.first;
         const std::vector<glm::mat4>& instances = pair.second;

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <set>
+#include <map>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -16,6 +17,7 @@
 #include <future>
 #include <queue>
 #include <tuple>
+
 std::mutex gridMutex;
 
 BlockGenerator::BlockGenerator(BlockController* controller) : controller(controller) { 
@@ -60,16 +62,14 @@ void BlockGenerator::Generate() {
     
     // Check if minimum requirements are met
     if (!hasMetMinimumRequirements()) {
-        std::cout << "Warning: Some blocks did not meet minimum count requirements after generation." << std::endl;
         auto blocksNeeded = getBlocksNeedingMinCount();
-        std::cout << "Blocks needing more placement: ";
+
         for (int blockId : blocksNeeded) {
             auto& settings = parameters.generationSettings;
             auto currentIt = settings.currentBlockCounts.find(blockId);
             auto minIt = settings.minBlockCounts.find(blockId);
             int current = (currentIt != settings.currentBlockCounts.end()) ? currentIt->second : 0;
             int needed = (minIt != settings.minBlockCounts.end()) ? minIt->second : 0;
-            std::cout << "Block " << blockId << " (" << current << "/" << needed << ") ";
         }
         std::cout << std::endl;
     }
@@ -96,69 +96,8 @@ void BlockGenerator::initializeSocketSystem() {
 }
 
 
-void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {  
-    std::uniform_int_distribution<int> distX(0, parameters.gridWidth - 1);
-    std::uniform_int_distribution<int> distY(0, parameters.gridHeight - 1);
-    std::uniform_int_distribution<int> distZ(0, parameters.gridLength - 1);
-    int centerX = distX(rng);
-    int centerY = distY(rng);
-    int centerZ = distZ(rng);
-
-    if (!placeRandomBlockAt(centerX, centerY, centerZ, rng)) {
-        std::cerr << "Failed to place initial block" << std::endl;
-        return;
-    }
-
-    std::priority_queue<FrontierCell, std::vector<FrontierCell>, std::greater<>> frontier;
-    std::set<GridPosition> inFrontier;
-
-    // Add all neighbors of the initial cell to the frontier
-    const std::vector<std::tuple<int, int, int>> neighborOffsets = {
-        {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
-    };
-    for (const auto& [dx, dy, dz] : neighborOffsets) {
-        int nx = centerX + dx, ny = centerY + dy, nz = centerZ + dz;
-        if (isValidGridPosition(nx, ny, nz) && !grid[nx][ny][nz].collapsed) {
-            // Skip masked cells if grid mask is enabled
-            if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(nx, ny, nz)) {
-                continue;
-            }
-            double entropy = calculateCellEntropy(grid[nx][ny][nz]);
-            frontier.push({entropy, {nx, ny, nz}});
-            inFrontier.insert({nx, ny, nz});
-        }
-    }
-
-    // Main loop: process the frontier
-    while (!frontier.empty()) {
-        // Always pop the lowest-entropy cell
-        FrontierCell fc = frontier.top();
-        frontier.pop();
-        auto& cell = grid[fc.pos.x][fc.pos.y][fc.pos.z];
-        if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) {
-            inFrontier.erase(fc.pos);
-            continue;
-        }
-
-        // Collapse the best cell
-        collapseCell(fc.pos.x, fc.pos.y, fc.pos.z, rng);
-        inFrontier.erase(fc.pos);
-
-        // Add its neighbors to the frontier if not already collapsed or in frontier
-        for (const auto& [dx, dy, dz] : neighborOffsets) {
-            int nx = fc.pos.x + dx, ny = fc.pos.y + dy, nz = fc.pos.z + dz;
-            GridPosition npos{nx, ny, nz};
-            if (isValidGridPosition(nx, ny, nz) && !grid[nx][ny][nz].collapsed && inFrontier.find(npos) == inFrontier.end()) {
-                // Skip masked cells if grid mask is enabled
-                if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(nx, ny, nz)) {
-                    continue;
-                }
-                double entropy = calculateCellEntropy(grid[nx][ny][nz]);
-                frontier.push({entropy, {nx, ny, nz}});
-                inFrontier.insert({nx, ny, nz});
-            }
-        }
-    }
+void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {
+    runSingleWFCAttempt(rng);
 }
 
 
@@ -172,8 +111,6 @@ double BlockGenerator::calculateCellEntropy(const GridCell& cell) const {
         int id = pair.first;
         double w = weights.count(id) ? weights.at(id) : 1.0;
         
-        // Moderate boost for blocks that haven't met minimum requirements
-        // Use smaller multiplier to avoid clustering
         if (std::find(blocksNeedingMin.begin(), blocksNeedingMin.end(), id) != blocksNeedingMin.end()) {
             w *= 1.3; // Smaller boost (30% instead of 100%) for better distribution
         }
@@ -194,19 +131,12 @@ bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
 
     if (cell.possibleBlockRotationPairs.empty()) {
         std::cerr << "Contradiction: No valid block/rotation pairs at (" << x << ", " << y << ", " << z << ")\n";
-        cell.collapsed = true;
-        cell.possibleBlockRotationPairs.clear();
-        cell.blockTypeIds.clear();
-        cell.blockRotations.clear();
-        cell.blockPositions.clear();
         return false;
     }
 
     // Check if we need to prioritize blocks that haven't met minimum requirements
     // But also consider spatial distribution to avoid clustering
     std::vector<std::pair<int, int>> priorityPairs;
-    
-    // Filter possible pairs to only include blocks that need minimum count AND have good spatial distribution
     for (const auto& pair : cell.possibleBlockRotationPairs) {
         int blockId = pair.first;
         if (shouldPrioritizeMinCountBlock(x, y, z, blockId)) {
@@ -218,10 +148,31 @@ bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
     // Otherwise, use all possibilities for normal generation
     auto& pairsToUse = priorityPairs.empty() ? cell.possibleBlockRotationPairs : priorityPairs;
     
-    std::uniform_int_distribution<size_t> pairDist(0, pairsToUse.size() - 1);
-    auto chosenPair = pairsToUse[pairDist(rng)];
-    int chosenBlockType = chosenPair.first;
-    int chosenRotation = chosenPair.second;
+    // Select weighted pair
+    std::vector<int> uniqueBlocks;
+    std::map<int, std::vector<int>> blockToRotations;
+    
+    // Group pairs by block ID
+    for (const auto& pair : pairsToUse) {
+        int blockId = pair.first;
+        int rotation = pair.second;
+        
+        if (blockToRotations.find(blockId) == blockToRotations.end()) {
+            uniqueBlocks.push_back(blockId);
+            blockToRotations[blockId] = std::vector<int>();
+        }
+        blockToRotations[blockId].push_back(rotation);
+    }
+    
+    // Select block using weights
+    int chosenBlockType = selectWeightedBlock(uniqueBlocks, rng);
+    
+    // Select random rotation for the chosen block
+    auto& availableRotations = blockToRotations[chosenBlockType];
+    std::uniform_int_distribution<size_t> rotDist(0, availableRotations.size() - 1);
+    int chosenRotation = availableRotations[rotDist(rng)];
+    
+    std::pair<int, int> chosenPair = {chosenBlockType, chosenRotation};
 
     cell.collapsed = true;
     cell.possibleBlockRotationPairs = {chosenPair};
@@ -246,37 +197,42 @@ int BlockGenerator::selectWeightedBlock(const std::vector<int>& validBlocks, std
 int BlockGenerator::selectByWeight(const std::vector<int>& blocks, std::mt19937& rng) {
     if (blocks.empty()) return -1;
     auto& settings = parameters.generationSettings;
+    
+    // Filter out blocks with zero weight first
+    std::vector<int> validBlocks;
     float totalWeight = 0.0f;
+    
     for (int blockId : blocks) {
         auto it = settings.blockWeights.find(blockId);
-        if (it != settings.blockWeights.end()) totalWeight += it->second;
+        float weight = (it != settings.blockWeights.end()) ? it->second : 1.0f;
+        
+        // Only include blocks with positive weight
+        if (weight > 0.0f) {
+            validBlocks.push_back(blockId);
+            totalWeight += weight;
+        }
     }
-    if (totalWeight <= 0.0f) {
+    
+    // If no blocks have positive weight, fall back to uniform selection from all blocks
+    if (validBlocks.empty() || totalWeight <= 0.0f) {
         std::uniform_int_distribution<int> dist(0, blocks.size() - 1);
         return blocks[dist(rng)];
     }
+    
+    // Weighted selection from blocks with positive weights
     std::uniform_real_distribution<float> dist(0.0f, totalWeight);
     float randomValue = dist(rng), currentWeight = 0.0f;
-    for (int blockId : blocks) {
+    
+    for (int blockId : validBlocks) {
         auto it = settings.blockWeights.find(blockId);
-        if (it != settings.blockWeights.end()) {
-            currentWeight += it->second;
-            if (randomValue <= currentWeight) return blockId;
-        }
+        float weight = (it != settings.blockWeights.end()) ? it->second : 1.0f;
+        currentWeight += weight;
+        if (randomValue <= currentWeight) return blockId;
     }
-    return blocks.back();
+    
+    return validBlocks.back();
 }
 
-void BlockGenerator::processRemainingCells(std::mt19937& rng) {
-    for (unsigned int x = 0; x < parameters.gridWidth; x++) {
-        for (unsigned int y = 0; y < parameters.gridHeight; y++) {
-            for (unsigned int z = 0; z < parameters.gridLength; z++) {
-                if (!grid[x][y][z].collapsed && !grid[x][y][z].possibleBlockRotationPairs.empty())
-                    collapseCell(x, y, z, rng);
-            }
-        }
-    }
-}
 
 void BlockGenerator::updateWorldDimensions() {
     parameters.worldWidth = parameters.gridWidth * parameters.cellWidth;
@@ -450,8 +406,6 @@ void BlockGenerator::buildAdjacencyTable() {
                         }
                     }
                 }
-
-                
             }
         }
     }
@@ -1294,4 +1248,360 @@ bool BlockGenerator::shouldPrioritizeMinCountBlock(int x, int y, int z, int bloc
     
     // Only prioritize if there aren't too many nearby blocks of the same type
     return nearbyCount < 2; // Allow max 2 of the same type in nearby area
+}
+
+bool BlockGenerator::collapseCellWFC(int x, int y, int z, std::mt19937& rng) {
+    if (!isValidGridPosition(x, y, z)) return false;
+    
+    auto& cell = grid[x][y][z];
+    if (cell.collapsed) return true;
+    
+    // Validate possibilities before collapse
+    validateCellPossibilitySpace(x, y, z);
+    
+    if (cell.possibleBlockRotationPairs.empty()) {
+        std::cerr << "Cannot collapse cell at (" << x << ", " << y << ", " << z << ") - no valid possibilities" << std::endl;
+        return false;
+    }
+    
+    // Use weighted selection for block choice
+    std::vector<std::pair<int, int>> priorityPairs;
+    auto blocksNeeded = getBlocksNeedingMinCount();
+    
+    // Check for blocks that need minimum count
+    for (const auto& pair : cell.possibleBlockRotationPairs) {
+        int blockId = pair.first;
+        if (std::find(blocksNeeded.begin(), blocksNeeded.end(), blockId) != blocksNeeded.end()) {
+            if (shouldPrioritizeMinCountBlock(x, y, z, blockId)) {
+                priorityPairs.push_back(pair);
+            }
+        }
+    }
+    
+    // Use priority pairs if available, otherwise use all possibilities
+    auto& finalPairs = priorityPairs.empty() ? cell.possibleBlockRotationPairs : priorityPairs;
+    
+    // Select weighted pair
+    std::vector<int> uniqueBlocks;
+    std::map<int, std::vector<int>> blockToRotations;
+    
+    // Group pairs by block ID
+    for (const auto& pair : finalPairs) {
+        int blockId = pair.first;
+        int rotation = pair.second;
+        
+        if (blockToRotations.find(blockId) == blockToRotations.end()) {
+            uniqueBlocks.push_back(blockId);
+            blockToRotations[blockId] = std::vector<int>();
+        }
+        blockToRotations[blockId].push_back(rotation);
+    }
+    
+    // Select block using weights
+    int chosenBlockId = selectWeightedBlock(uniqueBlocks, rng);
+    
+    // Select random rotation for the chosen block
+    auto& availableRotations = blockToRotations[chosenBlockId];
+    std::uniform_int_distribution<size_t> rotDist(0, availableRotations.size() - 1);
+    int chosenRotation = availableRotations[rotDist(rng)];
+    
+    std::pair<int, int> chosenPair = {chosenBlockId, chosenRotation};
+    
+    // Collapse the cell
+    cell.collapsed = true;
+    cell.possibleBlockRotationPairs = {chosenPair};
+    cell.blockTypeIds = {chosenPair.first};
+    cell.blockRotations = {chosenPair.second};
+    glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
+    cell.blockPositions = {blockPosition};
+    incrementBlockCount(chosenPair.first);
+    
+    return true;
+}
+
+void BlockGenerator::propagateWave(const GridPosition& startPos) {
+    // Get neighbors of the collapsed cell
+    std::vector<GridPosition> neighbors = getNeighborPositions(startPos);
+    
+    // Add neighbors to fringe
+    for (const auto& neighbor : neighbors) {
+        propagationFringe.push(neighbor);
+    }
+    
+    // Propagate changes until fringe is empty
+    while (!propagationFringe.empty()) {
+        GridPosition currentPos = propagationFringe.top();
+        propagationFringe.pop();
+        
+        if (!isValidGridPosition(currentPos.x, currentPos.y, currentPos.z)) continue;
+        
+        auto& cell = grid[currentPos.x][currentPos.y][currentPos.z];
+        
+        // Validate possibility space - remove invalid block/rotation pairs
+        bool changed = validateCellPossibilitySpace(currentPos.x, currentPos.y, currentPos.z);
+        
+        // Remove from duplicate set since we processed it
+        duplicateSet.erase(currentPos);
+        
+        // If cell has only one possibility and isn't collapsed, collapse it
+        if (cell.possibleBlockRotationPairs.size() == 1 && !cell.collapsed) {
+            auto chosenPair = cell.possibleBlockRotationPairs[0];
+            cell.collapsed = true;
+            cell.blockTypeIds = {chosenPair.first};
+            cell.blockRotations = {chosenPair.second};
+            glm::vec3 blockPosition = calculateBlockPosition(currentPos.x, currentPos.y, currentPos.z);
+            cell.blockPositions = {blockPosition};
+            incrementBlockCount(chosenPair.first);
+        }
+        
+        // If possibility space changed, propagate to neighbors
+        if (changed) {
+            std::vector<GridPosition> currentNeighbors = getNeighborPositions(currentPos);
+            for (const auto& neighbor : currentNeighbors) {
+                if (!isValidGridPosition(neighbor.x, neighbor.y, neighbor.z)) continue;
+                
+                auto& neighborCell = grid[neighbor.x][neighbor.y][neighbor.z];
+                
+                // Only add uncollapsed cells that aren't already in the fringe
+                if (!neighborCell.collapsed && duplicateSet.find(neighbor) == duplicateSet.end()) {
+                    propagationFringe.push(neighbor);
+                    duplicateSet.insert(neighbor);
+                }
+            }
+        }
+    }
+    
+    // Clear duplicate set after wave propagation
+    duplicateSet.clear();
+}
+
+std::vector<GridPosition> BlockGenerator::getNeighborPositions(const GridPosition& pos) const {
+    std::vector<GridPosition> neighbors;
+    
+    const std::vector<std::tuple<int, int, int>> offsets = {
+        {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}
+    };
+    
+    for (const auto& [dx, dy, dz] : offsets) {
+        int nx = pos.x + dx;
+        int ny = pos.y + dy;
+        int nz = pos.z + dz;
+        
+        if (isValidGridPosition(nx, ny, nz)) {
+            neighbors.push_back({nx, ny, nz});
+        }
+    }
+    
+    return neighbors;
+}
+
+bool BlockGenerator::validateCellPossibilitySpace(int x, int y, int z) {
+    auto& cell = grid[x][y][z];
+    if (cell.collapsed) return false;
+    
+    std::vector<std::pair<int, int>> validPairs;
+    
+    // Check each possible block/rotation pair for validity
+    for (const auto& pair : cell.possibleBlockRotationPairs) {
+        int blockId = pair.first;
+        int rotation = pair.second;
+        
+        // Check if we can still place this block type
+        if (!canPlaceBlock(blockId)) continue;
+        
+        // Check socket compatibility with neighbors
+        if (isBlockValidAtPosition(x, y, z, blockId, rotation)) {
+            validPairs.push_back(pair);
+        }
+    }
+    
+    // Check if possibility space changed
+    bool changed = (validPairs.size() != cell.possibleBlockRotationPairs.size());
+    
+    // Update possibilities
+    cell.possibleBlockRotationPairs = validPairs;
+    
+    return changed;
+}
+
+bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
+    // Initialize frontier using true bottom-up approach
+    std::priority_queue<FrontierCell, std::vector<FrontierCell>, std::greater<>> frontier;
+    std::set<GridPosition> inFrontier;
+    
+    // Clear propagation data structures
+    while (!propagationFringe.empty()) propagationFringe.pop();
+    duplicateSet.clear();
+    
+    // Start from the absolute bottom layer (y=0) and work upward
+    int startY = 0;
+    
+    // Find the lowest Y layer that has valid, uncollapsed cells
+    for (int y = 0; y < (int)parameters.gridHeight; ++y) {
+        bool hasValidCells = false;
+        for (int x = 0; x < (int)parameters.gridWidth; ++x) {
+            for (int z = 0; z < (int)parameters.gridLength; ++z) {
+                // Skip masked cells
+                if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(x, y, z)) {
+                    continue;
+                }
+                
+                auto& cell = grid[x][y][z];
+                if (!cell.collapsed && !cell.possibleBlockRotationPairs.empty()) {
+                    hasValidCells = true;
+                    break;
+                }
+            }
+            if (hasValidCells) break;
+        }
+        
+        if (hasValidCells) {
+            startY = y;
+            break;
+        }
+    }
+    
+    // Add all valid cells from the starting layer to frontier
+    for (int x = 0; x < (int)parameters.gridWidth; ++x) {
+        for (int z = 0; z < (int)parameters.gridLength; ++z) {
+            // Skip masked cells
+            if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(x, startY, z)) {
+                continue;
+            }
+            
+            auto& cell = grid[x][startY][z];
+            if (!cell.collapsed && !cell.possibleBlockRotationPairs.empty()) {
+                double entropy = calculateCellEntropy(cell);
+                // Add Y-based priority: lower Y = higher priority (lower entropy value)
+                entropy += (startY * 0.001); // Small bias toward lower layers
+                
+                frontier.push({entropy, {x, startY, z}});
+                inFrontier.insert({x, startY, z});
+            }
+        }
+    }
+    
+    const std::vector<std::tuple<int, int, int>> neighborOffsets = {
+        {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
+    };
+    
+    int iterationCount = 0;
+    int consecutiveSkips = 0;
+    const int maxConsecutiveSkips = 10; // Prevent infinite loops
+    
+    std::cout << "Starting frontier WFC from layer Y=" << startY << " with " 
+              << frontier.size() << " initial cells" << std::endl;
+    
+    // Main frontier-based generation loop
+    while (!frontier.empty()) {
+        FrontierCell fc = frontier.top();
+        frontier.pop();
+        
+        // Skip if already processed or no longer valid
+        auto& cell = grid[fc.pos.x][fc.pos.y][fc.pos.z];
+        if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) {
+            inFrontier.erase(fc.pos);
+            consecutiveSkips++;
+            
+            if (consecutiveSkips > maxConsecutiveSkips && frontier.empty()) {
+                std::cout << "Frontier expansion complete - no more connected cells to process" << std::endl;
+                break; // Exit the loop instead of adding disconnected cells
+            }
+            continue;
+        }
+        
+        consecutiveSkips = 0; // Reset skip counter on successful processing
+        
+        // Try to collapse the cell
+        if (!collapseCellWFC(fc.pos.x, fc.pos.y, fc.pos.z, rng)) {
+            // Contradiction detected - skip this cell and continue with frontier
+            std::cout << "Contradiction at (" << fc.pos.x << ", " << fc.pos.y << ", " << fc.pos.z 
+                      << ") - marking as failed and continuing" << std::endl;
+            
+            // Mark the cell as permanently failed (no possibilities)
+            cell.possibleBlockRotationPairs.clear();
+            inFrontier.erase(fc.pos);
+            
+            // Continue with next frontier cell - never abort
+            continue;
+        }
+        
+        inFrontier.erase(fc.pos);
+        
+        // Propagate constraints from this cell
+        propagateWave(fc.pos);
+        
+        // Add valid neighbors to frontier (with bottom-up priority)
+        for (const auto& [dx, dy, dz] : neighborOffsets) {
+            int nx = fc.pos.x + dx, ny = fc.pos.y + dy, nz = fc.pos.z + dz;
+            GridPosition npos{nx, ny, nz};
+            
+            if (isValidGridPosition(nx, ny, nz) && 
+                !(parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(nx, ny, nz)) &&
+                !grid[nx][ny][nz].collapsed && 
+                !grid[nx][ny][nz].possibleBlockRotationPairs.empty() &&
+                inFrontier.find(npos) == inFrontier.end()) {
+                
+                double entropy = calculateCellEntropy(grid[nx][ny][nz]);
+                // Strong bias toward bottom-up expansion: higher Y = higher entropy (lower priority)
+                entropy += (ny * 0.1); // Significant Y-based priority
+                
+                frontier.push({entropy, npos});
+                inFrontier.insert(npos);
+            }
+        }
+        
+        iterationCount++;
+        if (iterationCount % 25 == 0) {
+            std::cout << "Frontier WFC progress: " << iterationCount << " cells processed, " 
+                      << frontier.size() << " in frontier" << std::endl;
+        }
+        
+        // DO NOT add cells from higher layers unconditionally
+        // The frontier should only expand through actual neighbor connections
+        // If frontier is empty, that means all reachable cells have been processed
+    }
+    
+    std::cout << "Frontier WFC completed after " << iterationCount << " iterations" << std::endl;
+    return true; // Always consider successful - partial completion is acceptable
+}
+
+bool BlockGenerator::isGenerationComplete() const {
+    for (int x = 0; x < (int)parameters.gridWidth; ++x) {
+        for (int y = 0; y < (int)parameters.gridHeight; ++y) {
+            for (int z = 0; z < (int)parameters.gridLength; ++z) {
+                // Skip masked cells
+                if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(x, y, z)) {
+                    continue;
+                }
+                
+                const auto& cell = grid[x][y][z];
+                // Consider a cell "complete" if it's either collapsed OR has no possibilities (failed)
+                if (!cell.collapsed && !cell.possibleBlockRotationPairs.empty()) {
+                    return false; // Still has possibilities to be collapsed
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool BlockGenerator::hasContradictions() const {
+    for (int x = 0; x < (int)parameters.gridWidth; ++x) {
+        for (int y = 0; y < (int)parameters.gridHeight; ++y) {
+            for (int z = 0; z < (int)parameters.gridLength; ++z) {
+                // Skip masked cells
+                if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(x, y, z)) {
+                    continue;
+                }
+                
+                const auto& cell = grid[x][y][z];
+                // Check for cells with no possibilities (contradiction)
+                if (!cell.collapsed && cell.possibleBlockRotationPairs.empty()) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
