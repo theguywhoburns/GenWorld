@@ -7,6 +7,28 @@
 
 Application* Application::_instance = nullptr;
 
+void Application::Generate() {
+    if (generatorController != nullptr) {
+        generatorController->Generate();
+    }
+}
+
+void Application::RandomizeSeed() {
+    if (generatorController != nullptr) {
+        generatorController->RandomizeSeed();
+    }
+}
+
+void Application::Export(const std::string& format) {
+    if (generatorController == nullptr) {
+        std::cerr << "Generator controller is not initialized." << std::endl;
+        return;
+    }
+
+    Mesh* mesh = generatorController->getGenerator().GetMesh();
+    Utils::MeshExporter::ExportMesh(mesh, format);
+}
+
 Application::Application() {
     m_window = new AppWindow();
 
@@ -17,7 +39,9 @@ Application::~Application() {
     shutdown();
 
     delete m_window;
-    delete generatorController;
+    delete terrainController;
+    delete blockController;
+    generatorController = nullptr;
 }
 
 void Application::init() {
@@ -40,33 +64,12 @@ void Application::init() {
 
     blockController = new BlockController(&renderer);
     terrainController = new TerrainController(&renderer);
-    uiCtx.setTerrainGenerator(&terrainController->getGenerator());
 
-    generatorController = blockController;
-
+    generatorController = terrainController;
 }
 
-void Application::RenderTopBar() {
-    static int mode = 0; // 0 = Block Generation, 1 = Terrain Generation
-    current_mode = mode;
-
-    // Main menu bar (at the very top)
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Mode")) {
-            if (ImGui::MenuItem("Block Generation", nullptr, mode == 0)) {
-                mode = 0;
-                current_mode = mode;
-            }
-            if (ImGui::MenuItem("Terrain Generation", nullptr, mode == 1)) {
-                mode = 1;
-                current_mode = mode;
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::SameLine();
-        ImGui::Text("| Current: %s", mode == 0 ? "Block Generation" : "Terrain Generation");
-        ImGui::EndMainMenuBar();
-    }
+void Application::CheckGenerationMode() {
+    int mode = uiCtx.getMode();
 
     // Always keep generatorController in sync with mode
     if (mode == 0) {
@@ -75,7 +78,6 @@ void Application::RenderTopBar() {
         generatorController = terrainController;
     }
 }
-
 
 void Application::shutdown() {
     uiCtx.shutdown();
@@ -94,6 +96,8 @@ void Application::LoadDefaultShaders() {
 void Application::Run() {
     while (m_isRunning && !m_window->shouldClose()) {
         Utils::Time::Update();
+        CheckGenerationMode();
+
         m_window->newFrame();
 
         renderer.ClearQueue();
@@ -103,7 +107,6 @@ void Application::Run() {
         
         uiCtx.render();	                    // Renders the Main Docking Window
         generatorController->DisplayUI();	    // Renders the TerrainUI Windows
-        RenderTopBar();	                    // Renders the top menu bar
         generatorController->Update();        // pushes the terrain data to Renderer
 
         m_window->clear();                  // Clears the Window

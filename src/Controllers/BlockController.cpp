@@ -16,10 +16,6 @@ BlockController::BlockController(Renderer* renderer)
 }
 
 BlockController::~BlockController() {
-    if (blockMesh != nullptr) {
-        delete blockMesh;
-    }
-    
     if (blockUI != nullptr) {
         delete blockUI;
     }
@@ -37,6 +33,14 @@ void BlockController::Update() {
     if (blockMesh != nullptr) {
         renderer->AddToRenderQueue(blockMesh);
     }
+}
+
+void BlockController::RandomizeSeed() {
+    blockUI->RandomizeSeed();
+}
+
+IGeneratorStrategy& BlockController::getGenerator() {
+    return *generator;
 }
 
 void BlockController::UpdateParameters() {

@@ -10,15 +10,13 @@ class TerrainUI;
 class TerrainController : public GeneratorController {
 public:
     TerrainController(Renderer* renderer);
-    ~TerrainController();
+    ~TerrainController() override = default;
 
     void Generate() override;
     void DisplayUI() override;
     void Update() override;
-    TerrainGenerator& getGenerator() {
-        return generator;
-    }
-
+    void RandomizeSeed() override;
+    IGeneratorStrategy& getGenerator() override;
 
 private:
     TerrainGenerator generator;
