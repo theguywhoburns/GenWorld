@@ -97,9 +97,7 @@ private:
     bool isGenerationComplete() const;
     bool hasContradictions() const;
     
-    bool placeRandomBlockAt(int x, int y, int z, std::mt19937& rng);
     double calculateCellEntropy(const GridCell& cell) const;
-    bool collapseCell(int x, int y, int z, std::mt19937& rng);
     void updateCellPossibilities(int x, int y, int z);
 
     void buildAdjacencyTable();
@@ -108,7 +106,6 @@ private:
     // Socket-based constraint validation
     bool isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation) const;
     bool validateNeighborCompatibility(int blockId, int rotation, int faceIndex, const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ) const;
-    void propagateConstraints(int x, int y, int z);
 
     // Face/rotation utilities
     int getFaceIndex(const std::string& faceDirection);

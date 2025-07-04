@@ -81,6 +81,10 @@ private:
     void OpenModelFileDialog();
     std::string GetFileName(const std::string& filepath);
     
+    // Socket configuration setup
+    void SetupDefaultSocketConfigurations();
+    void LoadDefaultCastleAssets();
+    
     // Corner block validation
     bool validateCornerBlock(int blockId) const;
 };

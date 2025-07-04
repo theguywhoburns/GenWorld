@@ -30,13 +30,13 @@ BlockGenerator::~BlockGenerator() { delete generatorMesh; }
 
 void BlockGenerator::initializeDefaults() {
     parameters = {20, 10, 20, 5.0f, 5.0f, 5.0f, 1.0f};
-    updateWorldDimensions();
     generatorMesh = nullptr;
     
     // Initialize grid mask if needed
     if (parameters.generationSettings.isGridMaskEnabled) {
         initializeGridMask();
     }
+
 }
 
 void BlockGenerator::Generate() {
@@ -121,70 +121,6 @@ double BlockGenerator::calculateCellEntropy(const GridCell& cell) const {
     return std::log(sum) - (logSum / sum);
 }
 
-
-bool BlockGenerator::collapseCell(int x, int y, int z, std::mt19937& rng) {
-    if (!isValidGridPosition(x, y, z)) return false;
-    auto& cell = grid[x][y][z];
-    if (cell.collapsed) return false;
-
-    updateCellPossibilities(x, y, z);
-
-    if (cell.possibleBlockRotationPairs.empty()) {
-        std::cerr << "Contradiction: No valid block/rotation pairs at (" << x << ", " << y << ", " << z << ")\n";
-        return false;
-    }
-
-    // Check if we need to prioritize blocks that haven't met minimum requirements
-    // But also consider spatial distribution to avoid clustering
-    std::vector<std::pair<int, int>> priorityPairs;
-    for (const auto& pair : cell.possibleBlockRotationPairs) {
-        int blockId = pair.first;
-        if (shouldPrioritizeMinCountBlock(x, y, z, blockId)) {
-            priorityPairs.push_back(pair);
-        }
-    }
-    
-    // If we have spatially-appropriate blocks that need minimum count, use those
-    // Otherwise, use all possibilities for normal generation
-    auto& pairsToUse = priorityPairs.empty() ? cell.possibleBlockRotationPairs : priorityPairs;
-    
-    // Select weighted pair
-    std::vector<int> uniqueBlocks;
-    std::map<int, std::vector<int>> blockToRotations;
-    
-    // Group pairs by block ID
-    for (const auto& pair : pairsToUse) {
-        int blockId = pair.first;
-        int rotation = pair.second;
-        
-        if (blockToRotations.find(blockId) == blockToRotations.end()) {
-            uniqueBlocks.push_back(blockId);
-            blockToRotations[blockId] = std::vector<int>();
-        }
-        blockToRotations[blockId].push_back(rotation);
-    }
-    
-    // Select block using weights
-    int chosenBlockType = selectWeightedBlock(uniqueBlocks, rng);
-    
-    // Select random rotation for the chosen block
-    auto& availableRotations = blockToRotations[chosenBlockType];
-    std::uniform_int_distribution<size_t> rotDist(0, availableRotations.size() - 1);
-    int chosenRotation = availableRotations[rotDist(rng)];
-    
-    std::pair<int, int> chosenPair = {chosenBlockType, chosenRotation};
-
-    cell.collapsed = true;
-    cell.possibleBlockRotationPairs = {chosenPair};
-    cell.blockTypeIds = {chosenBlockType};
-    cell.blockRotations = {chosenRotation};
-    glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
-    cell.blockPositions = {blockPosition};
-    incrementBlockCount(chosenBlockType);
-
-    propagateConstraints(x, y, z);
-    return true;
-}
 
 int BlockGenerator::selectWeightedBlock(const std::vector<int>& validBlocks, std::mt19937& rng) {
     std::vector<int> availableBlocks;
@@ -322,32 +258,6 @@ std::vector<int> BlockGenerator::getAllBlockTypes() {
     return blockTypes;
 }
 
-bool BlockGenerator::placeRandomBlockAt(int x, int y, int z, std::mt19937& rng) {
-    if (!isValidGridPosition(x, y, z)) return false;
-    auto& cell = grid[x][y][z];
-    if (cell.possibleBlockRotationPairs.empty()) return false;
-    if (isFirstBlock) {
-        auto chosenPair = cell.possibleBlockRotationPairs[0];
-        int blockId = chosenPair.first;
-        int rotation = chosenPair.second;
-        cell.collapsed = true;
-        cell.possibleBlockRotationPairs = {chosenPair};
-        cell.blockTypeIds = {blockId};
-        cell.blockRotations = {rotation};
-        glm::vec3 blockPosition = calculateBlockPosition(x, y, z);
-        cell.blockPositions = {blockPosition};
-        incrementBlockCount(blockId);
-        propagateConstraints(x, y, z);
-        isFirstBlock = false;
-        return true;
-    }
-
-    if (cell.possibleBlockRotationPairs.empty()) {
-        std::cerr << "No valid blocks for initial placement at (" << x << ", " << y << ", " << z << ")" << std::endl;
-        return false;
-    }
-    return collapseCell(x, y, z, rng);
-}
 
 void BlockGenerator::updateCellPossibilities(int x, int y, int z) {
     auto& cell = grid[x][y][z];
@@ -439,44 +349,6 @@ bool BlockGenerator::validateNeighborCompatibility(int blockId, int rotation, in
         return true;
     }
     return true;
-}
-
-void BlockGenerator::propagateConstraints(int x, int y, int z) {
-    std::queue<GridPosition> toPropagate;
-    std::set<GridPosition> inQueue;
-    toPropagate.push({x, y, z});
-    inQueue.insert({x, y, z});
-
-    while (!toPropagate.empty()) {
-        GridPosition pos = toPropagate.front();
-        toPropagate.pop();
-        inQueue.erase(pos);
-
-        const std::vector<std::tuple<int, int, int>> neighbors = {
-            {pos.x, pos.y, pos.z+1}, {pos.x, pos.y, pos.z-1},
-            {pos.x+1, pos.y, pos.z}, {pos.x-1, pos.y, pos.z},
-            {pos.x, pos.y+1, pos.z}, {pos.x, pos.y-1, pos.z}
-        };
-
-        for (const auto& [nx, ny, nz] : neighbors) {
-            if (!isValidGridPosition(nx, ny, nz)) continue;
-            auto& neighbor = grid[nx][ny][nz];
-            if (neighbor.collapsed) continue;
-
-            // Save old possibilities for comparison
-            auto oldPairs = neighbor.possibleBlockRotationPairs;
-            updateCellPossibilities(nx, ny, nz);
-
-            // If possibilities changed, propagate further
-            if (neighbor.possibleBlockRotationPairs != oldPairs) {
-                GridPosition npos{nx, ny, nz};
-                if (inQueue.find(npos) == inQueue.end()) {
-                    toPropagate.push(npos);
-                    inQueue.insert(npos);
-                }
-            }
-        }
-    }
 }
 
 BlockMesh* BlockGenerator::generateMeshFromGrid() {
@@ -759,7 +631,7 @@ void BlockGenerator::generateRectangularCastle(std::mt19937& rng) {
         if (isCornerPosition(fc.pos.x, fc.pos.y, fc.pos.z)) {
             success = tryPlaceCornerBlock(fc.pos.x, fc.pos.y, fc.pos.z, rng);
         } else {
-            success = collapseCell(fc.pos.x, fc.pos.y, fc.pos.z, rng);
+            success = collapseCellWFC(fc.pos.x, fc.pos.y, fc.pos.z, rng);
         }
         
         if (!success) {
@@ -869,8 +741,6 @@ bool BlockGenerator::tryPlaceCornerBlock(int x, int y, int z, std::mt19937& rng)
         // Try to find the best rotation for this corner block
         int bestRotation = findBestCornerRotation(x, y, z, cornerBlockId);
         if (bestRotation != -1) {
-            // Place the corner block with the best rotation
-            std::cout << "Successfully placed corner block " << cornerBlockId << " with rotation " << bestRotation << std::endl;
             cell.collapsed = true;
             cell.possibleBlockRotationPairs = {{cornerBlockId, bestRotation}};
             cell.blockTypeIds = {cornerBlockId};
@@ -886,7 +756,7 @@ bool BlockGenerator::tryPlaceCornerBlock(int x, int y, int z, std::mt19937& rng)
             }
             
             // Propagate constraints
-            propagateConstraints(x, y, z);
+            propagateWave({x, y, z});
             return true;
         } else {
             std::cout << "Corner block " << cornerBlockId << " failed rotation validation" << std::endl;
@@ -926,17 +796,10 @@ int BlockGenerator::findBestCornerRotation(int x, int y, int z, int cornerBlockI
     // Get the correct rotation for this preset at this corner position
     int targetRotation = getRotationForPresetAtCorner(preset, cornerPosition);
     
-    std::cout << "Corner block " << cornerBlockId << " preset: " << preset 
-              << ", corner position: " << cornerPosition 
-              << ", target rotation: " << targetRotation << std::endl;
-    
-    // Check if this is the first block (starting corner)
     bool isStartingCorner = isFirstBlock;
-    
-    // First, try the calculated target rotation if it's allowed
+
     for (int rotation : blockTemplate.allowedRotations) {
         if (rotation == targetRotation && isCornerRotationValid(x, y, z, cornerBlockId, rotation, isStartingCorner)) {
-            std::cout << "Found valid target rotation: " << rotation << std::endl;
             return rotation;
         }
     }
@@ -944,59 +807,32 @@ int BlockGenerator::findBestCornerRotation(int x, int y, int z, int cornerBlockI
     // If target rotation doesn't work, try all other allowed rotations
     for (int rotation : blockTemplate.allowedRotations) {
         if (rotation != targetRotation) {
-            std::cout << "Trying fallback rotation: " << rotation << std::endl;
             if (isCornerRotationValid(x, y, z, cornerBlockId, rotation, isStartingCorner)) {
-                std::cout << "Found valid fallback rotation: " << rotation << std::endl;
                 return rotation;
             }
         }
     }
     
-    std::cout << "No valid rotation found for corner block " << cornerBlockId << " at (" << x << "," << y << "," << z << ")" << std::endl;
-    return -1; // No valid rotation found
+    return -1;
 }
 
 bool BlockGenerator::isCornerRotationValid(int x, int y, int z, int cornerBlockId, int rotation, bool isStartingCorner) const {
     // First check basic socket compatibility
     if (!isBlockValidAtPosition(x, y, z, cornerBlockId, rotation)) {
-        std::cout << "Basic socket validation failed for corner block " << cornerBlockId << " at rotation " << rotation << std::endl;
         return false;
     }
-    
-    // Debug: Print socket information for the corner block with the specific rotation
+
     auto& templates = parameters.socketSystem.GetBlockTemplates();
-    
-    // First print the base template sockets
+
     auto templateIt = templates.find(cornerBlockId);
-    if (templateIt != templates.end()) {
-        const auto& blockTemplate = templateIt->second;
-        std::cout << "Base corner block " << cornerBlockId << " socket types: ";
-        for (int i = 0; i < 6; i++) {
-            std::cout << "[" << i << "]=" << static_cast<int>(blockTemplate.sockets[i].type) << " ";
-        }
-        std::cout << std::endl;
-    }
-    
-    // Then get and print the rotated sockets
+
     try {
         auto rotatedSockets = parameters.socketSystem.GetRotatedSockets(cornerBlockId, rotation);
-        std::cout << "Corner block " << cornerBlockId << " at rotation " << rotation << " rotated socket types: ";
-        for (int i = 0; i < 6; i++) {
-            std::cout << "[" << i << "]=" << static_cast<int>(rotatedSockets[i].type) << " ";
-        }
-        std::cout << std::endl;
         
         // Manual rotation check - let's see if we can manually rotate the base sockets
         if (templateIt != templates.end()) {
             const auto& blockTemplate = templateIt->second;
-            std::cout << "Manual rotation check for " << rotation << " degrees:" << std::endl;
-            
-            // For Y-axis rotation, face mapping should be:
-            // 0 degrees: [+X, -X, +Y, -Y, +Z, -Z] = [0, 1, 2, 3, 4, 5]
-            // 90 degrees: +X->+Z, -X->-Z, +Z->-X, -Z->+X
-            // 180 degrees: +X->-X, -X->+X, +Z->-Z, -Z->+Z  
-            // 270 degrees: +X->-Z, -X->+Z, +Z->+X, -Z->-X
-            
+            // 270 degrees: +X->-Z, -X->+Z, +Z->+X, -Z->-X     
             std::array<int, 6> faceMapping;
             if (rotation == 0) {
                 faceMapping = {0, 1, 2, 3, 4, 5}; // No rotation
@@ -1010,20 +846,12 @@ bool BlockGenerator::isCornerRotationValid(int x, int y, int z, int cornerBlockI
                 faceMapping = {0, 1, 2, 3, 4, 5}; // Default
             }
             
-            std::cout << "Manual rotated sockets: ";
-            for (int i = 0; i < 6; i++) {
-                int originalFace = faceMapping[i];
-                std::cout << "[" << i << "]=" << static_cast<int>(blockTemplate.sockets[originalFace].type) << " ";
-            }
-            std::cout << std::endl;
         }
         
     } catch (...) {
         std::cout << "Failed to get rotated sockets for block " << cornerBlockId << " at rotation " << rotation << std::endl;
     }
     
-    // For corners, we need to check propagation directions in the XZ plane
-    // Try different face mapping order: +Z, -Z, +X, -X instead of +X, -X, +Z, -Z
     const std::vector<std::tuple<int, int, int, int>> horizontalNeighbors = {
         {x, y, z+1, 4}, {x, y, z-1, 5}, {x+1, y, z, 0}, {x-1, y, z, 1}
     };
@@ -1035,33 +863,16 @@ bool BlockGenerator::isCornerRotationValid(int x, int y, int z, int cornerBlockI
         if (isValidGridPosition(nx, ny, nz) && !isGridCellMasked(nx, ny, nz)) {
             // This is a valid direction for propagation
             validPropagationDirections++;
-            std::cout << "Valid propagation direction: face " << faceIndex << " to (" << nx << "," << ny << "," << nz << ")" << std::endl;
-        } else {
-            std::cout << "Invalid propagation direction: face " << faceIndex << " to (" << nx << "," << ny << "," << nz << ") - ";
-            if (!isValidGridPosition(nx, ny, nz)) {
-                std::cout << "outside grid";
-            } else if (isGridCellMasked(nx, ny, nz)) {
-                std::cout << "masked";
-            }
-            std::cout << std::endl;
         }
     }
-    
-    std::cout << "Corner at (" << x << "," << y << "," << z << ") has " << validPropagationDirections 
-              << " valid propagation directions, isStarting: " << isStartingCorner << std::endl;
-    
     if (isStartingCorner) {
-        // Starting corner needs at least 2 propagation directions
         return validPropagationDirections >= 2;
     } else {
-        // Non-starting corners need at least 1 propagation direction
         return validPropagationDirections >= 1;
     }
 }
 
 int BlockGenerator::getCornerRotationForPosition(int x, int z) const {
-    // This function is now replaced by the preset-based system
-    // but kept for backward compatibility if needed
     bool isLeftEdge = (x == 0);
     bool isRightEdge = (x == (int)parameters.gridWidth - 1);
     bool isFrontEdge = (z == 0);
@@ -1084,12 +895,6 @@ int BlockGenerator::getCornerRotationForPosition(int x, int z) const {
 }
 
 int BlockGenerator::detectCornerBlockPreset(int cornerBlockId) const {
-    // Detect which preset this corner block belongs to by examining its base socket configuration
-    // Presets are based on which two faces are exterior (walls) in the base orientation:
-    // Preset 0: +X and +Z are exterior (faces 0 and 4)
-    // Preset 1: +X and -Z are exterior (faces 0 and 5) 
-    // Preset 2: -X and +Z are exterior (faces 1 and 4)
-    // Preset 3: -X and -Z are exterior (faces 1 and 5)
     
     auto& templates = parameters.socketSystem.GetBlockTemplates();
     auto templateIt = templates.find(cornerBlockId);
@@ -1101,34 +906,21 @@ int BlockGenerator::detectCornerBlockPreset(int cornerBlockId) const {
     
     const auto& blockTemplate = templateIt->second;
     
-    // Check which horizontal faces are walls (exterior) in the base orientation
-    // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
     bool posXIsWall = (blockTemplate.sockets[0].type == SocketType::WALL);
     bool negXIsWall = (blockTemplate.sockets[1].type == SocketType::WALL);
     bool posZIsWall = (blockTemplate.sockets[4].type == SocketType::WALL);
     bool negZIsWall = (blockTemplate.sockets[5].type == SocketType::WALL);
     
-    std::cout << "Detecting preset for block " << cornerBlockId << ": "
-              << "+X=" << (posXIsWall ? "wall" : "open") << ", "
-              << "-X=" << (negXIsWall ? "wall" : "open") << ", "
-              << "+Z=" << (posZIsWall ? "wall" : "open") << ", "
-              << "-Z=" << (negZIsWall ? "wall" : "open") << std::endl;
-    
-    // Determine preset based on which two faces are walls
     if (posXIsWall && posZIsWall) {
-        std::cout << "Detected preset 0: +X and +Z are exterior" << std::endl;
         return 0;
     }
     else if (posXIsWall && negZIsWall) {
-        std::cout << "Detected preset 1: +X and -Z are exterior" << std::endl;
         return 1;
     }
     else if (negXIsWall && posZIsWall) {
-        std::cout << "Detected preset 2: -X and +Z are exterior" << std::endl;
         return 2;
     }
     else if (negXIsWall && negZIsWall) {
-        std::cout << "Detected preset 3: -X and -Z are exterior" << std::endl;
         return 3;
     }
     else {
@@ -1139,12 +931,6 @@ int BlockGenerator::detectCornerBlockPreset(int cornerBlockId) const {
 }
 
 int BlockGenerator::getCornerPosition(int x, int z) const {
-    // Determine which corner position this is
-    // Position 0: bottom-left (0, 0)
-    // Position 1: bottom-right (max, 0)
-    // Position 2: top-right (max, max)
-    // Position 3: top-left (0, max)
-    
     bool isLeftEdge = (x == 0);
     bool isRightEdge = (x == (int)parameters.gridWidth - 1);
     bool isFrontEdge = (z == 0);
@@ -1167,15 +953,6 @@ int BlockGenerator::getCornerPosition(int x, int z) const {
 }
 
 int BlockGenerator::getRotationForPresetAtCorner(int preset, int cornerPosition) const {
-    // For each corner position, we need the exterior faces to point outward
-    // Corner positions and their required exterior face directions:
-    // Position 0 (bottom-left): exterior should be -X and -Z
-    // Position 1 (bottom-right): exterior should be +X and -Z
-    // Position 2 (top-right): exterior should be +X and +Z
-    // Position 3 (top-left): exterior should be -X and +Z
-    
-    // Rotation mapping for each preset at each corner position
-    // Each row is a preset, each column is a corner position
     static const int rotationTable[4][4] = {
         // Preset 0 (+X,+Z exterior in base): needs rotation to place exterior at required directions
         {180, 90, 0, 270},   // For positions 0,1,2,3
@@ -1196,8 +973,6 @@ int BlockGenerator::getRotationForPresetAtCorner(int preset, int cornerPosition)
     }
     
     int rotation = rotationTable[preset][cornerPosition];
-    std::cout << "For preset " << preset << " at corner position " << cornerPosition 
-              << ", using rotation " << rotation << " degrees" << std::endl;
     
     return rotation;
 }
@@ -1205,7 +980,6 @@ int BlockGenerator::getRotationForPresetAtCorner(int preset, int cornerPosition)
 std::vector<int> BlockGenerator::getCornerBlocks() const {
     std::vector<int> cornerBlocks;
     
-    // Convert set to vector for easier handling
     for (int blockId : parameters.generationSettings.cornerBlockIds) {
         cornerBlocks.push_back(blockId);
     }
@@ -1246,7 +1020,6 @@ bool BlockGenerator::shouldPrioritizeMinCountBlock(int x, int y, int z, int bloc
         }
     }
     
-    // Only prioritize if there aren't too many nearby blocks of the same type
     return nearbyCount < 2; // Allow max 2 of the same type in nearby area
 }
 
@@ -1256,11 +1029,9 @@ bool BlockGenerator::collapseCellWFC(int x, int y, int z, std::mt19937& rng) {
     auto& cell = grid[x][y][z];
     if (cell.collapsed) return true;
     
-    // Validate possibilities before collapse
     validateCellPossibilitySpace(x, y, z);
     
     if (cell.possibleBlockRotationPairs.empty()) {
-        std::cerr << "Cannot collapse cell at (" << x << ", " << y << ", " << z << ") - no valid possibilities" << std::endl;
         return false;
     }
     
@@ -1320,7 +1091,6 @@ bool BlockGenerator::collapseCellWFC(int x, int y, int z, std::mt19937& rng) {
 }
 
 void BlockGenerator::propagateWave(const GridPosition& startPos) {
-    // Get neighbors of the collapsed cell
     std::vector<GridPosition> neighbors = getNeighborPositions(startPos);
     
     // Add neighbors to fringe
@@ -1354,7 +1124,6 @@ void BlockGenerator::propagateWave(const GridPosition& startPos) {
             incrementBlockCount(chosenPair.first);
         }
         
-        // If possibility space changed, propagate to neighbors
         if (changed) {
             std::vector<GridPosition> currentNeighbors = getNeighborPositions(currentPos);
             for (const auto& neighbor : currentNeighbors) {
@@ -1362,7 +1131,6 @@ void BlockGenerator::propagateWave(const GridPosition& startPos) {
                 
                 auto& neighborCell = grid[neighbor.x][neighbor.y][neighbor.z];
                 
-                // Only add uncollapsed cells that aren't already in the fringe
                 if (!neighborCell.collapsed && duplicateSet.find(neighbor) == duplicateSet.end()) {
                     propagationFringe.push(neighbor);
                     duplicateSet.insert(neighbor);
@@ -1400,25 +1168,20 @@ bool BlockGenerator::validateCellPossibilitySpace(int x, int y, int z) {
     if (cell.collapsed) return false;
     
     std::vector<std::pair<int, int>> validPairs;
-    
-    // Check each possible block/rotation pair for validity
+
     for (const auto& pair : cell.possibleBlockRotationPairs) {
         int blockId = pair.first;
         int rotation = pair.second;
-        
-        // Check if we can still place this block type
+
         if (!canPlaceBlock(blockId)) continue;
         
-        // Check socket compatibility with neighbors
         if (isBlockValidAtPosition(x, y, z, blockId, rotation)) {
             validPairs.push_back(pair);
         }
     }
-    
-    // Check if possibility space changed
+
     bool changed = (validPairs.size() != cell.possibleBlockRotationPairs.size());
     
-    // Update possibilities
     cell.possibleBlockRotationPairs = validPairs;
     
     return changed;
@@ -1461,7 +1224,6 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
         }
     }
     
-    // Add all valid cells from the starting layer to frontier
     for (int x = 0; x < (int)parameters.gridWidth; ++x) {
         for (int z = 0; z < (int)parameters.gridLength; ++z) {
             // Skip masked cells
@@ -1487,12 +1249,8 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
     
     int iterationCount = 0;
     int consecutiveSkips = 0;
-    const int maxConsecutiveSkips = 10; // Prevent infinite loops
+    const int maxConsecutiveSkips = 10;
     
-    std::cout << "Starting frontier WFC from layer Y=" << startY << " with " 
-              << frontier.size() << " initial cells" << std::endl;
-    
-    // Main frontier-based generation loop
     while (!frontier.empty()) {
         FrontierCell fc = frontier.top();
         frontier.pop();
@@ -1510,13 +1268,10 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
             continue;
         }
         
-        consecutiveSkips = 0; // Reset skip counter on successful processing
+        consecutiveSkips = 0; 
         
         // Try to collapse the cell
         if (!collapseCellWFC(fc.pos.x, fc.pos.y, fc.pos.z, rng)) {
-            // Contradiction detected - skip this cell and continue with frontier
-            std::cout << "Contradiction at (" << fc.pos.x << ", " << fc.pos.y << ", " << fc.pos.z 
-                      << ") - marking as failed and continuing" << std::endl;
             
             // Mark the cell as permanently failed (no possibilities)
             cell.possibleBlockRotationPairs.clear();
@@ -1531,7 +1286,6 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
         // Propagate constraints from this cell
         propagateWave(fc.pos);
         
-        // Add valid neighbors to frontier (with bottom-up priority)
         for (const auto& [dx, dy, dz] : neighborOffsets) {
             int nx = fc.pos.x + dx, ny = fc.pos.y + dy, nz = fc.pos.z + dz;
             GridPosition npos{nx, ny, nz};
@@ -1543,27 +1297,15 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
                 inFrontier.find(npos) == inFrontier.end()) {
                 
                 double entropy = calculateCellEntropy(grid[nx][ny][nz]);
-                // Strong bias toward bottom-up expansion: higher Y = higher entropy (lower priority)
-                entropy += (ny * 0.1); // Significant Y-based priority
+                entropy += (ny * 0.1);
                 
                 frontier.push({entropy, npos});
                 inFrontier.insert(npos);
             }
         }
-        
-        iterationCount++;
-        if (iterationCount % 25 == 0) {
-            std::cout << "Frontier WFC progress: " << iterationCount << " cells processed, " 
-                      << frontier.size() << " in frontier" << std::endl;
-        }
-        
-        // DO NOT add cells from higher layers unconditionally
-        // The frontier should only expand through actual neighbor connections
-        // If frontier is empty, that means all reachable cells have been processed
     }
-    
-    std::cout << "Frontier WFC completed after " << iterationCount << " iterations" << std::endl;
-    return true; // Always consider successful - partial completion is acceptable
+
+    return true;
 }
 
 bool BlockGenerator::isGenerationComplete() const {
