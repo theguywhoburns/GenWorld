@@ -40,6 +40,14 @@ BlockUI::BlockUI(BlockController* controller) : controller(controller) {
 
     // Initialize generation settings with 3D support
     genSettings = {20, 10, 20, 1.0f};
+
+    // Try to load default castle assets (optional - won't crash if files don't exist)
+    LoadDefaultCastleAssets();
+
+    // Setup socket configurations for each block type (will work even if no models are loaded)
+    SetupDefaultSocketConfigurations();
+
+
 }
 void BlockUI::DisplayUI() {
     if (ImGui::Begin("Block World Generator")) {
@@ -120,6 +128,41 @@ void BlockUI::DisplayBasicSettings() {
             OpenModelFileDialog();
         }
         
+        // Add Clear All button if there are assets
+        if (!loadedAssets.empty()) {
+            if (ImGui::Button("Clear All Assets", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                ImGui::OpenPopup("Clear All Assets?");
+            }
+            
+            // Confirmation popup for clearing all
+            if (ImGui::BeginPopupModal("Clear All Assets?", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("Are you sure you want to remove all loaded assets?");
+                ImGui::Text("This action cannot be undone.");
+                ImGui::Separator();
+                if (ImGui::Button("Yes, Clear All", ImVec2(120, 0))) {
+                    // Clear all assets and related data
+                    loadedAssets.clear();
+                    auto& settings = parameters.generationSettings;
+                    settings.currentBlockCounts.clear();
+                    settings.blockWeights.clear();
+                    settings.maxBlockCounts.clear();
+                    settings.minBlockCounts.clear();
+                    settings.cornerBlockIds.clear();
+                    
+                    // Clear socket system templates
+                    parameters.socketSystem.Initialize(); // This will clear all templates
+                    
+                    std::cout << "Cleared all assets and related data." << std::endl;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+        }
+        
         // Error popup
         if (showModelError) {
             ImGui::OpenPopup("Model Load Error");
@@ -138,8 +181,37 @@ void BlockUI::DisplayBasicSettings() {
         if (loadedAssets.empty()) {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No assets loaded.");
         } else {
+            assetToRemoveId = -1;
+            
             for (const auto& asset : loadedAssets) {
+                ImGui::PushID(asset.id);
+                
+                // Display asset info
                 ImGui::Text("ID %d: %s", asset.id, GetFileName(asset.blockPath).c_str());
+                ImGui::SameLine();
+                
+                // Remove button
+                if (ImGui::Button("Remove")) {
+                    auto& settings = parameters.generationSettings;
+                    settings.currentBlockCounts.erase(asset.id);
+                    settings.blockWeights.erase(asset.id);
+                    settings.maxBlockCounts.erase(asset.id);
+                    settings.minBlockCounts.erase(asset.id);
+                    settings.cornerBlockIds.erase(asset.id);
+                    
+                    parameters.socketSystem.RemoveBlockTemplate(asset.id);
+                    
+                    if (selectedBlockId == asset.id) {
+                        selectedBlockId = -1;
+                    }
+                    
+                    RemoveAsset(asset.id);
+
+                    ImGui::PopID();
+                    break;
+                }
+                
+                ImGui::PopID();
             }
         }
     }
@@ -218,6 +290,15 @@ void BlockUI::DisplaySocketEditor() {
             int currentType = static_cast<int>(currentTemplate.sockets[face].type);
             if (ImGui::Combo("##sockettype", &currentType, socketTypeNames, 11)) {
                 currentTemplate.sockets[face].type = static_cast<SocketType>(currentType);
+                
+                auto& templates = socketSystem.GetBlockTemplates();
+                auto it = templates.find(selectedBlockId);
+                if (it != templates.end()) {
+                    const_cast<BlockTemplate&>(it->second) = currentTemplate;
+                } else {
+                    socketSystem.AddBlockTemplate(currentTemplate);
+                }
+                
                 socketSystem.GenerateRotatedVariants(); // Regenerate when changed
             }
             
@@ -225,20 +306,10 @@ void BlockUI::DisplaySocketEditor() {
         }
         
         ImGui::Separator();
-        if (ImGui::Button("Apply Socket Changes")) {
-            auto& templates = socketSystem.GetBlockTemplates();
-            auto it = templates.find(selectedBlockId);
-            if (it != templates.end()) {
-                const_cast<BlockTemplate&>(it->second) = currentTemplate;
-            } else {
-                socketSystem.AddBlockTemplate(currentTemplate);
-            }
-        }
     }
     
     ImGui::Separator();
     
-    // EXPANDED COMPATIBILITY RULES SECTION
     if (ImGui::CollapsingHeader("Socket Compatibility Rules", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& compatibility = parameters.socketSystem.GetCompatibility();
 
@@ -680,3 +751,337 @@ bool BlockUI::validateCornerBlock(int blockId) const {
     // Must have at least 2 Wall sockets on X and Z axes
     return wallCount >= 2;
 }
+
+void BlockUI::SetupDefaultSocketConfigurations() {
+    auto& socketSystem = parameters.socketSystem;
+    
+    // Clear existing templates first
+    socketSystem.Initialize();
+    
+    // Only configure socket templates for blocks that were actually loaded
+    std::cout << "Setting up socket configurations for " << loadedAssets.size() << " loaded assets..." << std::endl;
+    
+    // Define socket configurations for each expected block ID
+    // These will only be applied if the corresponding asset was loaded
+    std::map<int, std::function<void()>> socketConfigurations = {
+        {0, [&]() {
+            BlockTemplate tower_base(0);
+            tower_base.name = "Tower Square Base";
+            tower_base.sockets[0] = {SocketType::CUSTOM_5};
+            tower_base.sockets[1] = {SocketType::CUSTOM_5};
+            tower_base.sockets[2] = {SocketType::CUSTOM_1};
+            tower_base.sockets[3] = {SocketType::CUSTOM_5};
+            tower_base.sockets[4] = {SocketType::STONE};
+            tower_base.sockets[5] = {SocketType::STONE};
+            socketSystem.AddBlockTemplate(tower_base);
+        }},
+        
+        {1, [&]() {
+            BlockTemplate tower_arch(1);
+            tower_arch.name = "Tower Square Arch";
+            tower_arch.sockets[0] = {SocketType::CUSTOM_5};
+            tower_arch.sockets[1] = {SocketType::CUSTOM_5};
+            tower_arch.sockets[2] = {SocketType::CUSTOM_3};
+            tower_arch.sockets[3] = {SocketType::CUSTOM_4};
+            tower_arch.sockets[4] = {SocketType::CUSTOM_5};
+            tower_arch.sockets[5] = {SocketType::CUSTOM_5};
+            socketSystem.AddBlockTemplate(tower_arch);
+        }},
+        
+        {2, [&]() {
+            BlockTemplate wall(2);
+            wall.name = "Wall";
+            wall.sockets[0] = {SocketType::CUSTOM_5};
+            wall.sockets[1] = {SocketType::CUSTOM_5};
+            wall.sockets[2] = {SocketType::CUSTOM_5};
+            wall.sockets[3] = {SocketType::CUSTOM_5};
+            wall.sockets[4] = {SocketType::STONE};
+            wall.sockets[5] = {SocketType::STONE};
+            socketSystem.AddBlockTemplate(wall);
+        }},
+        
+        {3, [&]() {
+            BlockTemplate wall_gate(3);
+            wall_gate.name = "Wall Narrow Gate";
+            wall_gate.sockets[0] = {SocketType::CUSTOM_5};
+            wall_gate.sockets[1] = {SocketType::CUSTOM_5};
+            wall_gate.sockets[2] = {SocketType::CUSTOM_5};
+            wall_gate.sockets[3] = {SocketType::CUSTOM_5};
+            wall_gate.sockets[4] = {SocketType::WOOD};
+            wall_gate.sockets[5] = {SocketType::WOOD};
+            socketSystem.AddBlockTemplate(wall_gate);
+        }},
+        
+        {4, [&]() {
+            BlockTemplate wall_dup(4);
+            wall_dup.name = "Wall (Duplicate)";
+            wall_dup.sockets[0] = {SocketType::CUSTOM_5};
+            wall_dup.sockets[1] = {SocketType::CUSTOM_5};
+            wall_dup.sockets[2] = {SocketType::CUSTOM_5};
+            wall_dup.sockets[3] = {SocketType::CUSTOM_5};
+            wall_dup.sockets[4] = {SocketType::STONE};
+            wall_dup.sockets[5] = {SocketType::WOOD};
+            socketSystem.AddBlockTemplate(wall_dup);
+        }},
+        
+        {5, [&]() {
+            BlockTemplate tower_roof(5);
+            tower_roof.name = "Tower Slant Roof";
+            tower_roof.sockets[0] = {SocketType::CUSTOM_5};
+            tower_roof.sockets[1] = {SocketType::CUSTOM_5};
+            tower_roof.sockets[2] = {SocketType::CUSTOM_5};
+            tower_roof.sockets[3] = {SocketType::CUSTOM_3};
+            tower_roof.sockets[4] = {SocketType::CUSTOM_5};
+            tower_roof.sockets[5] = {SocketType::CUSTOM_5};
+            socketSystem.AddBlockTemplate(tower_roof);
+        }},
+        
+        {6, [&]() {
+            BlockTemplate wall_dup2(6);
+            wall_dup2.name = "Wall (Duplicate 2)";
+            wall_dup2.sockets[0] = {SocketType::CUSTOM_5};
+            wall_dup2.sockets[1] = {SocketType::CUSTOM_5};
+            wall_dup2.sockets[2] = {SocketType::CUSTOM_4};
+            wall_dup2.sockets[3] = {SocketType::CUSTOM_5};
+            wall_dup2.sockets[4] = {SocketType::STONE};
+            wall_dup2.sockets[5] = {SocketType::STONE};
+            socketSystem.AddBlockTemplate(wall_dup2);
+        }},
+        
+        {7, [&]() {
+            BlockTemplate wall_corner(7);
+            wall_corner.name = "Wall Corner";
+            wall_corner.sockets[0] = {SocketType::WALL};
+            wall_corner.sockets[1] = {SocketType::STONE};
+            wall_corner.sockets[2] = {SocketType::CUSTOM_5};
+            wall_corner.sockets[3] = {SocketType::CUSTOM_5};
+            wall_corner.sockets[4] = {SocketType::STONE};
+            wall_corner.sockets[5] = {SocketType::WALL};
+            socketSystem.AddBlockTemplate(wall_corner);
+        }},
+        
+        {8, [&]() {
+            BlockTemplate wall_corner_tower(8);
+            wall_corner_tower.name = "Wall Corner Half Tower";
+            wall_corner_tower.sockets[0] = {SocketType::WALL};
+            wall_corner_tower.sockets[1] = {SocketType::STONE};
+            wall_corner_tower.sockets[2] = {SocketType::CUSTOM_5};
+            wall_corner_tower.sockets[3] = {SocketType::CUSTOM_5};
+            wall_corner_tower.sockets[4] = {SocketType::WALL};
+            wall_corner_tower.sockets[5] = {SocketType::STONE};
+            socketSystem.AddBlockTemplate(wall_corner_tower);
+        }},
+        
+        {9, [&]() {
+            BlockTemplate tower_mid(9);
+            tower_mid.name = "Tower Square Mid";
+            tower_mid.sockets[0] = {SocketType::CUSTOM_5};
+            tower_mid.sockets[1] = {SocketType::CUSTOM_5};
+            tower_mid.sockets[2] = {SocketType::CUSTOM_2};
+            tower_mid.sockets[3] = {SocketType::CUSTOM_1};
+            tower_mid.sockets[4] = {SocketType::CUSTOM_5};
+            tower_mid.sockets[5] = {SocketType::CUSTOM_5};
+            socketSystem.AddBlockTemplate(tower_mid);
+        }},
+        
+        {10, [&]() {
+            BlockTemplate tower_mid_windows(10);
+            tower_mid_windows.name = "Tower Square Mid Windows";
+            tower_mid_windows.sockets[0] = {SocketType::CUSTOM_5};
+            tower_mid_windows.sockets[1] = {SocketType::CUSTOM_5};
+            tower_mid_windows.sockets[2] = {SocketType::CUSTOM_3};
+            tower_mid_windows.sockets[3] = {SocketType::CUSTOM_2};
+            tower_mid_windows.sockets[4] = {SocketType::CUSTOM_5};
+            tower_mid_windows.sockets[5] = {SocketType::CUSTOM_5};
+            socketSystem.AddBlockTemplate(tower_mid_windows);
+        }},
+        
+        {11, [&]() {
+            BlockTemplate tower_top_roof(11);
+            tower_top_roof.name = "Tower Square Top Roof High";
+            tower_top_roof.sockets[0] = {SocketType::CUSTOM_5};
+            tower_top_roof.sockets[1] = {SocketType::CUSTOM_5};
+            tower_top_roof.sockets[2] = {SocketType::CUSTOM_5};
+            tower_top_roof.sockets[3] = {SocketType::CUSTOM_3};
+            tower_top_roof.sockets[4] = {SocketType::CUSTOM_5};
+            tower_top_roof.sockets[5] = {SocketType::CUSTOM_5};
+            socketSystem.AddBlockTemplate(tower_top_roof);
+        }},
+        
+        {12, [&]() {
+            BlockTemplate tower_mid_windows_dup(12);
+            tower_mid_windows_dup.name = "Tower Square Mid Windows";
+            tower_mid_windows_dup.sockets[0] = {SocketType::CUSTOM_5};
+            tower_mid_windows_dup.sockets[1] = {SocketType::CUSTOM_5};
+            tower_mid_windows_dup.sockets[2] = {SocketType::CUSTOM_3};
+            tower_mid_windows_dup.sockets[3] = {SocketType::CUSTOM_3};
+            tower_mid_windows_dup.sockets[4] = {SocketType::CUSTOM_5};
+            tower_mid_windows_dup.sockets[5] = {SocketType::CUSTOM_5};
+            socketSystem.AddBlockTemplate(tower_mid_windows_dup);
+        }}
+    };
+    
+    // Apply socket configurations only for loaded assets
+    int configuredCount = 0;
+    std::set<int> cornerBlockIds;
+    
+    for (const auto& asset : loadedAssets) {
+        auto configIt = socketConfigurations.find(asset.id);
+        if (configIt != socketConfigurations.end()) {
+            configIt->second(); // Execute the configuration function
+            configuredCount++;
+            std::cout << "✓ Configured sockets for block " << asset.id << " (" << asset.name << ")" << std::endl;
+            
+            // Check if this is a corner block (IDs 7 and 8)
+            if (asset.id == 7 || asset.id == 8) {
+                cornerBlockIds.insert(asset.id);
+            }
+        } else {
+            std::cout << "! No socket configuration defined for block " << asset.id << " - using defaults" << std::endl;
+        }
+    }
+
+    // Set up socket compatibility rules
+    auto& compatibility = socketSystem.GetCompatibility();
+
+    // Clear all rules first
+    compatibility.ClearAllRules();
+
+    // Basic connection rules:
+    for (int i = 0; i <= 10; i++) {
+        compatibility.AddRule(SocketType::EMPTY, static_cast<SocketType>(i), true);
+        compatibility.AddRule(static_cast<SocketType>(i), SocketType::EMPTY, true);
+    }
+
+    compatibility.AddRule(SocketType::STONE, SocketType::STONE, true);
+    compatibility.AddRule(SocketType::WOOD, SocketType::WOOD, true);
+    compatibility.AddRule(SocketType::WALL, SocketType::WALL, true);
+    compatibility.AddRule(SocketType::CUSTOM_1, SocketType::CUSTOM_1, true);
+    compatibility.AddRule(SocketType::CUSTOM_2, SocketType::CUSTOM_2, true);
+    compatibility.AddRule(SocketType::CUSTOM_3, SocketType::CUSTOM_3, true);
+    compatibility.AddRule(SocketType::CUSTOM_4, SocketType::CUSTOM_4, true);
+
+    // Generate rotated variants for all templates
+    socketSystem.GenerateRotatedVariants();
+    
+    // Only enable castle system and set corner blocks if we have corner blocks loaded
+    if (!cornerBlockIds.empty()) {
+        parameters.generationSettings.isGridMaskEnabled = true;
+        parameters.generationSettings.cornerBlockIds = cornerBlockIds;
+
+        for (const auto& asset : loadedAssets) {
+            auto& settings = parameters.generationSettings;
+            
+            // Set default weights based on block type
+            switch (asset.id) {
+                case 0: settings.blockWeights[asset.id] = 0.08f; break; // Tower base
+                case 1: settings.blockWeights[asset.id] = 0.05f; break; // Tower arch
+                case 2: settings.blockWeights[asset.id] = 0.93f; break; // Wall (main)
+                case 3: settings.blockWeights[asset.id] = 0.50f; break; // Gate
+                case 4: settings.blockWeights[asset.id] = 0.50f; break; // Wall dup
+                case 5: settings.blockWeights[asset.id] = 0.90f; break; // Tower roof
+                case 6: settings.blockWeights[asset.id] = 0.50f; break; // Wall dup 2
+                default: settings.blockWeights[asset.id] = 0.50f; break; // Others
+            }
+            
+            // Set default limits
+            settings.maxBlockCounts[asset.id] = -1; // Unlimited by default
+            settings.minBlockCounts[asset.id] = 0;  // No minimum by default
+            
+            // Special cases
+            if (asset.id == 3) { // Gate - only want 1, and require at least 1
+                settings.maxBlockCounts[asset.id] = 1;
+                settings.minBlockCounts[asset.id] = 1;
+            }
+            if (asset.id == 4) { // Wall variant - limit to 2, require at least 1
+                settings.maxBlockCounts[asset.id] = 2;
+                settings.minBlockCounts[asset.id] = 1;
+            }
+        }
+    } else {
+        std::cout << "No corner blocks loaded - castle system will remain disabled" << std::endl;
+        std::cout << "You can manually load corner block models and configure them in the Socket Editor" << std::endl;
+    }
+}
+
+void BlockUI::LoadDefaultCastleAssets() {
+    if (!controller) {
+        std::cout << "No controller available - skipping default asset loading" << std::endl;
+        return;
+    }
+    
+        // Get the path to this source file and construct project root path
+    std::string currentFilePath = __FILE__;
+    
+    // Navigate up from src/UI/BlockUI.cpp to project root
+    // Remove the filename first
+    size_t lastSlash = currentFilePath.find_last_of("/\\");
+    if (lastSlash != std::string::npos) {
+        currentFilePath = currentFilePath.substr(0, lastSlash); // Remove BlockUI.cpp
+    }
+    
+    // Go up from UI directory
+    lastSlash = currentFilePath.find_last_of("/\\");
+    if (lastSlash != std::string::npos) {
+        currentFilePath = currentFilePath.substr(0, lastSlash); // Remove UI
+    }
+    
+    // Go up from src directory  
+    lastSlash = currentFilePath.find_last_of("/\\");
+    if (lastSlash != std::string::npos) {
+        currentFilePath = currentFilePath.substr(0, lastSlash); // Remove src
+    }
+    
+    // Convert backslashes to forward slashes for consistency
+    std::replace(currentFilePath.begin(), currentFilePath.end(), '\\', '/');
+    
+    std::string basePath = currentFilePath + "/";
+
+    std::string assetPaths[] = {
+        basePath + "Models/Castle/tower-square-base.fbx",
+        basePath + "Models/Castle/tower-square-arch.fbx",
+        basePath + "Models/Castle/wall.fbx",
+        basePath + "Models/Castle/wall-narrow-gate.fbx",
+        basePath + "Models/Castle/wall.fbx", // Duplicate
+        basePath + "Models/Castle/tower-slant-roof.fbx",
+        basePath + "Models/Castle/wall.fbx", // Duplicate
+        basePath + "Models/Castle/wall-corner.fbx",
+        basePath + "Models/Castle/wall-corner-half-tower.fbx",
+        basePath + "Models/Castle/tower-square-mid.fbx",
+        basePath + "Models/Castle/tower-square-mid-windows.fbx",
+        basePath + "Models/Castle/tower-square-top-roof-high.fbx",
+        basePath + "Models/Castle/tower-square-mid-windows.fbx" // Duplicate
+    };
+
+    for (int i = 0; i < sizeof(assetPaths) / sizeof(assetPaths[0]); ++i) {
+        try {
+            // Create Model object directly
+            std::shared_ptr<Model> model = std::make_shared<Model>(static_cast<const char*>(assetPaths[i].c_str()));
+            
+            // Create AssetInfo and add to loaded assets
+            AssetInfo newAsset = {
+                i,                           // id
+                "Castle_" + std::to_string(i), // name
+                assetPaths[i],              // blockPath
+                model                       // model
+            };
+            
+            loadedAssets.push_back(newAsset);
+            
+            // Initialize generation settings for this asset
+            parameters.generationSettings.currentBlockCounts[newAsset.id] = 0;
+            parameters.generationSettings.blockWeights[newAsset.id] = parameters.generationSettings.defaultWeight;
+            parameters.generationSettings.maxBlockCounts[newAsset.id] = -1;
+            
+            std::cout << "✓ Loaded: " << assetPaths[i] << " (ID " << i << ")" << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::cout << "✗ Failed to load: " << assetPaths[i] << " - " << e.what() << std::endl;
+
+        } catch (...) {
+            std::cout << "✗ Failed to load: " << assetPaths[i] << " - Unknown error" << std::endl;
+        }
+    }
+    
+}
+

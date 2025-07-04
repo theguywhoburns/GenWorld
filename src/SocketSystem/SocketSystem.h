@@ -90,6 +90,7 @@ private:
 public:
     void Initialize();
     void AddBlockTemplate(const BlockTemplate& blockTemplate);
+    void RemoveBlockTemplate(int blockId);
     void GenerateRotatedVariants();
     
     bool CanBlocksConnect(int blockId1, int rotation1, int face1, 

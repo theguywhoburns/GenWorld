@@ -10,6 +10,15 @@ void SocketSystem::AddBlockTemplate(const BlockTemplate& blockTemplate) {
     std::cout << "Added block template for ID " << blockTemplate.blockId << std::endl;
 }
 
+void SocketSystem::RemoveBlockTemplate(int blockId) {
+    auto it = blockTemplates.find(blockId);
+    if (it != blockTemplates.end()) {
+        blockTemplates.erase(it);
+        rotatedVariants.erase(blockId);
+        std::cout << "Removed block template for ID " << blockId << std::endl;
+    }
+}
+
 void SocketSystem::GenerateRotatedVariants() {
     rotatedVariants.clear();
     

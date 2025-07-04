@@ -10,6 +10,8 @@
 #include <set>
 #include <tuple>
 #include <random>
+#include <stack>
+#include <queue>
 
 using namespace BlockUtilities;
 
@@ -86,23 +88,24 @@ private:
 
     // Core WFC methods
     std::vector<int> getAllBlockTypes();
+    void propagateWave(const GridPosition& startPos);
+    std::vector<GridPosition> getNeighborPositions(const GridPosition& pos) const;
+    bool validateCellPossibilitySpace(int x, int y, int z);
+    bool collapseCellWFC(int x, int y, int z, std::mt19937& rng);
+
+    bool runSingleWFCAttempt(std::mt19937& rng);
+    bool isGenerationComplete() const;
+    bool hasContradictions() const;
     
-    bool placeRandomBlockAt(int x, int y, int z, std::mt19937& rng);
     double calculateCellEntropy(const GridCell& cell) const;
-    //GridPosition findLowestEntropyCell(std::mt19937& rng);
-    bool collapseCell(int x, int y, int z, std::mt19937& rng);
     void updateCellPossibilities(int x, int y, int z);
 
     void buildAdjacencyTable();
     void generateGridFrontierWFC(std::mt19937& rng);
-    //void generateGridMultithreaded(std::mt19937& mainRng);
-    void processRemainingCells(std::mt19937& rng);
 
     // Socket-based constraint validation
     bool isBlockValidAtPosition(int x, int y, int z, int blockId, int rotation) const;
     bool validateNeighborCompatibility(int blockId, int rotation, int faceIndex, const GridCell& neighborCell, int neighborX, int neighborY, int neighborZ) const;
-    //bool canBlocksConnectWithSockets(int blockId1, int rotation1, int face1, int blockId2, int rotation2, int face2);
-    void propagateConstraints(int x, int y, int z);
 
     // Face/rotation utilities
     int getFaceIndex(const std::string& faceDirection);
@@ -156,4 +159,8 @@ private:
 
 private:
     std::vector<std::vector<std::vector<bool>>> gridMask; // 3D mask for rectangular castle generation
+    
+    // WFC propagation structures
+    std::stack<GridPosition> propagationFringe;
+    std::set<GridPosition> duplicateSet;
 };

@@ -17,7 +17,9 @@ public:
     BlockUI* GetBlockUI() {
         return blockUI;
     }
-    
+    BlockGenerator* GetGenerator() {
+        return generator;
+    }
     void Generate() override;
     void UpdateParameters();
     void LoadModel(const std::string& filepath) override;

@@ -57,24 +57,6 @@ bool BlockMesh::IsValidGridPosition(int gridX, int gridZ) const {
 }
 
 void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& projection) {
-    // Draw instances by block type ID
-    for (const auto& pair : blockInstances) {
-        int blockTypeId = pair.first;
-        const std::vector<glm::mat4>& instances = pair.second;
-        
-        if (instances.empty()) continue;
-        
-        // Use model if available for this block type
-        if (blockModels.find(blockTypeId) != blockModels.end()) {
-            std::shared_ptr<Model> model = blockModels[blockTypeId];
-            if (model) {
-                model->SetShader(m_shader);
-                model->DrawInstanced(view, projection, instances);
-            }
-        }
-    }
-    
-    // Draw instances by asset path
     for (const auto& pair : assetInstances) {
         const std::string& assetPath = pair.first;
         const std::vector<glm::mat4>& instances = pair.second;
