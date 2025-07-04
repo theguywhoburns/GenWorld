@@ -17,6 +17,7 @@ void SceneView::render() {
 
     renderSceneView();
     renderViewportShading();
+    renderGlobalButtons();
 }
 
 void SceneView::renderSceneView() {
@@ -47,6 +48,10 @@ void SceneView::renderSceneView() {
 
 void SceneView::renderViewportShading() {
     m_ShadingPanel.render();
+}
+
+void SceneView::renderGlobalButtons() {
+    m_GlobalButtons.render();
 }
 
 #pragma region Callbacks

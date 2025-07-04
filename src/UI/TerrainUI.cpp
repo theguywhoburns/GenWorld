@@ -48,6 +48,10 @@ void TerrainUI::DisplayUI() {
     }
 }
 
+void TerrainUI::RandomizeSeed() {
+    parameters.seed = rand() % 10000;
+}
+
 void TerrainUI::DisplayMainSettingsWindow() {
     ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
 
@@ -121,14 +125,6 @@ void TerrainUI::DisplayTerrainSettingsTab() {
 
     ImGui::Separator();
     ImGui::NewLine();
-
-    if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
-        parameters.seed = rand() % 10000;
-    }
-
-    if (ImGui::Button("Generate", ImVec2(200, 40))) {
-        controller->Generate();
-    }
 }
 
 void TerrainUI::DisplayAppearanceTab() {
@@ -317,7 +313,8 @@ void TerrainUI::DisplayColorSettings() {
         }
 
         ImGui::ColorEdit3("Color", &parameters.colors[i].color[0]);
-        ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f);
+        ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f, "%.5f",
+            ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoRoundToFormat);
 
         ImGui::PopID();
         ImGui::Separator();
@@ -368,7 +365,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
         ImGui::Text("Height");
         ImGui::SameLine();
-        ImGui::SliderFloat("##Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("##Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.5f");
 
         ImGui::Text("Tiling");
         ImGui::SameLine();

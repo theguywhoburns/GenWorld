@@ -4,7 +4,9 @@
 #include "../../Renderers/UiContext.h"
 #include "../../Renderers/SceneView.h"
 #include "../../Renderers/Renderer.h"
+#include "../../Controllers/GeneratorController.h"
 #include "../../Utils/Time.h"
+#include "../../Utils/Exporter/MeshExporter.h"
 #include "../Shader.h"
 #include "../Camera.h"
 #include "../ShaderManager.h"
@@ -26,13 +28,17 @@ public:
     }
 
     AppWindow* GetWindow() const { return m_window; }
+    void Generate();
+    void RandomizeSeed();
+    void Export(const std::string& format);
+    void Quit() { m_isRunning = false; }
 
 private:
     Application();
     ~Application();
 
     void init();
-    void RenderTopBar();
+    void CheckGenerationMode();
     void shutdown();
     void LoadDefaultShaders();
 
@@ -45,7 +51,7 @@ private:
     Renderer renderer;
     SceneView sceneView;
     UiContext uiCtx;
-    GeneratorController* generatorController;
+    GeneratorController* generatorController = nullptr;
 
     BlockController* blockController = nullptr;
     TerrainController* terrainController = nullptr;

@@ -56,18 +56,18 @@ void BlockUI::DisplayUI() {
         }
         
         ImGui::Separator();
-        // Center the Generate World button and make it big
-        float buttonWidth = 200.0f;
-        float avail = ImGui::GetContentRegionAvail().x;
-        ImGui::SetCursorPosX((avail - buttonWidth) * 0.5f);
-        if (ImGui::Button("Generate World", ImVec2(buttonWidth, 40)) && controller) {
-            controller->Generate();
-        }
 
         DisplayBlockConstraints();  // Keep this for weight/limit controls
         DisplayCastleMakerSettings();  // Keep this for castle maker settings
     }
     ImGui::End();
+}
+
+void BlockUI::RandomizeSeed() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<unsigned int> dist(10000, 99999);
+    parameters.randomSeed = dist(gen);
 }
 
 void BlockUI::DisplayBasicSettings() {
@@ -146,17 +146,6 @@ void BlockUI::DisplayBasicSettings() {
 
     ImGui::Separator();
     ImGui::InputInt("Random Seed", reinterpret_cast<int*>(&parameters.randomSeed));
-
-    // Center the Randomize Seed button and make it big like Generate
-    float buttonWidth = 200.0f;
-    float avail = ImGui::GetContentRegionAvail().x;
-    ImGui::SetCursorPosX((avail - buttonWidth) * 0.5f);
-    if (ImGui::Button("Randomize Seed", ImVec2(buttonWidth, 40))) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<unsigned int> dist(10000, 99999);
-        parameters.randomSeed = dist(gen);
-    }
 }
 void BlockUI::DisplaySocketEditor() {
     if (!ImGui::CollapsingHeader("Socket Editor", ImGuiTreeNodeFlags_DefaultOpen)) return;

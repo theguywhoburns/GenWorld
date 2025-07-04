@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/BlockData.h"
+#include "GeneratorUI.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -24,7 +25,7 @@ struct GenerationSettings {
     float blockScale = 1.0f;
 };
 
-class BlockUI {
+class BlockUI : public GeneratorUI {
 private:
     BlockController* controller;
     std::vector<AssetInfo> loadedAssets;
@@ -46,8 +47,9 @@ public:
     ~BlockUI();
     
     // Main UI display
-    void DisplayUI();
-    
+    void DisplayUI() override;
+    void RandomizeSeed() override;
+
     // Tab displays
     void DisplayBasicSettings();
     void DisplayBlockConstraints();

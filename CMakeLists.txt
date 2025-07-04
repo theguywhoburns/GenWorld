@@ -57,7 +57,7 @@ file(GLOB_RECURSE MY_SOURCES
 # Remove platform-specific files from general sources to avoid duplicates
 list(FILTER MY_SOURCES EXCLUDE REGEX ".*FileDialogs(Windows|Linux)\\.cpp$")
 
-add_executable(${PROJECT_NAME} ${MY_SOURCES} ${PLATFORM_SOURCES} ${GLFW-CMAKE-STARTER-SRC} "src/Utils/OBJExporter.h" "src/Utils/OBJExporter.cpp" "src/Core/stb_image_write.cpp" "src/Utils/MeshData.h")
+add_executable(${PROJECT_NAME} ${MY_SOURCES} ${PLATFORM_SOURCES} ${GLFW-CMAKE-STARTER-SRC})
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
 set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "" FORCE)
