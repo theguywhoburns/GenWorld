@@ -149,10 +149,23 @@ void BlockUI::DisplayBasicSettings() {
                     settings.minBlockCounts.clear();
                     settings.cornerBlockIds.clear();
                     
-                    // Clear socket system templates
-                    parameters.socketSystem.Initialize(); // This will clear all templates
+                    // Reset generation flags
+                    settings.enforceBlockLimits = true;
+                    settings.useWeightedSelection = true;
+                    settings.defaultWeight = 0.5f;
+                    settings.isGridMaskEnabled = false;
                     
-                    std::cout << "Cleared all assets and related data." << std::endl;
+                    // Reset dimension detection
+                    parameters.dimensionsDetected = false;
+                    
+                    // Reset UI state
+                    selectedBlockId = -1;
+                    rotationRequested = false;
+                    assetToRemoveId = -1;
+                    
+                    // Clear socket system templates and reset compatibility rules
+                    parameters.socketSystem.Initialize(); // This now properly clears all templates and resets compatibility
+
                     ImGui::CloseCurrentPopup();
                 }
                 ImGui::SameLine();
@@ -316,7 +329,6 @@ void BlockUI::DisplaySocketEditor() {
         ImGui::Separator();
         if (ImGui::Button("Clear All Rules")) {
             compatibility.ClearAllRules();
-            std::cout << "Cleared all socket compatibility rules" << std::endl;
         }
 
         ImGui::Separator();
@@ -341,9 +353,6 @@ void BlockUI::DisplaySocketEditor() {
             SocketType from = static_cast<SocketType>(fromSocketType);
             SocketType to = static_cast<SocketType>(toSocketType);
             compatibility.AddRule(from, to, canConnect);
-            std::cout << "Added rule: " << socketTypeNames[fromSocketType]
-                      << (canConnect ? " CAN " : " CANNOT ")
-                      << "connect to " << socketTypeNames[toSocketType] << std::endl;
         }
 
         ImGui::Separator();
@@ -381,9 +390,6 @@ void BlockUI::DisplaySocketEditor() {
                     // Click to toggle
                     if (ImGui::IsItemClicked()) {
                         compatibility.AddRule(from, to, !compatible);
-                        std::cout << "Toggled rule: " << socketTypeNames[fromType]
-                                  << (!compatible ? " CAN " : " CANNOT ")
-                                  << "connect to " << socketTypeNames[toType] << std::endl;
                     }
                 }
             }
@@ -403,7 +409,6 @@ void BlockUI::DisplaySocketEditor() {
                     compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), true);
                 }
             }
-            std::cout << "Set all socket types to connect to each other" << std::endl;
         }
 
         ImGui::SameLine();
@@ -413,7 +418,6 @@ void BlockUI::DisplaySocketEditor() {
                     compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), false);
                 }
             }
-            std::cout << "Set no socket types to connect" << std::endl;
         }
 
         ImGui::SameLine();
@@ -424,7 +428,6 @@ void BlockUI::DisplaySocketEditor() {
                     compatibility.AddRule(static_cast<SocketType>(i), static_cast<SocketType>(j), canConnect);
                 }
             }
-            std::cout << "Set socket types to only connect to same type (+ Empty connects to all)" << std::endl;
         }
     }
 }
@@ -469,7 +472,6 @@ void BlockUI::OnModelLoaded(std::shared_ptr<Model> model, const std::string& fil
     parameters.generationSettings.blockWeights[newAsset.id] = parameters.generationSettings.defaultWeight;
     parameters.generationSettings.maxBlockCounts[newAsset.id] = -1; // Set to UNLIMITED by default
     
-    std::cout << "Loaded block " << newAsset.id << " - initialized with unlimited count" << std::endl;
 }
 
 void BlockUI::OnModelLoadError(const std::string& error) {
@@ -535,7 +537,6 @@ void BlockUI::DisplayBlockConstraints() {
                 } else {
                     if (ImGui::SliderFloat(("##weight" + std::to_string(asset.id)).c_str(), &weight, 0.0f, 1.0f, "%.2f")) {
                         settings.blockWeights[asset.id] = weight;
-                        std::cout << "Updated weight for block " << asset.id << " to " << weight << std::endl;
                     }
                 }
                 
@@ -632,7 +633,6 @@ void BlockUI::DisplayBlockConstraints() {
             for (auto& [blockId, count] : settings.maxBlockCounts) {
                 count = -1;
             }
-            std::cout << "Reset all block min/max counts" << std::endl;
         }
         
         ImGui::SameLine();
@@ -640,7 +640,6 @@ void BlockUI::DisplayBlockConstraints() {
             for (auto& [blockId, weight] : settings.blockWeights) {
                 weight = 0.5f;
             }
-            std::cout << "Set all weights to 0.5" << std::endl;
         }
         
         ImGui::SameLine();
@@ -648,7 +647,6 @@ void BlockUI::DisplayBlockConstraints() {
             for (auto& [blockId, limit] : settings.maxBlockCounts) {
                 limit = -1; // Unlimited
             }
-            std::cout << "Removed all block limits" << std::endl;
         }
     }
 }
@@ -757,9 +755,6 @@ void BlockUI::SetupDefaultSocketConfigurations() {
     
     // Clear existing templates first
     socketSystem.Initialize();
-    
-    // Only configure socket templates for blocks that were actually loaded
-    std::cout << "Setting up socket configurations for " << loadedAssets.size() << " loaded assets..." << std::endl;
     
     // Define socket configurations for each expected block ID
     // These will only be applied if the corresponding asset was loaded
@@ -930,7 +925,6 @@ void BlockUI::SetupDefaultSocketConfigurations() {
         if (configIt != socketConfigurations.end()) {
             configIt->second(); // Execute the configuration function
             configuredCount++;
-            std::cout << "✓ Configured sockets for block " << asset.id << " (" << asset.name << ")" << std::endl;
             
             // Check if this is a corner block (IDs 7 and 8)
             if (asset.id == 7 || asset.id == 8) {
@@ -947,19 +941,21 @@ void BlockUI::SetupDefaultSocketConfigurations() {
     // Clear all rules first
     compatibility.ClearAllRules();
 
-    // Basic connection rules:
-    for (int i = 0; i <= 10; i++) {
-        compatibility.AddRule(SocketType::EMPTY, static_cast<SocketType>(i), true);
-        compatibility.AddRule(static_cast<SocketType>(i), SocketType::EMPTY, true);
-    }
-
+    // Basic connection rules - only specific socket types can connect to each other:
+    compatibility.AddRule(SocketType::EMPTY, SocketType::EMPTY, true);
     compatibility.AddRule(SocketType::STONE, SocketType::STONE, true);
     compatibility.AddRule(SocketType::WOOD, SocketType::WOOD, true);
-    compatibility.AddRule(SocketType::WALL, SocketType::WALL, true);
+    compatibility.AddRule(SocketType::WALL, SocketType::EMPTY, true);  // WALL can only connect to empty space
     compatibility.AddRule(SocketType::CUSTOM_1, SocketType::CUSTOM_1, true);
     compatibility.AddRule(SocketType::CUSTOM_2, SocketType::CUSTOM_2, true);
     compatibility.AddRule(SocketType::CUSTOM_3, SocketType::CUSTOM_3, true);
     compatibility.AddRule(SocketType::CUSTOM_4, SocketType::CUSTOM_4, true);
+    
+    // Cross-compatibility rules for architectural coherence
+    compatibility.AddRule(SocketType::STONE, SocketType::WOOD, true);    // Stone can connect to wood
+    compatibility.AddRule(SocketType::CUSTOM_1, SocketType::CUSTOM_3, true); // Tower base to tower mid windows
+    compatibility.AddRule(SocketType::CUSTOM_2, SocketType::CUSTOM_3, true); // Tower mid to tower mid windows
+    compatibility.AddRule(SocketType::CUSTOM_3, SocketType::CUSTOM_4, true); // Windows to arch
 
     // Generate rotated variants for all templates
     socketSystem.GenerateRotatedVariants();
@@ -1000,7 +996,6 @@ void BlockUI::SetupDefaultSocketConfigurations() {
         }
     } else {
         std::cout << "No corner blocks loaded - castle system will remain disabled" << std::endl;
-        std::cout << "You can manually load corner block models and configure them in the Socket Editor" << std::endl;
     }
 }
 
@@ -1054,33 +1049,22 @@ void BlockUI::LoadDefaultCastleAssets() {
     };
 
     for (int i = 0; i < sizeof(assetPaths) / sizeof(assetPaths[0]); ++i) {
-        try {
-            // Create Model object directly
-            std::shared_ptr<Model> model = std::make_shared<Model>(static_cast<const char*>(assetPaths[i].c_str()));
+        std::shared_ptr<Model> model = std::make_shared<Model>(static_cast<const char*>(assetPaths[i].c_str()));
+        
+        AssetInfo newAsset = {
+            i,
+            "Castle_" + std::to_string(i),
+            assetPaths[i],
+            model
+        };
+        
+        loadedAssets.push_back(newAsset);
+        
+        // Initialize generation settings for this asset
+        parameters.generationSettings.currentBlockCounts[newAsset.id] = 0;
+        parameters.generationSettings.blockWeights[newAsset.id] = parameters.generationSettings.defaultWeight;
+        parameters.generationSettings.maxBlockCounts[newAsset.id] = -1;
             
-            // Create AssetInfo and add to loaded assets
-            AssetInfo newAsset = {
-                i,                           // id
-                "Castle_" + std::to_string(i), // name
-                assetPaths[i],              // blockPath
-                model                       // model
-            };
-            
-            loadedAssets.push_back(newAsset);
-            
-            // Initialize generation settings for this asset
-            parameters.generationSettings.currentBlockCounts[newAsset.id] = 0;
-            parameters.generationSettings.blockWeights[newAsset.id] = parameters.generationSettings.defaultWeight;
-            parameters.generationSettings.maxBlockCounts[newAsset.id] = -1;
-            
-            std::cout << "✓ Loaded: " << assetPaths[i] << " (ID " << i << ")" << std::endl;
-            
-        } catch (const std::exception& e) {
-            std::cout << "✗ Failed to load: " << assetPaths[i] << " - " << e.what() << std::endl;
-
-        } catch (...) {
-            std::cout << "✗ Failed to load: " << assetPaths[i] << " - Unknown error" << std::endl;
-        }
     }
     
 }

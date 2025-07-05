@@ -74,6 +74,9 @@ void BlockGenerator::Generate() {
         std::cout << std::endl;
     }
 
+    // Print generation statistics
+    printGenerationSummary();
+
     generatorMesh = generateMeshFromGrid();
 }
 
@@ -97,9 +100,11 @@ void BlockGenerator::initializeSocketSystem() {
 
 
 void BlockGenerator::generateGridFrontierWFC(std::mt19937& rng) {
+    const int maxRestarts = 10; // Maximum number of hard restarts allowed
+    int restartCount = 0;
+    
     runSingleWFCAttempt(rng);
 }
-
 
 double BlockGenerator::calculateCellEntropy(const GridCell& cell) const {
     if (cell.collapsed || cell.possibleBlockRotationPairs.empty()) return 0.0;
@@ -477,6 +482,20 @@ void BlockGenerator::resetBlockCounts() {
     for (auto& [blockId, count] : settings.currentBlockCounts) count = 0;
 }
 
+void BlockGenerator::resetGridForRestart() {
+    // Clear the grid and reinitialize it for a fresh start
+    grid.clear();
+    
+    // Clear propagation data structures
+    while (!propagationFringe.empty()) propagationFringe.pop();
+    duplicateSet.clear();
+    
+    // Reinitialize the grid with fresh possibilities
+    initializeGrid();
+    
+    std::cout << "Grid reset for restart - all cells reinitialized" << std::endl;
+}
+
 bool BlockGenerator::canPlaceBlock(int blockId) const {
     auto& settings = parameters.generationSettings;
     
@@ -579,6 +598,41 @@ int BlockGenerator::getOppositeFaceIndex(int faceIndex) {
 }
 
 void BlockGenerator::generateRectangularCastle(std::mt19937& rng) {
+    const int maxRestarts = 10; // Maximum number of hard restarts allowed
+    int restartCount = 0;
+    
+    while (restartCount < maxRestarts) {
+        std::cout << "Rectangular Castle Generation attempt " << (restartCount + 1) << "/" << maxRestarts << std::endl;
+        
+        // Reset grid state for fresh attempt
+        if (restartCount > 0) {
+            resetGridForRestart();
+            resetBlockCounts();
+        }
+        
+        bool success = attemptRectangularCastleGeneration(rng);
+        
+        if (success && !hasContradictions()) {
+            std::cout << "Rectangular Castle Generation completed successfully on attempt " << (restartCount + 1) << std::endl;
+            return;
+        }
+        
+        if (hasContradictions()) {
+            std::cout << "Contradictions detected in castle generation on attempt " << (restartCount + 1) << ", performing hard restart..." << std::endl;
+        } else {
+            std::cout << "Castle generation failed on attempt " << (restartCount + 1) << ", performing hard restart..." << std::endl;
+        }
+        
+        restartCount++;
+        
+        // Use a different random seed for each restart to get different results
+        rng.seed(parameters.randomSeed + restartCount * 1000);
+    }
+    
+    std::cerr << "Rectangular Castle Generation failed after " << maxRestarts << " attempts. Using partial result." << std::endl;
+}
+
+bool BlockGenerator::attemptRectangularCastleGeneration(std::mt19937& rng) {
     // Initialize the grid mask for rectangular castle generation
     initializeGridMask();
     
@@ -588,7 +642,7 @@ void BlockGenerator::generateRectangularCastle(std::mt19937& rng) {
     // Try to place a corner block at the starting position
     if (!tryPlaceCornerBlock(cornerStart.x, cornerStart.y, cornerStart.z, rng)) {
         std::cerr << "Failed to place initial corner block at (" << cornerStart.x << ", " << cornerStart.y << ", " << cornerStart.z << ")" << std::endl;
-        return;
+        return false;
     }
     
     // Use frontier-based WFC for the rest of the generation, but respect the grid mask
@@ -654,6 +708,7 @@ void BlockGenerator::generateRectangularCastle(std::mt19937& rng) {
             }
         }
     }
+    return true; // Successfully completed generation
 }
 
 void BlockGenerator::initializeGridMask() {
@@ -1114,6 +1169,7 @@ void BlockGenerator::propagateWave(const GridPosition& startPos) {
         duplicateSet.erase(currentPos);
         
         // If cell has only one possibility and isn't collapsed, collapse it
+        // But be careful not to force collapse too early
         if (cell.possibleBlockRotationPairs.size() == 1 && !cell.collapsed) {
             auto chosenPair = cell.possibleBlockRotationPairs[0];
             cell.collapsed = true;
@@ -1122,6 +1178,9 @@ void BlockGenerator::propagateWave(const GridPosition& startPos) {
             glm::vec3 blockPosition = calculateBlockPosition(currentPos.x, currentPos.y, currentPos.z);
             cell.blockPositions = {blockPosition};
             incrementBlockCount(chosenPair.first);
+            
+            // Force propagate from newly collapsed cells
+            changed = true;
         }
         
         if (changed) {
@@ -1168,13 +1227,14 @@ bool BlockGenerator::validateCellPossibilitySpace(int x, int y, int z) {
     if (cell.collapsed) return false;
     
     std::vector<std::pair<int, int>> validPairs;
-
+    
     for (const auto& pair : cell.possibleBlockRotationPairs) {
         int blockId = pair.first;
         int rotation = pair.second;
 
         if (!canPlaceBlock(blockId)) continue;
         
+        // Use the existing validation method
         if (isBlockValidAtPosition(x, y, z, blockId, rotation)) {
             validPairs.push_back(pair);
         }
@@ -1224,6 +1284,13 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
         }
     }
     
+    // Find multiple entry points to start the frontier expansion - this gives better coverage
+    int entryPointsAdded = 0;
+    const int maxInitialEntryPoints = 3; // Start with a few scattered entry points
+    
+    std::vector<GridPosition> potentialEntryPoints;
+    
+    // Collect all potential entry points at the starting Y level
     for (int x = 0; x < (int)parameters.gridWidth; ++x) {
         for (int z = 0; z < (int)parameters.gridLength; ++z) {
             // Skip masked cells
@@ -1233,15 +1300,127 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
             
             auto& cell = grid[x][startY][z];
             if (!cell.collapsed && !cell.possibleBlockRotationPairs.empty()) {
-                double entropy = calculateCellEntropy(cell);
-                // Add Y-based priority: lower Y = higher priority (lower entropy value)
-                entropy += (startY * 0.001); // Small bias toward lower layers
-                
-                frontier.push({entropy, {x, startY, z}});
-                inFrontier.insert({x, startY, z});
+                potentialEntryPoints.push_back({x, startY, z});
             }
         }
     }
+    
+    if (potentialEntryPoints.empty()) {
+        std::cout << "No valid entry points found for WFC generation" << std::endl;
+        return false;
+    }
+    
+    // Shuffle and select initial entry points
+    std::shuffle(potentialEntryPoints.begin(), potentialEntryPoints.end(), rng);
+    
+    // Place the first block unconditionally to guarantee a starting point
+    if (!potentialEntryPoints.empty()) {
+        GridPosition firstPos = potentialEntryPoints[0];
+        auto& firstCell = grid[firstPos.x][firstPos.y][firstPos.z];
+        
+        // Get all available block types
+        std::vector<int> allBlocks;
+        if (controller && controller->GetBlockUI()) {
+            auto assets = controller->GetBlockUI()->GetLoadedAssets();
+            for (const auto& asset : assets) {
+                allBlocks.push_back(asset.id);
+            }
+        }
+        
+        if (!allBlocks.empty()) {
+            // Pick a completely random block and rotation
+            std::uniform_int_distribution<size_t> blockDist(0, allBlocks.size() - 1);
+            int randomBlockId = allBlocks[blockDist(rng)];
+            
+            // Get available rotations for this block
+            auto& templates = parameters.socketSystem.GetBlockTemplates();
+            auto templateIt = templates.find(randomBlockId);
+            if (templateIt != templates.end() && !templateIt->second.allowedRotations.empty()) {
+                std::uniform_int_distribution<size_t> rotDist(0, templateIt->second.allowedRotations.size() - 1);
+                int randomRotation = templateIt->second.allowedRotations[rotDist(rng)];
+                
+                // Place the block unconditionally
+                firstCell.collapsed = true;
+                firstCell.possibleBlockRotationPairs = {{randomBlockId, randomRotation}};
+                firstCell.blockTypeIds = {randomBlockId};
+                firstCell.blockRotations = {randomRotation};
+                glm::vec3 blockPosition = calculateBlockPosition(firstPos.x, firstPos.y, firstPos.z);
+                firstCell.blockPositions = {blockPosition};
+                incrementBlockCount(randomBlockId);
+                
+                std::cout << "Placed first block unconditionally: Block " << randomBlockId 
+                         << " at (" << firstPos.x << ", " << firstPos.y << ", " << firstPos.z 
+                         << ") with rotation " << randomRotation << std::endl;
+                
+                // Propagate constraints from this initial block
+                propagateWave(firstPos);
+                
+                // Add neighbors to frontier
+                const std::vector<std::tuple<int, int, int>> neighborOffsets = {
+                    {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
+                };
+                
+                for (const auto& [dx, dy, dz] : neighborOffsets) {
+                    int nx = firstPos.x + dx, ny = firstPos.y + dy, nz = firstPos.z + dz;
+                    GridPosition npos{nx, ny, nz};
+                    
+                    if (isValidGridPosition(nx, ny, nz) && 
+                        !(parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(nx, ny, nz)) &&
+                        !grid[nx][ny][nz].collapsed && 
+                        !grid[nx][ny][nz].possibleBlockRotationPairs.empty() &&
+                        inFrontier.find(npos) == inFrontier.end()) {
+                        
+                        double entropy = calculateCellEntropy(grid[nx][ny][nz]);
+                        entropy += (ny * 0.1);
+                        
+                        frontier.push({entropy, npos});
+                        inFrontier.insert(npos);
+                        entryPointsAdded++;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Add additional entry points if needed
+    for (size_t i = 1; i < potentialEntryPoints.size() && entryPointsAdded < maxInitialEntryPoints; i++) {
+        const auto& pos = potentialEntryPoints[i];
+        
+        // Skip if already processed or too close to existing entry points
+        if (inFrontier.find(pos) != inFrontier.end() || grid[pos.x][pos.y][pos.z].collapsed) {
+            continue;
+        }
+        
+        auto& cell = grid[pos.x][pos.y][pos.z];
+        if (!cell.possibleBlockRotationPairs.empty()) {
+            double entropy = calculateCellEntropy(cell);
+            entropy += (pos.y * 0.001);
+            
+            frontier.push({entropy, pos});
+            inFrontier.insert(pos);
+            entryPointsAdded++;
+        }
+    }
+    
+    std::cout << "Starting WFC with " << entryPointsAdded << " total entry points (1 unconditional + " << (entryPointsAdded-1) << " constrained)" << std::endl;
+    
+    // Randomize the number of cells we want to generate (between 30% and 80% of total valid cells)
+    int totalValidCells = 0;
+    for (int x = 0; x < (int)parameters.gridWidth; ++x) {
+        for (int y = 0; y < (int)parameters.gridHeight; ++y) {
+            for (int z = 0; z < (int)parameters.gridLength; ++z) {
+                if (!(parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(x, y, z))) {
+                    totalValidCells++;
+                }
+            }
+        }
+    }
+    
+    std::uniform_int_distribution<int> targetDist(totalValidCells * 0.3f, totalValidCells * 0.8f);
+    int targetCellsToGenerate = targetDist(rng);
+    int cellsGenerated = 1; // Start with 1 since we already placed the first block unconditionally
+
+    std::cout << "Target cells to generate: " << targetCellsToGenerate << " out of " << totalValidCells << " total valid cells" << std::endl;
     
     const std::vector<std::tuple<int, int, int>> neighborOffsets = {
         {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
@@ -1250,10 +1429,13 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
     int iterationCount = 0;
     int consecutiveSkips = 0;
     const int maxConsecutiveSkips = 10;
+    int totalCellsProcessed = 0;
+    int failedCells = 0;
     
     while (!frontier.empty()) {
         FrontierCell fc = frontier.top();
         frontier.pop();
+        iterationCount++;
         
         // Skip if already processed or no longer valid
         auto& cell = grid[fc.pos.x][fc.pos.y][fc.pos.z];
@@ -1261,14 +1443,56 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
             inFrontier.erase(fc.pos);
             consecutiveSkips++;
             
+            // If we've had too many skips and frontier is empty, try starting from a new point
             if (consecutiveSkips > maxConsecutiveSkips && frontier.empty()) {
-                std::cout << "Frontier expansion complete - no more connected cells to process" << std::endl;
-                break; // Exit the loop instead of adding disconnected cells
+                std::cout << "Frontier expansion complete - attempting new random start..." << std::endl;
+                
+                // Collect all potential new starting points
+                std::vector<GridPosition> potentialStarts;
+                for (int ny = 0; ny < (int)parameters.gridHeight; ++ny) {
+                    for (int nx = 0; nx < (int)parameters.gridWidth; ++nx) {
+                        for (int nz = 0; nz < (int)parameters.gridLength; ++nz) {
+                            if (isValidGridPosition(nx, ny, nz) &&
+                                !(parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(nx, ny, nz)) &&
+                                !grid[nx][ny][nz].collapsed &&
+                                !grid[nx][ny][nz].possibleBlockRotationPairs.empty()) {
+                                
+                                potentialStarts.push_back({nx, ny, nz});
+                            }
+                        }
+                    }
+                }
+                
+                if (!potentialStarts.empty()) {
+                    // Shuffle and try multiple starting points
+                    std::shuffle(potentialStarts.begin(), potentialStarts.end(), rng);
+                    
+                    int newStartsAdded = 0;
+                    const int maxNewStarts = std::min(5, (int)potentialStarts.size());
+                    
+                    for (const auto& newStart : potentialStarts) {
+                        if (newStartsAdded >= maxNewStarts) break;
+                        
+                        double entropy = calculateCellEntropy(grid[newStart.x][newStart.y][newStart.z]);
+                        entropy += (newStart.y * 0.1);
+                        
+                        frontier.push({entropy, newStart});
+                        inFrontier.insert(newStart);
+                        newStartsAdded++;
+                    }
+                    
+                    consecutiveSkips = 0; // Reset skip counter
+                    std::cout << "Added " << newStartsAdded << " new disconnected starting points" << std::endl;
+                } else {
+                    std::cout << "No more valid positions available for new starting points." << std::endl;
+                    break; // No more cells available, exit the loop
+                }
             }
             continue;
         }
         
         consecutiveSkips = 0; 
+        totalCellsProcessed++;
         
         // Try to collapse the cell
         if (!collapseCellWFC(fc.pos.x, fc.pos.y, fc.pos.z, rng)) {
@@ -1276,9 +1500,27 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
             // Mark the cell as permanently failed (no possibilities)
             cell.possibleBlockRotationPairs.clear();
             inFrontier.erase(fc.pos);
+            failedCells++;
             
-            // Continue with next frontier cell - never abort
+            // If we have too many failed cells, this attempt is likely doomed
+            if (failedCells > (totalCellsProcessed / 2)) { // More than 50% failure rate (was 25%)
+                std::cout << "High failure rate detected (" << failedCells << "/" << totalCellsProcessed 
+                         << "), aborting attempt..." << std::endl;
+                return false;
+            }
+            
+            // Continue with next frontier cell - never abort on single failures
             continue;
+        }
+        
+        // Successfully collapsed a cell
+        cellsGenerated++;
+        std::cout << "Cells generated: " << cellsGenerated << "/" << targetCellsToGenerate << std::endl;
+        
+        // Check if we've reached our target
+        if (cellsGenerated >= targetCellsToGenerate) {
+            std::cout << "Reached target cell count (" << targetCellsToGenerate << "), stopping generation." << std::endl;
+            break;
         }
         
         inFrontier.erase(fc.pos);
@@ -1305,6 +1547,15 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
         }
     }
 
+    std::cout << "WFC attempt completed: " << totalCellsProcessed << " cells processed, " 
+              << failedCells << " failed, " << cellsGenerated << " successfully generated" << std::endl;
+    
+    // Final contradiction check
+    if (hasContradictions()) {
+        std::cout << "Final contradiction check failed" << std::endl;
+        return false;
+    }
+    
     return true;
 }
 
@@ -1320,7 +1571,7 @@ bool BlockGenerator::isGenerationComplete() const {
                 const auto& cell = grid[x][y][z];
                 // Consider a cell "complete" if it's either collapsed OR has no possibilities (failed)
                 if (!cell.collapsed && !cell.possibleBlockRotationPairs.empty()) {
-                    return false; // Still has possibilities to be collapsed
+                    return false;
                 }
             }
         }
@@ -1346,4 +1597,48 @@ bool BlockGenerator::hasContradictions() const {
         }
     }
     return false;
+}
+
+void BlockGenerator::printGenerationSummary() const {
+    int totalCells = 0;
+    int collapsedCells = 0;
+    int failedCells = 0;
+    
+    for (int x = 0; x < (int)parameters.gridWidth; ++x) {
+        for (int y = 0; y < (int)parameters.gridHeight; ++y) {
+            for (int z = 0; z < (int)parameters.gridLength; ++z) {
+                // Skip masked cells
+                if (parameters.generationSettings.isGridMaskEnabled && isGridCellMasked(x, y, z)) {
+                    continue;
+                }
+                
+                totalCells++;
+                const auto& cell = grid[x][y][z];
+                
+                if (cell.collapsed) {
+                    collapsedCells++;
+                } else if (cell.possibleBlockRotationPairs.empty()) {
+                    failedCells++;
+                }
+            }
+        }
+    }
+    
+    std::cout << "\n=== Generation Summary ===" << std::endl;
+    std::cout << "Total cells: " << totalCells << std::endl;
+    std::cout << "Successfully collapsed: " << collapsedCells << " (" 
+              << (100.0 * collapsedCells / totalCells) << "%)" << std::endl;
+    std::cout << "Failed (contradictions): " << failedCells << " (" 
+              << (100.0 * failedCells / totalCells) << "%)" << std::endl;
+    std::cout << "Uncollapsed: " << (totalCells - collapsedCells - failedCells) << std::endl;
+    
+    // Block type statistics
+    auto& settings = parameters.generationSettings;
+    std::cout << "\n=== Block Count Statistics ===" << std::endl;
+    for (const auto& [blockId, count] : settings.currentBlockCounts) {
+        if (count > 0) {
+            std::cout << "Block " << blockId << ": " << count << " placed" << std::endl;
+        }
+    }
+    std::cout << "=========================" << std::endl;
 }

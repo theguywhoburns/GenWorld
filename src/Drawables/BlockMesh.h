@@ -20,7 +20,7 @@ public:
     void AddBlockInstance(int blockTypeId, const Transform& transform);
     void AddBlockInstance(const std::string& assetPath, const Transform& transform);
     void ClearInstances();
-    
+
     // Utility methods
     glm::vec3 GetBlockPosition(int gridX, int gridZ) const;
     bool IsValidGridPosition(int gridX, int gridZ) const;

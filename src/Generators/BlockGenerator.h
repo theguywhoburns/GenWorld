@@ -96,7 +96,8 @@ private:
     bool runSingleWFCAttempt(std::mt19937& rng);
     bool isGenerationComplete() const;
     bool hasContradictions() const;
-    
+    void printGenerationSummary() const;
+
     double calculateCellEntropy(const GridCell& cell) const;
     void updateCellPossibilities(int x, int y, int z);
 
@@ -131,6 +132,7 @@ private:
     // Block count and weight management
     void initializeBlockWeights();
     void resetBlockCounts();
+    void resetGridForRestart();
     bool canPlaceBlock(int blockId) const;
     int selectWeightedBlock(const std::vector<int>& validBlocks, std::mt19937& rng);
     void incrementBlockCount(int blockId);
@@ -145,6 +147,7 @@ private:
 
     // Rectangular castle generation
     void generateRectangularCastle(std::mt19937& rng);
+    bool attemptRectangularCastleGeneration(std::mt19937& rng);
     void initializeGridMask();
     bool isGridCellMasked(int x, int y, int z) const;
     bool isCornerPosition(int x, int y, int z) const;
