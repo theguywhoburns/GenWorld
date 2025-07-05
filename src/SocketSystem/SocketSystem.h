@@ -58,7 +58,15 @@ public:
         connectionRules[{socketA, socketB}] = canConnect;
         connectionRules[{socketB, socketA}] = canConnect; // Symmetric
     }
-    
+
+    bool HasRule(SocketType socketA) const {
+        for (const auto& pair : connectionRules) {
+            if (pair.first.first == socketA || pair.first.second == socketA) {
+                return true;
+            }
+        }
+        return false;
+    }
     bool CanConnect(SocketType socketA, SocketType socketB) const {
         // EMPTY sockets can connect to anything
         if (socketA == SocketType::EMPTY || socketB == SocketType::EMPTY) {

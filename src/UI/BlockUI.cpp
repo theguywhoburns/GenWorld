@@ -926,10 +926,6 @@ void BlockUI::SetupDefaultSocketConfigurations() {
             configIt->second(); // Execute the configuration function
             configuredCount++;
             
-            // Check if this is a corner block (IDs 7 and 8)
-            if (asset.id == 7 || asset.id == 8) {
-                cornerBlockIds.insert(asset.id);
-            }
         } else {
             std::cout << "! No socket configuration defined for block " << asset.id << " - using defaults" << std::endl;
         }
@@ -955,17 +951,12 @@ void BlockUI::SetupDefaultSocketConfigurations() {
     compatibility.AddRule(SocketType::STONE, SocketType::WOOD, true);    // Stone can connect to wood
     compatibility.AddRule(SocketType::CUSTOM_1, SocketType::CUSTOM_3, true); // Tower base to tower mid windows
     compatibility.AddRule(SocketType::CUSTOM_2, SocketType::CUSTOM_3, true); // Tower mid to tower mid windows
-    compatibility.AddRule(SocketType::CUSTOM_3, SocketType::CUSTOM_4, true); // Windows to arch
 
     // Generate rotated variants for all templates
     socketSystem.GenerateRotatedVariants();
     
-    // Only enable castle system and set corner blocks if we have corner blocks loaded
-    if (!cornerBlockIds.empty()) {
-        parameters.generationSettings.isGridMaskEnabled = true;
-        parameters.generationSettings.cornerBlockIds = cornerBlockIds;
 
-        for (const auto& asset : loadedAssets) {
+     for (const auto& asset : loadedAssets) {
             auto& settings = parameters.generationSettings;
             
             // Set default weights based on block type
@@ -994,6 +985,13 @@ void BlockUI::SetupDefaultSocketConfigurations() {
                 settings.minBlockCounts[asset.id] = 1;
             }
         }
+        
+    // Only enable castle system and set corner blocks if we have corner blocks loaded
+    if (!cornerBlockIds.empty()) {
+        parameters.generationSettings.isGridMaskEnabled = true;
+        parameters.generationSettings.cornerBlockIds = cornerBlockIds;
+
+       
     } else {
         std::cout << "No corner blocks loaded - castle system will remain disabled" << std::endl;
     }

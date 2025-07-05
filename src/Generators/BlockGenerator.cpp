@@ -598,38 +598,41 @@ int BlockGenerator::getOppositeFaceIndex(int faceIndex) {
 }
 
 void BlockGenerator::generateRectangularCastle(std::mt19937& rng) {
-    const int maxRestarts = 10; // Maximum number of hard restarts allowed
-    int restartCount = 0;
+    // const int maxRestarts = 10; // Maximum number of hard restarts allowed
+    // int restartCount = 0;
     
-    while (restartCount < maxRestarts) {
-        std::cout << "Rectangular Castle Generation attempt " << (restartCount + 1) << "/" << maxRestarts << std::endl;
+    attemptRectangularCastleGeneration(rng);
         
-        // Reset grid state for fresh attempt
-        if (restartCount > 0) {
-            resetGridForRestart();
-            resetBlockCounts();
-        }
+
+    // while (restartCount < maxRestarts) {
+    //     std::cout << "Rectangular Castle Generation attempt " << (restartCount + 1) << "/" << maxRestarts << std::endl;
         
-        bool success = attemptRectangularCastleGeneration(rng);
+    //     // Reset grid state for fresh attempt
+    //     if (restartCount > 0) {
+    //         resetGridForRestart();
+    //         resetBlockCounts();
+    //     }
         
-        if (success && !hasContradictions()) {
-            std::cout << "Rectangular Castle Generation completed successfully on attempt " << (restartCount + 1) << std::endl;
-            return;
-        }
+    //     bool success = attemptRectangularCastleGeneration(rng);
         
-        if (hasContradictions()) {
-            std::cout << "Contradictions detected in castle generation on attempt " << (restartCount + 1) << ", performing hard restart..." << std::endl;
-        } else {
-            std::cout << "Castle generation failed on attempt " << (restartCount + 1) << ", performing hard restart..." << std::endl;
-        }
+    //     if (success && !hasContradictions()) {
+    //         std::cout << "Rectangular Castle Generation completed successfully on attempt " << (restartCount + 1) << std::endl;
+    //         return;
+    //     }
         
-        restartCount++;
+    //     if (hasContradictions()) {
+    //         std::cout << "Contradictions detected in castle generation on attempt " << (restartCount + 1) << ", performing hard restart..." << std::endl;
+    //     } else {
+    //         std::cout << "Castle generation failed on attempt " << (restartCount + 1) << ", performing hard restart..." << std::endl;
+    //     }
         
-        // Use a different random seed for each restart to get different results
-        rng.seed(parameters.randomSeed + restartCount * 1000);
-    }
+    //     restartCount++;
+        
+    //     // Use a different random seed for each restart to get different results
+    //     rng.seed(parameters.randomSeed + restartCount * 1000);
+    // }
     
-    std::cerr << "Rectangular Castle Generation failed after " << maxRestarts << " attempts. Using partial result." << std::endl;
+    //std::cerr << "Rectangular Castle Generation failed after " << maxRestarts << " attempts. Using partial result." << std::endl;
 }
 
 bool BlockGenerator::attemptRectangularCastleGeneration(std::mt19937& rng) {
@@ -1323,7 +1326,15 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
         if (controller && controller->GetBlockUI()) {
             auto assets = controller->GetBlockUI()->GetLoadedAssets();
             for (const auto& asset : assets) {
-                allBlocks.push_back(asset.id);
+                if (parameters.socketSystem.GetBlockTemplates().count(asset.id) > 0) {
+                    // Get the block template for this asset
+                    const auto& blockTemplate = parameters.socketSystem.GetBlockTemplates().at(asset.id);
+                    
+                    // Check if the -Y face (index 3) has a non-empty socket
+                    if (!parameters.socketSystem.GetCompatibility().HasRule(blockTemplate.sockets[3].type)) {
+                        allBlocks.push_back(asset.id);
+                    }
+                }
             }
         }
         
@@ -1416,9 +1427,11 @@ bool BlockGenerator::runSingleWFCAttempt(std::mt19937& rng) {
         }
     }
     
-    std::uniform_int_distribution<int> targetDist(totalValidCells * 0.3f, totalValidCells * 0.8f);
-    int targetCellsToGenerate = targetDist(rng);
-    int cellsGenerated = 1; // Start with 1 since we already placed the first block unconditionally
+    // std::uniform_int_distribution<int> targetDist(totalValidCells * 0.3f, totalValidCells * 0.8f);
+    // int targetCellsToGenerate = targetDist(rng);
+
+    int targetCellsToGenerate = totalValidCells;
+    int cellsGenerated = 1;
 
     std::cout << "Target cells to generate: " << targetCellsToGenerate << " out of " << totalValidCells << " total valid cells" << std::endl;
     
