@@ -35,7 +35,7 @@ void TerrainMesh::Draw(Shader& shader) {
 
     // Preview with ImGui (Just for testing)
     ImGui::Begin("Terrain Texture Preview");
-    ImGui::Image((intptr_t)resultTextureID, ImVec2(512, 512));
+    ImGui::Image((intptr_t)resultTextureID, ImVec2(350, 350));
     ImGui::End();
 }
 

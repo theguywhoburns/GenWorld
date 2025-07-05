@@ -300,10 +300,14 @@ void UiContext::defaultLayout()
     ImGuiID top = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.2f, nullptr, &dockspace_id);
     ImGuiID down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.2f, nullptr, &dockspace_id);
     ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.35f, nullptr, &dockspace_id);
-    ImGuiID right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.5f, nullptr, &dockspace_id);
+    ImGuiID right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.35f, nullptr, &dockspace_id);
+    ImGuiID bottom_right = ImGui::DockBuilderSplitNode(right, ImGuiDir_Down, 0.4f, nullptr, &right);
 
     ImGui::DockBuilderDockWindow("Scene View", dockspace_id);
     ImGui::DockBuilderDockWindow("Terrain Settings", right);
+    ImGui::DockBuilderDockWindow("Block World Generator", right);
+    ImGui::DockBuilderDockWindow("Terrain Texture Preview", bottom_right);
+
     // Add more windows later
 
     ImGui::DockBuilderFinish(dockspace_id);

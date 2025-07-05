@@ -991,48 +991,21 @@ void BlockUI::LoadDefaultCastleAssets() {
         std::cout << "No controller available - skipping default asset loading" << std::endl;
         return;
     }
-    
-        // Get the path to this source file and construct project root path
-    std::string currentFilePath = __FILE__;
-    
-    // Navigate up from src/UI/BlockUI.cpp to project root
-    // Remove the filename first
-    size_t lastSlash = currentFilePath.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        currentFilePath = currentFilePath.substr(0, lastSlash); // Remove BlockUI.cpp
-    }
-    
-    // Go up from UI directory
-    lastSlash = currentFilePath.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        currentFilePath = currentFilePath.substr(0, lastSlash); // Remove UI
-    }
-    
-    // Go up from src directory  
-    lastSlash = currentFilePath.find_last_of("/\\");
-    if (lastSlash != std::string::npos) {
-        currentFilePath = currentFilePath.substr(0, lastSlash); // Remove src
-    }
-    
-    // Convert backslashes to forward slashes for consistency
-    std::replace(currentFilePath.begin(), currentFilePath.end(), '\\', '/');
-    
-    std::string basePath = currentFilePath + "/";
 
     std::string assetPaths[] = {
-        basePath + "Models/Castle/tower-square-base.fbx",
-        basePath + "Models/Castle/tower-square-arch.fbx",
-        basePath + "Models/Castle/wall.fbx",
-        basePath + "Models/Castle/wall-narrow-gate.fbx",
-        basePath + "Models/Castle/wall.fbx", // Duplicate
-        basePath + "Models/Castle/tower-slant-roof.fbx",
-        basePath + "Models/Castle/wall.fbx", // Duplicate
-        basePath + "Models/Castle/wall-corner.fbx",
-        basePath + "Models/Castle/wall-corner-half-tower.fbx",
-        basePath + "Models/Castle/tower-square-mid.fbx",
-        basePath + "Models/Castle/tower-square-mid-windows.fbx",
-        basePath + "Models/Castle/tower-square-top-roof-high.fbx",
-        basePath + "Models/Castle/tower-square-mid-windows.fbx" // Duplicate
+        "Models/Castle/tower-square-base.fbx",
+        "Models/Castle/tower-square-arch.fbx",
+        "Models/Castle/wall.fbx",
+        "Models/Castle/wall-narrow-gate.fbx",
+        "Models/Castle/wall.fbx", // Duplicate
+        "Models/Castle/tower-slant-roof.fbx",
+        "Models/Castle/wall.fbx", // Duplicate
+        "Models/Castle/wall-corner.fbx",
+        "Models/Castle/wall-corner-half-tower.fbx",
+        "Models/Castle/tower-square-mid.fbx",
+        "Models/Castle/tower-square-mid-windows.fbx",
+        "Models/Castle/tower-square-top-roof-high.fbx",
+        "Models/Castle/tower-square-mid-windows.fbx" // Duplicate
     };
 
     for (int i = 0; i < sizeof(assetPaths) / sizeof(assetPaths[0]); ++i) {
