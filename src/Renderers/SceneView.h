@@ -5,6 +5,7 @@
 #include "../Utils/Time.h"
 #include "../Core/Engine/AppWindow.h"
 #include "../UI/ViewportShading.h"
+#include "../UI/GlobalButtons.h"
 #include "Renderer.h"
 
 #include <imgui.h>
@@ -29,6 +30,7 @@ private:
     AppWindow* window;
     glm::vec2 m_ViewportSize;
     ShadingPanel m_ShadingPanel;
+    GlobalButtons m_GlobalButtons;
 
     bool camMode = false;
     bool isSceneWindowHovered = false;
@@ -37,6 +39,7 @@ private:
 
     void renderSceneView();
     void renderViewportShading();
+    void renderGlobalButtons();
 
     void processInput();
     void mouseClick();

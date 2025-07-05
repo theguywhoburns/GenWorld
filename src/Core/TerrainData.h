@@ -52,7 +52,7 @@ namespace TerrainUtilities {
         float length;
         float halfWidth;
         float halfLength;
-        int cellSize;
+        float cellSize;
         unsigned int numCellsWidth;
         unsigned int numCellsLength;
         float stepX;

@@ -2,9 +2,6 @@
 
 #include <string>
 #include <vector>
-#include <../src/Core/stb_image_write.h>
-#include "../src/Drawables/Mesh.h"
-#include "../src/Drawables/TerrainMesh.h"
 
 struct MeshData {
     std::string name;

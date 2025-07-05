@@ -7,17 +7,21 @@ TerrainController::TerrainController(Renderer* renderer)
     terrainUI = new TerrainUI(this);
 }
 
-TerrainController::~TerrainController() {
-
-}
-
 void TerrainController::Update() {
     Mesh* mesh = generator.GetMesh();
     if (mesh == nullptr) {
         return; // No mesh to render
     }
-    
+
     renderer->AddToRenderQueue(mesh);
+}
+
+void TerrainController::RandomizeSeed() {
+    terrainUI->RandomizeSeed();
+}
+
+IGeneratorStrategy& TerrainController::getGenerator() {
+    return generator;
 }
 
 void TerrainController::UpdateParameters() {
@@ -26,6 +30,9 @@ void TerrainController::UpdateParameters() {
 }
 
 void TerrainController::Generate() {
+    if (generator.GetParameters() == terrainUI->GetParameters())
+        return;
+
     UpdateParameters();
 
     generator.Generate();

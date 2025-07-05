@@ -64,6 +64,10 @@ void Mesh::DrawInstanced(unsigned int instanceCount, const glm::mat4& view, cons
 }
 
 void Mesh::setupMesh() {
+	if(vertices.empty() || indices.empty()) {
+        std::cerr << "Mesh setup failed: vertices or indices are empty." << std::endl;
+        return;
+    }
 	glGenVertexArrays(1, &arrayObj);
 	glGenBuffers(1, &vertexBuffer);
 	glGenBuffers(1, &indexBuffer);

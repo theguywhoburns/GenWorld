@@ -48,6 +48,10 @@ void TerrainUI::DisplayUI() {
     }
 }
 
+void TerrainUI::RandomizeSeed() {
+    parameters.seed = rand() % 10000;
+}
+
 void TerrainUI::DisplayMainSettingsWindow() {
     ImGui::Begin("Terrain Settings", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
 
@@ -87,8 +91,15 @@ void TerrainUI::DisplayTerrainSettingsTab() {
 
     ImGui::DragFloat("Width", &parameters.width, 0.1f, 1, 100);
     ImGui::DragFloat("Length", &parameters.length, 0.1f, 1, 100);
-    ImGui::SliderInt("Division Size", &parameters.cellSize, 1, 10);
-    ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 100);
+
+    ImGui::SliderFloat("Division Size", &parameters.cellSize, 0.25f, 10);
+    parameters.cellSize = std::max(0.25f, parameters.cellSize);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("The size of each terrain cell. Affects the resolution of the terrain mesh. "
+                          "\nSmaller values increase detail but require more processing power.");
+    }
+
+    ImGui::DragFloat("Height Multiplier", &parameters.heightMultiplier, 0.1f, 1, 1000);
 
     ImGui::Separator();
     ImGui::NewLine();
@@ -100,10 +111,10 @@ void TerrainUI::DisplayTerrainSettingsTab() {
     ImGui::NewLine();
 
     ImGui::Spectrum::SectionTitle("Noise Settings");
-    ImGui::SliderFloat("Scale", &parameters.scale, 0.001f, 50.0f);
-    ImGui::SliderInt("Octaves", &parameters.octaves, 1, 10);
+    ImGui::DragFloat("Scale", &parameters.scale, 1.0f, 0.0f);
+    ImGui::SliderInt("Octaves", &parameters.octaves, 1, 50);
     ImGui::SliderFloat("Lacunarity", &parameters.lacunarity, 0.1f, 50.0f);
-    ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 1.0f);
+    ImGui::SliderFloat("Persistence", &parameters.persistence, 0.0f, 5.0f);
     ImGui::DragFloat2("Offset", &parameters.offset[0], 0.1f);
     ImGui::DragInt("Seed", &parameters.seed, 1, 0, 10000);
 
@@ -114,14 +125,6 @@ void TerrainUI::DisplayTerrainSettingsTab() {
 
     ImGui::Separator();
     ImGui::NewLine();
-
-    if (ImGui::Button("Randomize Seed", ImVec2(200, 40))) {
-        parameters.seed = rand() % 10000;
-    }
-
-    if (ImGui::Button("Generate", ImVec2(200, 40))) {
-        controller->Generate();
-    }
 }
 
 void TerrainUI::DisplayAppearanceTab() {
@@ -214,7 +217,7 @@ void TerrainUI::DisplaySceneViewOverlay() {
         ImGuiWindowFlags_NoBackground;
 
     ImGuiWindow* sceneWindow = ImGui::FindWindowByName("Scene View");
-    if (!sceneWindow) return; // Scene View not found, don't render gizmo
+    if (!sceneWindow) return;
 
     ImGui::SetNextWindowSize(sceneWindow->Size);
     ImGui::SetNextWindowPos(sceneWindow->Pos);
@@ -228,12 +231,12 @@ void TerrainUI::DisplaySceneViewOverlay() {
     ImGui::Begin("liveupdate", nullptr, flags);
 
     ImVec2 originalPos = ImGui::GetCursorPos();
-    ImVec2 overalySize(120, 35);
+    ImVec2 overalySize(150, 50);
     ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
     ImVec2 overlayPos(
-        contentRegionMax.x - overalySize.x - 10,
-        contentRegionMin.y + 150
+        contentRegionMax.x - overalySize.x - 20,
+        contentRegionMin.y + 200
     );
     ImGui::SetCursorPos(overlayPos);
 
@@ -310,7 +313,8 @@ void TerrainUI::DisplayColorSettings() {
         }
 
         ImGui::ColorEdit3("Color", &parameters.colors[i].color[0]);
-        ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f);
+        ImGui::SliderFloat("Height", &parameters.colors[i].height, 0.0f, 1.0f, "%.5f",
+            ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoRoundToFormat);
 
         ImGui::PopID();
         ImGui::Separator();
@@ -361,7 +365,7 @@ void TerrainUI::DisplayTextureLayerSettings() {
 
         ImGui::Text("Height");
         ImGui::SameLine();
-        ImGui::SliderFloat("##Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("##Height", &parameters.loadedTextures[i].height, 0.0f, 1.0f, "%.5f");
 
         ImGui::Text("Tiling");
         ImGui::SameLine();

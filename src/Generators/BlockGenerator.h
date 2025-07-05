@@ -124,10 +124,7 @@ private:
     // Mesh generation (handles rotations)
     BlockMesh* generateMeshFromGrid();
     BlockMesh* createEmptyMesh();
-    void addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, int rotation,
-                        std::set<std::shared_ptr<Texture>>& uniqueTextures);
-    void collectTexturesFromModel(const std::shared_ptr<Model>& model,
-                                 std::set<std::shared_ptr<Texture>>& uniqueTextures);
+    void addBlockToMesh(BlockMesh* blockMesh, int blockId, const glm::vec3& position, int rotation);
 
     // Block count and weight management
     void initializeBlockWeights();

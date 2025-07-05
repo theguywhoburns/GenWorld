@@ -17,6 +17,7 @@ public:
 
     Mesh* GetMesh() const override { return terrainMesh; }
     std::vector<float> GetHeightMap() const { return heightMap; }
+    const TerrainUtilities::TerrainData& GetParameters() const { return parameters; }
     void SetParameters(const TerrainUtilities::TerrainData& params);
 
     struct ThreadTask {

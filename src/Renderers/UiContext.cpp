@@ -3,8 +3,6 @@
 #include <cstring>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../src/Drawables/Mesh.h" 
-#include "../Generators/TerrainGenerator.h"
 #include "../src/Core/Engine/Application.h"
 
 
@@ -109,34 +107,9 @@ void UiContext::postRender()
     }
 }
 
-void UiContext::setTerrainGenerator(TerrainGenerator* tg) {
-    terrainGen = tg;
+void UiContext::exportMesh(std::string format) {
+    Application::GetInstance()->Export(format);
 }
-
-void UiContext::exportTerrain(string format) {
-    if (!terrainGen) {
-        std::cerr << "TerrainGenerator not set.\n";
-        return;
-    }
-
-    Mesh* meshData = terrainGen->GetMesh();
-    if (meshData) {
-        // Safely cast from Mesh* to TerrainMesh*
-        TerrainMesh* terrainData = dynamic_cast<TerrainMesh*>(meshData);
-        if (terrainData) {
-            if (format == "obj") {
-                ExportMeshAsOBJ(*terrainData, "terrain.obj");
-            }
-        }
-        else {
-            std::cerr << "Mesh is not a TerrainMesh.\n";
-        }
-    }
-    else {
-        std::cerr << "Terrain mesh not generated.\n";
-    }
-}
-
 
 void UiContext::renderDockingWindow() {
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -181,15 +154,13 @@ void UiContext::renderMenuBar()
         if (ImGui::BeginMenu("File")) {
             if (ImGui::BeginMenu("Export")) {
                 if (ImGui::MenuItem("OBJ", "(.obj + .mtl)")) {
-                    exportTerrain("obj");
-
+                    exportMesh("obj");
                 }
                 ImGui::EndMenu();
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit", "Alt+F4")) {
-                // Handle Exit action
-
+               Application::GetInstance()->Quit();
             }
             ImGui::EndMenu();
         }
@@ -244,6 +215,17 @@ void UiContext::renderMenuBar()
             ImGui::EndMenu();
         }
         
+        if (ImGui::BeginMenu("Mode")) {
+            if (ImGui::MenuItem("Block Generation", nullptr, mode == 0)) {
+                mode = 0;
+            }
+            if (ImGui::MenuItem("Terrain Generation", nullptr, mode == 1)) {
+                mode = 1;
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::SameLine();
+        ImGui::Text("| Current: %s", mode == 0 ? "Block Generation" : "Terrain Generation");
 
         ImGui::EndMainMenuBar();
     }
@@ -290,8 +272,8 @@ void UiContext::renderSceneOverlay(float* viewMatrix, float cameraDistance) {
     // Place gizmo in the top-right corner of the Scene View window
     ImVec2 gizmoSize(150, 150);
     ImVec2 gizmoPos(
-        scenePos.x + sceneSize.x - gizmoSize.x - 30, // 30px padding from right
-        scenePos.y + 30                              // 30px padding from top
+        scenePos.x + sceneSize.x - gizmoSize.x - 50, // 30px padding from right
+        scenePos.y + 50                              // 30px padding from top
     );
 
     ImGuizmo::DrawAxisTripod(

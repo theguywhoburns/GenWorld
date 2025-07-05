@@ -194,6 +194,7 @@ void TerrainGenerator::GenerateDecorations() {
 
 void TerrainGenerator::SetParameters(const TerrainUtilities::TerrainData& params) {
     parameters = params;
+    parameters.cellSize = std::max(0.25f, parameters.cellSize);
 
     // Calculate derived values
     parameters.halfWidth = parameters.width / 2;

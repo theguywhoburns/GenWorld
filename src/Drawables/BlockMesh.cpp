@@ -8,18 +8,12 @@ BlockMesh::BlockMesh(vector<Vertex> vertices, vector<unsigned int> indices,
     : Mesh(vertices, indices, textures) {
     
     this->data = blockData;
-    this->blockTextures = textures;
 }
 
-BlockMesh::~BlockMesh() {}
-
 void BlockMesh::Draw(Shader& shader) {
-    Mesh::Draw(shader);
 }
 
 void BlockMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
-    Mesh::Draw(view, projection);
-
     // Draw all block instances
     DrawBlockInstances(view, projection);
 }
@@ -43,11 +37,6 @@ void BlockMesh::AddBlockInstance(const std::string& assetPath, const Transform& 
     assetInstances[assetPath].push_back(blockTransform.getModelMatrix());
 }
 
-void BlockMesh::ClearInstances() {
-    blockInstances.clear();
-    assetInstances.clear();
-}
-
 glm::vec3 BlockMesh::GetBlockPosition(int gridX, int gridZ) const {
     if (!IsValidGridPosition(gridX, gridZ)) {
         return glm::vec3(0.0f);
@@ -64,10 +53,6 @@ bool BlockMesh::IsValidGridPosition(int gridX, int gridZ) const {
            gridZ >= 0 && gridZ < (int)data.gridLength;
 }
 
-void BlockMesh::SetBlockTextures(const std::vector<std::shared_ptr<Texture>>& textures) {
-    blockTextures = textures;
-}
-
 void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& projection) {
     for (const auto& pair : assetInstances) {
         const std::string& assetPath = pair.first;
@@ -77,7 +62,7 @@ void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& proje
         
         std::shared_ptr<Model> model = assetModels[assetPath];
         if (model) {
-            model->SetShader(m_shader);
+            model->SetShaderParameters(m_currentShadingParams);
             model->DrawInstanced(view, projection, instances);
         }
     }

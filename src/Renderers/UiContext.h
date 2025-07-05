@@ -2,12 +2,10 @@
 
 #include "IRenderContext.h"
 #include "../Utils/FileDialogs.h"
-#include "../Utils/OBJExporter.h"
 #include "../UI/SpectrumUI.h"
 #include <GLFW/glfw3.h>
 #include "../Core/Camera.h"
 #include <iostream>
-#include <fstream>
 
 class TerrainGenerator;
 
@@ -22,13 +20,11 @@ public:
     void render() override;
     void postRender() override;
     void setCamera(Camera* cam) { camera = cam; }
-    void exportTerrain(string format);
-
-    // New: allow external code to inject TerrainGenerator
-    void setTerrainGenerator(TerrainGenerator* tg);
+    void exportMesh(std::string format);
 
     // Theme functions
     void switchTheme();
+    int getMode() const { return mode; }
 
 private:
     Camera* camera;
@@ -38,7 +34,7 @@ private:
     void renderSceneOverlay(float* viewMatrix, float cameraDistance);
     void renderSceneOverlay();
 
-    TerrainGenerator* terrainGen = nullptr; // Pointer to avoid circular dependency
+    int mode = 0; // 0 = Block Generation, 1 = Terrain Generation
 
     // Theme state
     bool isDarkTheme = true;
