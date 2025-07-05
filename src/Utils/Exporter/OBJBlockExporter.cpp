@@ -78,9 +78,9 @@ namespace Utils {
     std::string baseTexture = blockMesh.getTexturePath();
     MeshData* meshData = ConvertMeshToMeshData(blockMesh, "BlockMesh");
 
-    // ❗ Skip if no geometry
+    // Skip if no geometry
     if (!meshData || meshData->vertices.empty() || meshData->indices.empty()) {
-        std::cerr << "⚠️ Block mesh is empty. Skipping base mesh export.\n";
+        std::cerr << "Block mesh is empty. Skipping base mesh export.\n";
         delete meshData;
     } else {
         aiMesh* mesh = ConvertMeshDataToAssimp(meshData, scene, baseTexture, outputDir);
@@ -114,9 +114,9 @@ namespace Utils {
                 std::string meshName = "BlockInstance_" + std::to_string(instanceIndex) + "_Mesh_" + std::to_string(i);
                 MeshData* instanceData = ConvertMeshToMeshDataWithTransform(*subMesh, meshName, transform);
 
-                // ❗ Skip if no geometry
+                //  Skip if no geometry
                 if (!instanceData || instanceData->vertices.empty() || instanceData->indices.empty()) {
-                    std::cerr << "⚠️ Skipping empty instance mesh: " << meshName << std::endl;
+                    std::cerr << " Skipping empty instance mesh: " << meshName << std::endl;
                     delete instanceData;
                     continue;
                 }
