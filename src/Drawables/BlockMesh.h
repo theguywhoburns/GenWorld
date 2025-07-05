@@ -23,6 +23,27 @@ public:
     glm::vec3 GetBlockPosition(int gridX, int gridZ) const;
     bool IsValidGridPosition(int gridX, int gridZ) const;
 
+    
+unsigned int getBlockTextureArrayID() const {
+    return blockTextureArrayID;
+}
+
+std::vector<std::shared_ptr<Texture>> getBlockTextures() const {
+    return blockTextures;
+}
+
+const std::unordered_map<std::string, std::shared_ptr<Model>>& getAssetModels() const {
+    return assetModels;
+}
+
+const std::unordered_map<int, std::vector<glm::mat4>>& getBlockInstances() const {
+    return blockInstances;
+}
+
+const std::unordered_map<std::string, std::vector<glm::mat4>>& getAssetInstances() const {
+    return assetInstances;
+}
+
 private:
     BlockUtilities::BlockData data;
     

@@ -11,12 +11,9 @@ BlockMesh::BlockMesh(vector<Vertex> vertices, vector<unsigned int> indices,
 }
 
 void BlockMesh::Draw(Shader& shader) {
-    Mesh::Draw(shader);
 }
 
 void BlockMesh::Draw(const glm::mat4& view, const glm::mat4& projection) {
-    Mesh::Draw(view, projection);
-
     // Draw all block instances
     DrawBlockInstances(view, projection);
 }
@@ -65,7 +62,7 @@ void BlockMesh::DrawBlockInstances(const glm::mat4& view, const glm::mat4& proje
         
         std::shared_ptr<Model> model = assetModels[assetPath];
         if (model) {
-            model->SetShader(m_shader);
+            model->SetShaderParameters(m_currentShadingParams);
             model->DrawInstanced(view, projection, instances);
         }
     }
