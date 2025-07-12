@@ -1,8 +1,8 @@
 # GenWorld
 
 <img width="800" height="600" alt="Screenshot 2025-07-06 170824" src="https://github.com/user-attachments/assets/e57a6809-8ad7-45a6-bb7b-eb4024fc250d" />
-<img width="800" height="600" alt="Screenshot 2025-07-05 225308" src="https://github.com/user-attachments/assets/224db705-b016-4076-8148-eae57d2d4bcc" />
 <img width="800" height="600" alt="Screenshot 2025-07-07 225446" src="https://github.com/user-attachments/assets/85efebba-27ad-475e-b896-56469db3571c" />
+<img width="800" height="600" alt="Screenshot 2025-07-05 225308" src="https://github.com/user-attachments/assets/224db705-b016-4076-8148-eae57d2d4bcc" />
 
 # Project Setup
 
