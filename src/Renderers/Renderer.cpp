@@ -1,49 +1,42 @@
-#include "Renderer.h"
+#include <GenWorld/Renderers/Renderer.h>
 
 Renderer::~Renderer() {
-    // Cleanup if necessary
+  // Cleanup if necessary
 }
 
-void Renderer::ClearQueue() {
-    renderQueue.clear();
+void Renderer::ClearQueue() { renderQueue.clear(); }
+
+void Renderer::Render() { renderScene(); }
+
+void Renderer::AddToRenderQueue(IDrawable *mesh) {
+  if (mesh != nullptr) {
+    renderQueue.push_back(mesh);
+  }
 }
 
-void Renderer::Render() {
-    renderScene();
-}
+void Renderer::SetCamera(Camera *camera) { currentCamera = camera; }
 
-void Renderer::AddToRenderQueue(IDrawable* mesh) {
-    if (mesh != nullptr) {
-        renderQueue.push_back(mesh);
-    }
-}
-
-void Renderer::SetCamera(Camera* camera) {
-    currentCamera = camera;
-}
-
-void Renderer::SetScreenSize(glm::vec2 size) {
-    screenSize = size;
-}
+void Renderer::SetScreenSize(glm::vec2 size) { screenSize = size; }
 
 void Renderer::SetScreenSize(float width, float height) {
-    screenSize = glm::vec2(width, height);
+  screenSize = glm::vec2(width, height);
 }
 
-glm::vec2 Renderer::GetScreenSize() {
-    return screenSize;
-}
+glm::vec2 Renderer::GetScreenSize() { return screenSize; }
 
 void Renderer::renderScene() {
-    if (currentCamera == nullptr) return;
+  if (currentCamera == nullptr)
+    return;
 
-    glm::mat4 view = currentCamera->GetViewMatrix();
-    glm::mat4 projection = glm::perspective(glm::radians(currentCamera->zoom), (float)screenSize.x / (float)screenSize.y, 0.1f, 1000.0f);
+  glm::mat4 view = currentCamera->GetViewMatrix();
+  glm::mat4 projection = glm::perspective(
+      glm::radians(currentCamera->zoom),
+      (float)screenSize.x / (float)screenSize.y, 0.1f, 1000.0f);
 
-    for (IDrawable* mesh : renderQueue) {
-        if (mesh != nullptr) {
-            mesh->SetShaderParameters(currentShadingParams);
-            mesh->Draw(view, projection);
-        }
+  for (IDrawable *mesh : renderQueue) {
+    if (mesh != nullptr) {
+      mesh->SetShaderParameters(currentShadingParams);
+      mesh->Draw(view, projection);
     }
+  }
 }

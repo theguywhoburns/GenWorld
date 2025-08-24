@@ -1,7 +1,7 @@
-#include "AppWindow.h"
-#include "../stb_image.h"
-#include "glad/gl.h"
 
+#include <GenWorld/Core/Engine/AppWindow.h>
+#include <GenWorld/Core/stb_image.h>
+#include <GenWorld/Utils/OpenGlInc.h>
 AppWindow::~AppWindow() { shutdown(); }
 
 bool AppWindow::init() {
@@ -139,4 +139,11 @@ void AppWindow::resize_callback(GLFWwindow *window, int width, int height) {
   AppWindow *win = static_cast<AppWindow *>(glfwGetWindowUserPointer(window));
   win->SCR_WIDTH = width;
   win->SCR_HEIGHT = height;
+}
+void AppWindow::setClearColor(const glm::vec4 &color) {
+  glClearColor(color.r, color.g, color.b, color.a);
+}
+
+void AppWindow::clearBuffers() {
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }

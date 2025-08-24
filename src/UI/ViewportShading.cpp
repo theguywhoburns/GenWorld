@@ -1,5 +1,5 @@
-#include "ViewportShading.h"
-#include "SpectrumUI.h"
+#include <GenWorld/UI/SpectrumUI.h>
+#include <GenWorld/UI/ViewportShading.h>
 
 ShadingPanel::ShadingPanel() {
   // Initialize with default values

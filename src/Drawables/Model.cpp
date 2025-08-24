@@ -1,207 +1,187 @@
-#include "Model.h"
-#include "../Utils/Utils.h"
+#include <GenWorld/Drawables/Model.h>
+#include <GenWorld/Utils/Utils.h>
 
-void Model::Draw(Shader &shader)
-{
-	for (unsigned int i = 0; i < meshes.size(); i++)
-	{
-		meshes[i]->Draw(shader);
-	}
+void Model::Draw(Shader &shader) {
+  for (unsigned int i = 0; i < meshes.size(); i++) {
+    meshes[i]->Draw(shader);
+  }
 }
 
-void Model::Draw(const glm::mat4 &view, const glm::mat4 &projection)
-{
-	if (m_shader != nullptr)
-	{
-		for (unsigned int i = 0; i < meshes.size(); i++)
-		{
-			meshes[i]->Draw(view, projection);
-		}
-	}
+void Model::Draw(const glm::mat4 &view, const glm::mat4 &projection) {
+  if (m_shader != nullptr) {
+    for (unsigned int i = 0; i < meshes.size(); i++) {
+      meshes[i]->Draw(view, projection);
+    }
+  }
 }
 
-void Model::DrawInstanced(const glm::mat4 &view, const glm::mat4 &projection, const std::vector<glm::mat4> &instanceMatrices)
-{
-	for (Mesh *mesh : meshes)
-	{
-		mesh->UpdateInstanceData(instanceMatrices); // buffer updated here
-		mesh->DrawInstanced(instanceMatrices.size(), view, projection);
-	}
+void Model::DrawInstanced(const glm::mat4 &view, const glm::mat4 &projection,
+                          const std::vector<glm::mat4> &instanceMatrices) {
+  for (Mesh *mesh : meshes) {
+    mesh->UpdateInstanceData(instanceMatrices); // buffer updated here
+    mesh->DrawInstanced(instanceMatrices.size(), view, projection);
+  }
 }
 
-void Model::SetShader(std::shared_ptr<Shader> shader)
-{
-	m_shader = shader;
-	for (auto &mesh : meshes)
-	{
-		mesh->SetShader(shader);
-	}
+void Model::SetShader(std::shared_ptr<Shader> shader) {
+  m_shader = shader;
+  for (auto &mesh : meshes) {
+    mesh->SetShader(shader);
+  }
 }
 
-void Model::SetShader(const std::string &shaderName)
-{
-	m_shader = ShaderManager::GetInstance()->getShader(shaderName);
-	if (!m_shader)
-	{
-		throw std::runtime_error("Shader not found: " + shaderName);
-	}
+void Model::SetShader(const std::string &shaderName) {
+  m_shader = ShaderManager::GetInstance()->getShader(shaderName);
+  if (!m_shader) {
+    throw std::runtime_error("Shader not found: " + shaderName);
+  }
 
-	for (auto &mesh : meshes)
-	{
-		mesh->SetShader(m_shader);
-	}
+  for (auto &mesh : meshes) {
+    mesh->SetShader(m_shader);
+  }
 }
 
-void Model::SetShaderParameters(const ShadingParameters &params)
-{
-	m_currentShadingParams = params;
-	for (auto &mesh : meshes)
-	{
-		mesh->SetShaderParameters(params);
-	}
+void Model::SetShaderParameters(const ShadingParameters &params) {
+  m_currentShadingParams = params;
+  for (auto &mesh : meshes) {
+    mesh->SetShaderParameters(params);
+  }
 }
 
-void Model::loadModel(string path)
-{
-	Assimp::Importer importer;
+void Model::loadModel(string path) {
+  Assimp::Importer importer;
 
-	path = Utils::NormalizePath(path);
-	directory = path.substr(0, path.find_last_of('/'));
+  path = Utils::NormalizePath(path);
+  directory = path.substr(0, path.find_last_of('/'));
 
-	const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+  const aiScene *scene = importer.ReadFile(
+      path, aiProcess_Triangulate | aiProcess_GenSmoothNormals |
+                aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-	{
-		cout << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
-		return;
-	}
+  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
+      !scene->mRootNode) {
+    cout << "ERROR::ASSIMP::" << importer.GetErrorString() << endl;
+    return;
+  }
 
-	processNode(scene->mRootNode, scene);
+  processNode(scene->mRootNode, scene);
 }
 
-void Model::processNode(aiNode *node, const aiScene *scene)
-{
-	// process all the node's meshes (if any)
-	for (unsigned int i = 0; i < node->mNumMeshes; i++)
-	{
-		aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-		meshes.push_back(processMesh(mesh, scene));
-	}
+void Model::processNode(aiNode *node, const aiScene *scene) {
+  // process all the node's meshes (if any)
+  for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+    aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
+    meshes.push_back(processMesh(mesh, scene));
+  }
 
-	// then do the same for each of its children
-	for (unsigned int i = 0; i < node->mNumChildren; i++)
-	{
-		processNode(node->mChildren[i], scene);
-	}
+  // then do the same for each of its children
+  for (unsigned int i = 0; i < node->mNumChildren; i++) {
+    processNode(node->mChildren[i], scene);
+  }
 }
 
-Mesh *Model::processMesh(aiMesh *mesh, const aiScene *scene)
-{
-	vector<Vertex> vertices;
-	vector<unsigned int> indices;
-	vector<std::shared_ptr<Texture>> textures;
+Mesh *Model::processMesh(aiMesh *mesh, const aiScene *scene) {
+  vector<Vertex> vertices;
+  vector<unsigned int> indices;
+  vector<std::shared_ptr<Texture>> textures;
 
-	// load vertices
-	for (unsigned int i = 0; i < mesh->mNumVertices; i++)
-	{
-		Vertex vertex;
-		glm::vec3 vector;
-		vector.x = mesh->mVertices[i].x;
-		vector.y = mesh->mVertices[i].y;
-		vector.z = mesh->mVertices[i].z;
-		vertex.Position = vector;
+  // load vertices
+  for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+    Vertex vertex;
+    glm::vec3 vector;
+    vector.x = mesh->mVertices[i].x;
+    vector.y = mesh->mVertices[i].y;
+    vector.z = mesh->mVertices[i].z;
+    vertex.Position = vector;
 
-		if (mesh->HasNormals())
-		{
-			vector.x = mesh->mNormals[i].x;
-			vector.y = mesh->mNormals[i].y;
-			vector.z = mesh->mNormals[i].z;
-			vertex.Normal = vector;
-		}
+    if (mesh->HasNormals()) {
+      vector.x = mesh->mNormals[i].x;
+      vector.y = mesh->mNormals[i].y;
+      vector.z = mesh->mNormals[i].z;
+      vertex.Normal = vector;
+    }
 
-		if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
-		{
-			glm::vec2 vec;
-			vec.x = mesh->mTextureCoords[0][i].x;
-			vec.y = mesh->mTextureCoords[0][i].y;
-			vertex.TexCoords = vec;
+    if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+    {
+      glm::vec2 vec;
+      vec.x = mesh->mTextureCoords[0][i].x;
+      vec.y = mesh->mTextureCoords[0][i].y;
+      vertex.TexCoords = vec;
 
-			// tangent
-			vector.x = mesh->mTangents[i].x;
-			vector.y = mesh->mTangents[i].y;
-			vector.z = mesh->mTangents[i].z;
-			vertex.Tangent = vector;
-			// bitangent
-			vector.x = mesh->mBitangents[i].x;
-			vector.y = mesh->mBitangents[i].y;
-			vector.z = mesh->mBitangents[i].z;
-			vertex.Bitangent = vector;
-		}
-		else
-			vertex.TexCoords = glm::vec2(0.0f, 0.0f);
+      // tangent
+      vector.x = mesh->mTangents[i].x;
+      vector.y = mesh->mTangents[i].y;
+      vector.z = mesh->mTangents[i].z;
+      vertex.Tangent = vector;
+      // bitangent
+      vector.x = mesh->mBitangents[i].x;
+      vector.y = mesh->mBitangents[i].y;
+      vector.z = mesh->mBitangents[i].z;
+      vertex.Bitangent = vector;
+    } else
+      vertex.TexCoords = glm::vec2(0.0f, 0.0f);
 
-		vertices.push_back(vertex);
-	}
+    vertices.push_back(vertex);
+  }
 
-	// load indices
-	for (unsigned int i = 0; i < mesh->mNumFaces; i++)
-	{
-		aiFace face = mesh->mFaces[i];
-		for (unsigned int j = 0; j < face.mNumIndices; j++)
-			indices.push_back(face.mIndices[j]);
-	}
+  // load indices
+  for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+    aiFace face = mesh->mFaces[i];
+    for (unsigned int j = 0; j < face.mNumIndices; j++)
+      indices.push_back(face.mIndices[j]);
+  }
 
-	// load materials
-	aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+  // load materials
+  aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
 
-	// 1. diffuse maps
-	vector<std::shared_ptr<Texture>> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, TexType::diffuse);
-	textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-	// 2. specular maps
-	vector<std::shared_ptr<Texture>> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, TexType::specular);
-	textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-	// 3. normal maps
-	std::vector<std::shared_ptr<Texture>> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, TexType::normal);
-	textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-	// 4. height maps
-	std::vector<std::shared_ptr<Texture>> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, TexType::height);
-	textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+  // 1. diffuse maps
+  vector<std::shared_ptr<Texture>> diffuseMaps =
+      loadMaterialTextures(material, aiTextureType_DIFFUSE, TexType::diffuse);
+  textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+  // 2. specular maps
+  vector<std::shared_ptr<Texture>> specularMaps =
+      loadMaterialTextures(material, aiTextureType_SPECULAR, TexType::specular);
+  textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+  // 3. normal maps
+  std::vector<std::shared_ptr<Texture>> normalMaps =
+      loadMaterialTextures(material, aiTextureType_HEIGHT, TexType::normal);
+  textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+  // 4. height maps
+  std::vector<std::shared_ptr<Texture>> heightMaps =
+      loadMaterialTextures(material, aiTextureType_AMBIENT, TexType::height);
+  textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
-	return new Mesh(vertices, indices, textures);
+  return new Mesh(vertices, indices, textures);
 }
 
-vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, TexType typeName)
-{
-	vector<std::shared_ptr<Texture>> textures;
-	for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
-	{
-		aiString str;
-		mat->GetTexture(type, i, &str);
+vector<std::shared_ptr<Texture>> Model::loadMaterialTextures(aiMaterial *mat,
+                                                             aiTextureType type,
+                                                             TexType typeName) {
+  vector<std::shared_ptr<Texture>> textures;
+  for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
+    aiString str;
+    mat->GetTexture(type, i, &str);
 
-		// Use forward slash and NormalizePath for cross-platform compatibility
-		string path = directory + "/" + string(str.C_Str());
-		path = Utils::NormalizePath(path);
+    // Use forward slash and NormalizePath for cross-platform compatibility
+    string path = directory + "/" + string(str.C_Str());
+    path = Utils::NormalizePath(path);
 
-		bool skip = false;
+    bool skip = false;
 
-		for (unsigned int j = 0; j < textures_loaded.size(); j++)
-		{
-			if (std::strcmp(textures_loaded[j]->path.data(), path.data()) == 0)
-			{
-				textures.push_back(textures_loaded[j]);
-				skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
-				break;
-			}
-		}
+    for (unsigned int j = 0; j < textures_loaded.size(); j++) {
+      if (std::strcmp(textures_loaded[j]->path.data(), path.data()) == 0) {
+        textures.push_back(textures_loaded[j]);
+        skip = true; // a texture with the same filepath has already been
+                     // loaded, continue to next one. (optimization)
+        break;
+      }
+    }
 
-		if (!skip)
-		{
-			std::shared_ptr<Texture> tex = std::make_shared<Texture>(path, typeName);
-			textures.push_back(tex);
-			textures_loaded.push_back(tex);
-		}
-	}
-	return textures;
+    if (!skip) {
+      std::shared_ptr<Texture> tex = std::make_shared<Texture>(path, typeName);
+      textures.push_back(tex);
+      textures_loaded.push_back(tex);
+    }
+  }
+  return textures;
 }
-
-

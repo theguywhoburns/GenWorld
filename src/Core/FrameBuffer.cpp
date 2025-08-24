@@ -1,5 +1,5 @@
-#include "FrameBuffer.h"
-
+#include <GenWorld/Core/FrameBuffer.h>
+#include <GenWorld/Utils/OpenGlInc.h>
 void FrameBuffer::Resize(int width, int height) {
   // Prevent invalid dimensions
   width = std::max(1, width);

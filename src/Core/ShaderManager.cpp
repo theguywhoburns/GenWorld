@@ -1,2 +1,2 @@
-#include "ShaderManager.h"
-ShaderManager* ShaderManager::instance = nullptr;
+#include <GenWorld/Core/ShaderManager.h>
+ShaderManager *ShaderManager::instance = nullptr;

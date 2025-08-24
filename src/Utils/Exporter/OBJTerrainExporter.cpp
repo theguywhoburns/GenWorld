@@ -1,6 +1,6 @@
-#include "../../Core/stb_image_write.h"
-#include "../Utils.h"
-#include "MeshExporter.h"
+#include <GenWorld/Core/stb_image_write.h>
+#include <GenWorld/Utils/Exporter/MeshExporter.h>
+#include <GenWorld/Utils/Utils.h>
 #include <assimp/Exporter.hpp>
 #include <assimp/scene.h>
 #include <filesystem>

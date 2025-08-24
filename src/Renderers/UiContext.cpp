@@ -1,9 +1,9 @@
-#include "UiContext.h"
-#include "../Utils/ImGuizmo.h"
+#include <GenWorld/Renderers/UiContext.h>
+#include <GenWorld/Utils/ImGuizmo.h>
 #include <cstring>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../Core/Engine/Application.h"
+#include <GenWorld/Core/Engine/Application.h>
 
 void UiContext::switchTheme() {
   isDarkTheme = !isDarkTheme;
@@ -94,7 +94,7 @@ void UiContext::postRender() {
 }
 
 void UiContext::exportMesh(std::string format) {
-  Application::GetInstance()->Export(format);
+  Application::GetInstance().Export(format);
 }
 
 void UiContext::renderDockingWindow() {
@@ -141,7 +141,7 @@ void UiContext::renderMenuBar() {
       }
       ImGui::Separator();
       if (ImGui::MenuItem("Exit", "Alt+F4")) {
-        Application::GetInstance()->Quit();
+        Application::GetInstance().Quit();
       }
       ImGui::EndMenu();
     }

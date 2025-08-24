@@ -1,43 +1,37 @@
-#include "TerrainController.h"
+#include <GenWorld/Controllers/TerrainController.h>
 
-TerrainController::TerrainController(Renderer* renderer)
+TerrainController::TerrainController(Renderer *renderer)
     : GeneratorController(renderer) {
-    // Initialize the terrain generator and UI
-    generator = TerrainGenerator();
-    terrainUI = new TerrainUI(this);
+  // Initialize the terrain generator and UI
+  generator = TerrainGenerator();
+  terrainUI = new TerrainUI(this);
 }
 
 void TerrainController::Update() {
-    Mesh* mesh = generator.GetMesh();
-    if (mesh == nullptr) {
-        return; // No mesh to render
-    }
+  Mesh *mesh = generator.GetMesh();
+  if (mesh == nullptr) {
+    return; // No mesh to render
+  }
 
-    renderer->AddToRenderQueue(mesh);
+  renderer->AddToRenderQueue(mesh);
 }
 
-void TerrainController::RandomizeSeed() {
-    terrainUI->RandomizeSeed();
-}
+void TerrainController::RandomizeSeed() { terrainUI->RandomizeSeed(); }
 
-IGeneratorStrategy& TerrainController::getGenerator() {
-    return generator;
-}
+IGeneratorStrategy &TerrainController::getGenerator() { return generator; }
 
 void TerrainController::UpdateParameters() {
-    TerrainUtilities::TerrainData params = terrainUI->GetParameters();
-    generator.SetParameters(params);
+  TerrainUtilities::TerrainData params = terrainUI->GetParameters();
+  generator.SetParameters(params);
 }
 
 void TerrainController::Generate() {
-    if (generator.GetParameters() == terrainUI->GetParameters())
-        return;
+  if (generator.GetParameters() == terrainUI->GetParameters())
+    return;
 
-    UpdateParameters();
+  UpdateParameters();
 
-    generator.Generate();
+  generator.Generate();
 }
 
-void TerrainController::DisplayUI() {
-    terrainUI->DisplayUI();
-}
+void TerrainController::DisplayUI() { terrainUI->DisplayUI(); }

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../../Core/stb_image_write.h"
-#include "../../Drawables/BlockMesh.h"
-#include "../../Drawables/Mesh.h"
-#include "../../Drawables/TerrainMesh.h"
-#include "../MeshData.h"
-#include <GLFW/glfw3.h>
+#include <GenWorld/Core/stb_image_write.h>
+#include <GenWorld/Drawables/BlockMesh.h>
+#include <GenWorld/Drawables/Mesh.h>
+#include <GenWorld/Drawables/TerrainMesh.h>
+#include <GenWorld/Utils/MeshData.h>
+#include <GenWorld/Utils/OpenGlInc.h>
 #include <assimp/scene.h>
 
 namespace Utils {
